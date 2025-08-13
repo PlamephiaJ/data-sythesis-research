@@ -1,0 +1,112 @@
+# ==============================================================================
+#                             Build System Configuration
+# ==============================================================================
+# This section tells build tools (like uv, pip) how to build your project.
+# For most projects, using setuptools is the standard.
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+# ==============================================================================
+#                           Project Metadata (PEP 621)
+# ==============================================================================
+# This is the core information about your project. `uv` reads this section
+# to resolve and install dependencies.
+[project]
+# --- Basic Information ---
+name = "data-synthesis-research"
+version = "0.1.0"
+description = "A project for synthesizing tabular or image data using neural networks (e.g., GANs, VAEs)."
+authors = [
+  { name = "Your Name", email = "your.email@example.com" },
+]
+readme = "README.md"
+license = { text = "MIT" } # Or use { file = "LICENSE" }
+requires-python = ">=3.9" # It's recommended to use a recent Python version
+classifiers = [
+    # https://pypi.org/classifiers/
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+# --- Core Dependencies ---
+# List the libraries required for your project to run.
+# uv uses this list to create your environment.
+dependencies = [
+    # Deep Learning Framework (choose one or adjust as needed)
+    "torch>=2.0",            # PyTorch
+    "torchvision",           # PyTorch library for image processing
+    "torchaudio",            # PyTorch library for audio processing
+    # "tensorflow>=2.10",    # If you use TensorFlow
+
+    # High-level Training Framework (optional, but highly recommended)
+    "lightning>=2.2",        # For organizing code and simplifying the training loop
+
+    # Data Handling and Scientific Computing
+    "numpy",                 # Fundamental package for numerical computation
+    "pandas",                # For tabular data manipulation
+    "scikit-learn",          # For data preprocessing, evaluation metrics, etc.
+
+    # Utility Libraries
+    "tqdm",                  # For elegant progress bars
+    "pyyaml",                # For reading configuration files (e.g., YAML)
+]
+
+# --- Project URLs (Optional) ---
+[project.urls]
+Homepage = "https://github.com/your-username/your-repo"
+Repository = "https://github.com/your-username/your-repo"
+"Bug Tracker" = "https://github.com/your-username/your-repo/issues"
+
+
+# ==============================================================================
+#                           Optional Dependencies (Extras)
+# ==============================================================================
+# Group dependencies for development, testing, docs, etc., for on-demand installation.
+[project.optional-dependencies]
+# For development tools
+dev = [
+    "ruff",                  # High-performance linter and formatter (replaces flake8, isort, black)
+    "pytest",                # Testing framework
+    "pytest-cov",            # Test coverage
+    "pre-commit",            # Git pre-commit hooks for automatic code quality checks
+]
+
+# For data exploration and visualization
+notebook = [
+    "jupyterlab",            # Jupyter Notebook environment
+    "matplotlib",            # Plotting library
+    "seaborn",               # For more beautiful statistical plots
+]
+
+# For building documentation
+docs = [
+    "mkdocs-material",       # Documentation generator
+    "mkdocstrings[python]",  # Generate docs from Python docstrings
+]
+
+
+# ==============================================================================
+#                           Tool Configuration
+# ==============================================================================
+# Configure development tools like ruff here.
+[tool.ruff]
+line-length = 88
+indent-width = 4
+
+[tool.ruff.lint]
+# Select the rule sets to enable.
+# E/F: pyflakes/pycodestyle, I: isort, B: flake8-bugbear, C90: mccabe complexity
+select = ["E", "F", "I", "B", "C90"]
+
+[tool.ruff.format]
+quote-style = "double"
