@@ -1,0 +1,390 @@
+# Configuration Template for Neural Network Model Training
+# Version: 1.0.3
+# Date: 2025-03-14
+# Description: A standardized and extensible configuration template designed for training
+# custom neural networks, particularly those incorporating multi-head attention mechanisms.
+# This template ensures reproducibility and streamlines the setup for model training,
+# dataset handling, and runtime environment configuration, supporting various deep learning
+# frameworks (e.g., PyTorch, TensorFlow) and integration with the Hugging Face ecosystem.
+# Purpose: To provide a structured and reproducible framework for configuring deep learning
+# experiments, enhancing consistency and facilitating collaboration.
+
+
+# --- Metadata ---
+# This section defines high-level information about the experiment, including
+# identification, versioning, and categorization details crucial for tracking,
+# documentation, and future reference.
+metadata:
+  # A unique identifier for the experiment, critical for logging, artifact tracking,
+  # and differentiating between experimental runs.
+  # Recommendation: Customize to reflect the experiment's specific objective (e.g., "attn_clf_v1").
+  # Default: "experiment_placeholder"
+  experiment_name: "app_model"
+
+  # The overarching application or system this model belongs to.
+  # This helps in grouping related models and configurations within a larger project.
+  application_name: "app_name"
+
+  # A concise summary detailing the experiment’s primary objectives, scope,
+  # or methodology.
+  # Example: "Fine-tuning a transformer model for binary classification on a custom dataset."
+  # Default: "Template for training a neural network with multi-head attention"
+  description: "Template for training a neural network with multi-head attention"
+
+  # The primary contributor(s) responsible for this configuration.
+  # Format: "Name (ID: xxxxxxxxx)" for traceability in collaborative development environments.
+  # Default: "Your Name (ID: xxxxxxxxx)" (placeholder, requires customization).
+  author: "Your Name (ID: xxxxxxxxx)"
+
+  # The version number of this configuration file, adhering to semantic versioning
+  # (MAJOR.MINOR.PATCH).
+  # Increment rules: MAJOR for breaking changes, MINOR for new features/significant updates,
+  # PATCH for backward-compatible bug fixes or minor adjustments.
+  # Default: "1.0.0"
+  version: "1.0.0"
+
+  # A list of keywords for categorizing the experiment. These tags facilitate
+  # search, filtering, and organization of experimental results and configurations.
+  # Examples: ["neural_network", "attention", "classification", "huggingface", "transformer"].
+  # Default: [] (empty list, populate as needed).
+  tags: []
+
+
+# --- Model Configuration ---
+# This section specifies the neural network architecture, encompassing its identifier,
+# implementation details, and core hyperparameters. It supports both custom-defined
+# models and the integration of pre-trained models.
+model:
+  # An identifier for the neural network architecture.
+  # Recommendation: Use a descriptive name (e.g., "TransformerForSequenceClassification", "CustomCNN").
+  # Default: "NeuralNetworkName" (placeholder, replace with specific model name).
+  name: "NeuralNetworkName"
+
+  # Specifies the path or identifier for a pre-trained model to be loaded.
+  # This can be a Hugging Face model identifier (e.g., "bert-base-uncased")
+  # or a local path to a saved model checkpoint.
+  pretrained_model: "huggingface models"
+
+  # Defines the machine learning task type for which the model is being trained.
+  # Common values include "classification", "regression", "token_classification",
+  # "sequence_to_sequence", etc.
+  task_type: "classification"
+
+  # The total number of output labels or classes for classification tasks.
+  # This parameter is crucial for configuring the final layer of the model.
+  number_labels: 2
+
+  # Path to the Python module containing the custom model definition.
+  # Format: Dotted path (e.g., "src.models.custom_transformer").
+  # This parameter should be specified if a custom model architecture is used;
+  # otherwise, it can be removed or left as commented.
+  # Default: "arch.custom_module" (placeholder, update with actual path).
+  custom_model: "arch.custom_module"
+
+  # Note: Core model-specific hyperparameters (e.g., learning rate, dropout rates,
+  # layer sizes, number of attention heads, activation functions) should be defined
+  # directly within this 'model' section.
+  # For pre-trained models, the 'base_path' (or similar) parameter can specify
+  # the location of pre-trained weights (e.g., Hugging Face model hub or a local path).
+  #
+  # Example for a pre-trained model:
+  #   base_path: "bert-base-uncased"
+  #
+  # Example for a custom model:
+  #   num_layers: 6
+  #   attention_heads: 8
+  #   hidden_size: 768
+  #   dropout: 0.1
+  #   activation_function: "gelu"
+
+
+# --- Dataset Configuration ---
+# This section configures all aspects of dataset handling, including file paths,
+# preprocessing steps, tokenization settings, and data loading parameters.
+# It supports flexible dataset structures and defines data splitting ratios.
+dataset:
+  # The base directory where all dataset files are located.
+  # Format: A path relative to the project root or an absolute path.
+  # Default: "datasets/WAF_Dataset/CSIC_CAPEC_HTTP_XSS" (specific to this example).
+  dataset_dir: "datasets/WAF_Dataset/CSIC_CAPEC_HTTP_XSS"
+
+  # Configuration for the tokenizer. This can be an identifier for a pre-trained
+  # tokenizer from Hugging Face (e.g., "bert-base-uncased") or a local path
+  # to a saved tokenizer configuration.
+  # Default: "path/to/tokenizer" (placeholder, update with actual path).
+  tokenizer: "google/bert_uncased_L-2_H-128_A-2"
+
+  # Specifies the type of data processor to be applied during the preprocessing phase.
+  # This parameter dictates how raw data is transformed into a model-consumable format.
+  # Values: Processor-specific identifiers (e.g., "waf" for web application firewall data).
+  # Default: "waf" (specific to the provided example, customize for other domains).
+  processor_type: "waf"
+
+  # The proportion of the total dataset to be allocated for the training set.
+  # Range: 0.0 to 1.0. Ensure that the sum of 'train_split_ratio', 'eval_split_ratio',
+  # and the implicit test split ratio (if applicable) equals 1.0.
+  # Default: 0.7 (70% for training).
+  train_split_ratio: 0.7
+
+  # The proportion of the total dataset to be allocated for the validation set.
+  # Range: 0.0 to 1.0. This split is used for hyperparameter tuning and model selection.
+  # Default: 0.15 (15% for validation).
+  eval_split_ratio: 0.15
+
+  # Configuration settings specifically for a custom tokenizer, if used.
+  customize_tokenizer:
+    # Path to a text file containing special tokens (e.g., [PAD], [CLS], [SEP])
+    # to be added to the tokenizer's vocabulary. Each token should be on a new line.
+    # Default: "apps/ai_waf/special_tokens.txt" (example path).
+    special_tokens_file: "apps/ai_waf/special_tokens.txt"
+
+    # Path to the base tokenizer model (e.g., a Hugging Face pre-trained tokenizer
+    # or a local tokenizer configuration) from which the custom tokenizer will be initialized.
+    # Example: "bert-tiny_L-2_H-128_A-2".
+    # Default: "google/bert_uncased_L-2_H-128_A-2" (example path).
+    base_tokenizer: "google/bert_uncased_L-2_H-128_A-2"
+
+  # Paths to pre-processed and cached dataset files for each split.
+  # Caching pre-processed data can significantly speed up subsequent runs.
+  cached_outputs:
+    # Path to the cached training data file. The format depends on the preprocessing
+    # pipeline (e.g., .pt for PyTorch tensors, .csv, .json).
+    # Default: "train_data.pt" (assumes PyTorch tensor format).
+    train: "train_data.pt"
+
+    # Path to the cached validation data file.
+    # Default: "val_data.pt" (assumes PyTorch tensor format).
+    eval: "val_data.pt"
+
+    # Path to the cached test data file.
+    # Default: "test_data.pt" (assumes PyTorch tensor format).
+    test: "test_data.pt"
+
+  # The maximum sequence length for tokenization and padding.
+  # Sequences longer than this will be truncated, and shorter ones will be padded.
+  # This parameter directly impacts memory usage and model compatibility.
+  # Default: 512 (a common value for transformer-based models).
+  max_length: 512
+
+  # Configuration for the data loader, which manages batching, shuffling, and
+  # parallel data loading for training, validation, and testing.
+  dataloader:
+    # Defines the batch size for each dataset split.
+    batch_size:
+      # Batch size used during the training phase. A larger batch size may
+      # improve GPU utilization but requires more memory.
+      # Default: 128 (balances memory usage and training throughput).
+      train: 128
+
+      # Batch size used during the validation phase. Typically smaller than
+      # training batch size for faster evaluation.
+      # Default: 64.
+      eval: 64
+
+      # Batch size used during the test phase. Usually consistent with validation
+      # for consistent evaluation metrics.
+      # Default: 64.
+      test: 64
+
+    # Shuffling settings for data loading.
+    shuffle:
+      # Enables or disables shuffling of training data. Shuffling is crucial
+      # for stochastic gradient descent to improve generalization.
+      # Default: true.
+      train: true
+
+      # Enables or disables shuffling of validation data. Typically disabled
+      # for consistent evaluation metrics across epochs.
+      # Default: false.
+      eval: false
+
+      # Enables or disables shuffling of test data. Typically disabled for
+      # consistent and reproducible evaluation metrics.
+      # Default: false.
+      test: false
+
+    # Enables pinned memory (page-locked memory) for faster data transfer
+    # from CPU to GPU. Recommended for GPU-accelerated training.
+    # Default: true.
+    pin_memory: true
+
+
+# --- Trainer Configuration ---
+# This section defines parameters for the training loop, including the number of epochs,
+# optimization algorithm settings, checkpointing strategy, and early stopping criteria.
+# These settings are critical for balancing training performance, model stability,
+# and final model quality.
+trainer:
+  # The output directory where trained models, checkpoints, logs, and other
+  # training artifacts will be saved.
+  # Format: A path relative to the project root. The '{experiment_name}' placeholder
+  # will be dynamically replaced with the 'metadata.experiment_name' value.
+  output_dir: "sec_models/{experiment_name}/"
+
+  # The total number of full passes over the training dataset.
+  # Default: 5 (adjust based on dataset size, model complexity, and convergence speed).
+  epochs: 5
+
+  # Enables or disables periodic model checkpointing during training.
+  # Enabling checkpointing allows resuming training from a saved state or
+  # selecting the best performing model. Disabling saves disk space.
+  # Default: false (disable to save disk space; enable for long training runs).
+  use_checkpointing: false
+
+  # Configuration for the optimization algorithm used to update model weights.
+  optimizer:
+    # The type of optimizer algorithm.
+    # Options include common optimizers like "AdamW", "SGD", "RMSprop", etc.
+    # Default: "AdamW" (often suitable for transformer models and many deep learning tasks).
+    type: "AdamW"
+
+    # The initial learning rate for the optimizer. This value significantly
+    # impacts training speed and convergence.
+    # Default: 5e-6 (a conservative rate often used for fine-tuning pre-trained models).
+    lr: 5e-6
+
+    # The L2 regularization (weight decay) applied to model weights.
+    # Helps prevent overfitting by penalizing large weights.
+    # Default: 0.01 (a moderate regularization strength).
+    weight_decay: 0.01
+
+  # Configuration for the learning rate scheduler, which dynamically adjusts the
+  # learning rate during training.
+  scheduler:
+    # The type of learning rate scheduler.
+    # Options: "ReduceLROnPlateau", "CosineAnnealingLR", "StepLR", "WarmupLinear", etc.
+    # Default: "ReduceLROnPlateau" (reduces learning rate when a metric stops improving).
+    type: "ReduceLROnPlateau"
+
+    # Scheduler-specific parameters that fine-tune its behavior.
+    params:
+      # Number of epochs to wait without improvement on the monitored metric
+      # before reducing the learning rate.
+      # Default: 5.
+      patience: 5
+
+      # The multiplicative factor by which the learning rate will be reduced.
+      # Default: 0.5 (halves the learning rate).
+      factor: 0.5
+
+  # Enables or disables mixed-precision training using FP16 (half-precision floats).
+  # This can significantly reduce memory usage and speed up training on compatible GPUs,
+  # but may introduce numerical instability in some cases.
+  # Default: false (disable for stability; enable for performance on compatible GPUs).
+  use_fp16: false
+
+  # The maximum norm of the gradients. Gradients exceeding this threshold will be
+  # clipped to prevent exploding gradients, which can destabilize training.
+  # Default: 0.5 (a common value for moderate clipping).
+  gradient_clip_val: 0.5
+
+  # The frequency (in epochs) at which model checkpoints are saved.
+  # Default: 1 (save after every epoch). Set to a higher value to save disk space.
+  save_interval: 1
+
+  # The primary metric monitored during training and validation to assess model
+  # performance and guide decisions (e.g., early stopping, learning rate scheduling).
+  # Options: "loss", "accuracy", "f1-score", "precision", "recall", "roc_auc", etc.
+  # Default: "f1-score".
+  target_metric: "f1-score"
+
+  # Configuration for early stopping, a technique to prevent overfitting by
+  # terminating training when validation performance stops improving.
+  early_stopping:
+    # Number of epochs to wait for improvement on the 'target_metric' before
+    # stopping training.
+    patience: 3
+
+    # Minimum change in the 'target_metric' to qualify as an improvement.
+    # Improvements smaller than this value will not reset the patience counter.
+    min_delta: 0.001
+
+  # Specifies the verbosity level for logging output during training.
+  # Options (from least to most verbose):
+  #   - "CRITICAL": Only severe errors that cause the program to halt.
+  #   - "ERROR": Errors that prevent a specific operation from completing.
+  #   - "WARNING": Indications of potential issues, but the operation continues.
+  #   - "INFO": General operational messages, progress, and important events.
+  #   - "DEBUG": Detailed information, typically useful for debugging.
+  # Default: "INFO" (standard verbosity for general monitoring).
+  logging_level: "INFO"
+
+
+# --- Runtime Configuration ---
+# This section defines settings for the execution environment, including hardware
+# selection and CUDA-specific runtime behaviors. It configures how the training
+# pipeline interacts with computational resources, balancing performance, debugging,
+# and memory management for GPU-accelerated tasks.
+runtime:
+  # Specifies the compute device on which model training and inference will be performed.
+  # This parameter dictates where PyTorch tensors and models are allocated.
+  # Options:
+  #   - "cuda": Utilizes the default NVIDIA GPU available (requires CUDA support).
+  #   - "cuda:X": Designates a specific GPU by its index (e.g., "cuda:0" for the first GPU
+  #               in multi-GPU configurations).
+  #   - "cpu": Uses the CPU as the fallback device if a GPU is unavailable or explicitly desired.
+  # Default: "cuda" (assumes GPU availability; device presence is checked at runtime).
+  # Usage Note: For multi-GPU scenarios, consider pairing this with the CUDA_VISIBLE_DEVICES
+  # environment variable (e.g., `CUDA_VISIBLE_DEVICES=0,1 python main.py`).
+  device: "cuda"
+
+  # Controls the `CUDA_LAUNCH_BLOCKING` environment variable, which influences
+  # the synchronization behavior of CUDA kernel execution.
+  # Values:
+  #   - "1": Enables synchronous mode. CUDA operations will wait for completion,
+  #          which is beneficial for debugging by providing precise error timing
+  #          (e.g., for CUDA memory errors).
+  #   - "0": Enables asynchronous mode. CUDA operations run in parallel, which is
+  #          the default PyTorch behavior and generally provides better performance.
+  # Default: "0" (recommended for production environments to maximize throughput).
+  # Usage Note: Set to "1" during development and debugging phases; revert to "0" for production.
+  # Impact: Synchronous mode may lead to reduced GPU utilization efficiency.
+  cuda_launch_blocking: "0"
+
+  # Configures the `PYTORCH_CUDA_ALLOC_CONF` environment variable, allowing fine-tuning
+  # of PyTorch's GPU memory allocation strategy.
+  # Format: A string composed of key:value pairs, separated by commas.
+  # Current Setting:
+  #   - "expandable_segments:True": Activates dynamic expansion of memory segments.
+  #     This feature (available in PyTorch 1.11+) can reduce memory fragmentation and
+  #     improve overall allocation efficiency, especially for dynamic memory demands.
+  # Other Options (examples):
+  #   - "max_split_size_mb:128": Limits the maximum size of memory blocks that can be
+  #     split, offering more fine-grained control over memory allocation.
+  #   - "expandable_segments:False": Disables segment expansion, reverting to older behavior.
+  # Default: "expandable_segments:True" (modern default for efficient memory utilization).
+  # Usage Note: Adjust this setting based on the model's memory footprint and specific
+  # GPU memory constraints. Monitoring with `torch.cuda.memory_allocated()` can aid
+  # in optimization.
+  # Impact: Incorrect settings can lead to out-of-memory (OOM) errors or inefficient
+  # memory usage.
+  cuda_allocation_config: "expandable_segments:True"
+
+  ## Todo list: Future enhancements may include support for Huawei GPUs and advanced multi-GPU configurations.
+
+
+# --- Reproducibility Settings ---
+# This section defines parameters to ensure consistent and reproducible results across
+# multiple experimental runs. This is primarily achieved by controlling random number
+# generation and enforcing deterministic operations.
+reproducibility:
+  # The seed value used for initializing random number generators across various
+  # libraries (e.g., PyTorch, NumPy, standard Python `random`).
+  # Setting a fixed seed ensures consistent initialization of weights and data shuffling,
+  # which is crucial for reproducibility.
+  # Default: 42 (a commonly used seed for research reproducibility).
+  seed: 42
+
+  # Enforces deterministic behavior for operations in PyTorch whenever possible.
+  # When set to `true`, certain CUDA operations that are usually optimized for speed
+  # might become slightly slower to guarantee identical results across runs.
+  # Default: true (recommended for reproducibility, particularly in research).
+  torch_deterministic: true
+
+  # Disables cuDNN benchmarking. cuDNN (CUDA Deep Neural Network library) can optimize
+  # algorithms for specific hardware configurations, but this optimization process
+  # can introduce non-determinism, leading to slight variations in results across runs.
+  # Default: false (setting to `false` for benchmarking improves performance but can
+  # compromise reproducibility). Set to `true` to ensure full determinism with cuDNN.
+  cudnn_benchmark: false
+
