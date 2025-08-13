@@ -110,3 +110,6 @@ select = ["E", "F", "I", "B", "C90"]
 
 [tool.ruff.format]
 quote-style = "double"
+
+# freeze requirements
+# uv pip freeze > requirements.lock.txt
