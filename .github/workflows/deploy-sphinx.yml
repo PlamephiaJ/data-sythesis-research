@@ -3,33 +3,42 @@ name: Deploy Sphinx Documentation
 on:
   push:
     branches:
-      - main
+      - main # Or whatever your main branch is
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
+    - name: Checkout 🛎️
+      uses: actions/checkout@v4 # Use a newer version of checkout
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - name: Set up Python 🐍
+      uses: actions/setup-python@v5 # Use a newer version of setup-python
       with:
         python-version: '3.x'
 
     - name: Install dependencies
       run: |
-        pip install sphinx sphinx_rtd_theme # 安装你需要的包
-        # 如果你的文档依赖项目代码，也需要安装
-        # pip install -r ddrequirements.txt
+        pip install sphinx sphinx_rtd_theme
+        # If you have other dependencies, install them here
+        # pip install -r requirements.txt
 
-    - name: Build Sphinx docs
+    - name: Build Sphinx docs 📖
       run: |
         cd docs
         make html
+
+    - name: Verify build output for debugging
+      run: |
+        ls -R ..
 
     - name: Deploy to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: docs/_build/html # 指定生成的 html 目录
+        # This path is relative to the repository root. It should be correct now.
+        publish_dir: ./docs/_build/html
