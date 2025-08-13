@@ -1,0 +1,67 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+sdist/
+*.egg
+wheels/
+
+# PyInstaller
+# Usually these files are in a subdirectory, so for PyInstaller, say,
+# a PyInstaller subdirectory.
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environments
+.venv/
+venv/
+env/
+.env/
+ENV/
+.python/
+
+# Dotenv local environment variables
+# Exclude all .env files, but not .env.example.
+.env*
+!.env.example
+
+# Test & Coverage Tools
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+
+# Type Checking
+.mypy_cache/
+.pyre/
+.dmypy.json
+dmypy.json
+
+# IDE / Editor configuration
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Documentation
+docs/_build/
+site/
+
+
