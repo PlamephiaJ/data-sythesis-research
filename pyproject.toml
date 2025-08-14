@@ -92,6 +92,8 @@ notebook = [
 docs = [
     "mkdocs-material",       # Documentation generator
     "mkdocstrings[python]",  # Generate docs from Python docstrings
+    "sphinx",                # Sphinx documentation generator
+    "myst-parser",           # MyST Markdown parser for Sphinx
 ]
 
 

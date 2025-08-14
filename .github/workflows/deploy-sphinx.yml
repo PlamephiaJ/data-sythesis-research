@@ -26,7 +26,7 @@ jobs:
         pip install sphinx sphinx_rtd_theme
         pip install furo
         # If you have other dependencies, install them here
-        # pip install -r requirements.txt
+        pip install -r docs/requirements.txt
 
     - name: Build Sphinx docs 📖
       run: |
