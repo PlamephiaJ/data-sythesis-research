@@ -273,7 +273,8 @@
 </section>
 <section id="functional-architecture">
 <h1>Functional Architecture<a class="headerlink" href="#functional-architecture" title="Link to this heading">¶</a></h1>
-<div class="highlight-mermaid notranslate"><div class="highlight"><pre><span></span>flowchart TD
+<pre  class="mermaid">
+        flowchart TD
     A[&quot;Data Source
     (Open source dataset)&quot;] --&gt; B[&quot;Data Cleaning
     Cleaning/Deidentification/Annotation
@@ -288,9 +289,7 @@
     D --&gt; E[&quot;Entropy Feedback&quot;]
     E --&gt; C1
     E --&gt; C2
-</pre></div>
-</div>
-</section>
+    </pre></section>
 <section id="core-modules">
 <h1>Core Modules<a class="headerlink" href="#core-modules" title="Link to this heading">¶</a></h1>
 <section id="configuration-module">
@@ -382,5 +381,13 @@ Function: Evaluate the trained model, including metrics such as accuracy, recall
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script>
     </body>
 </html>

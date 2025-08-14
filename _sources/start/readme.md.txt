@@ -25,7 +25,7 @@ Built on [Pytorch Lightning](https://www.lightning.ai/) and [Hydra](https://hydr
 - **Portability**: Support rapid migration and deployment across different environments.
 
 ## Functional Architecture
-```mermaid
+```{mermaid}
 flowchart TD
     A["Data Source
     (Open source dataset)"] --> B["Data Cleaning
