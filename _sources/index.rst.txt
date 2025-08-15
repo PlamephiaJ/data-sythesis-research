@@ -16,5 +16,6 @@ This is the home page of data synthesis project from CNLAB-University of Victori
    start/install
    start/quickstart
    start/codestyle
-   start/readme
+   design/readme
+   design/datasets
 

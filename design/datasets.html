@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="prev" title="codestyle" href="codestyle.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="prev" title="Project Overview" href="readme.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
-        <title>Project Overview - Phish-Generator 0.0.1 documentation</title>
+        <title>Datasets - Phish-Generator 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=25af2a20" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -178,7 +178,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <div class="visually-hidden">Toggle table of contents sidebar</div>
         <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
       </label>
@@ -199,16 +199,17 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">GETTING STARTED</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html#pre-requisites">Pre-requisites</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html#install-dependencies">Install Dependencies</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html#post-installation">Post-installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="codestyle.html">codestyle</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Project Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#design-principles">Design Principles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#functional-architecture">Functional Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#core-modules">Core Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html#pre-requisites">Pre-requisites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html#install-dependencies">Install Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html#post-installation">Post-installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/quickstart.html">Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/codestyle.html">codestyle</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html">Project Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#design-principles">Design Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#functional-architecture">Functional Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="readme.html#core-modules">Core Modules</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Datasets</a></li>
 </ul>
 
 </div>
@@ -229,7 +230,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/start/readme.md.txt" title="View this page">
+  <a class="muted-link" href="../_sources/design/datasets.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -243,96 +244,100 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <div class="visually-hidden">Toggle table of contents sidebar</div>
             <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <h1 align="center">Email Data Generation using Deep Learning</h1>
-<div align="center">
-<p>Project for deep-learning-based email generator.</p>
-<p><a class="reference external" href="https://plamephiaj.github.io/data-sythesis-research/">Document</a></p>
-</div>
-<blockquote>
-<div><p>For lawful and compliant research use only. Operate in controlled and isolated environments. Any generated content must not be used for dissemination.</p>
-</div></blockquote>
-<section id="project-overview">
-<h1>Project Overview<a class="headerlink" href="#project-overview" title="Link to this heading">¶</a></h1>
-<p>This project aims to design and implement a deep learning framework that leverages both <strong>Diffusion Models</strong> and <strong>Large Language Models (LLMs)</strong> to collaboratively generate “phishing-style” email samples, enabling security researchers to test/evaluate email filters and train anti-phishing detection models.</p>
-<p>With the development of deep learning technology, using deep learning—especially advanced large language models—for phishing email detection has become a promising solution. Data is fundamental to driving the progress of deep learning models, but due to the sensitive nature of phishing emails, which often contain a large amount of malicious content and sensitive information, obtaining such data is much more difficult than for other types. Existing open-source phishing email datasets have undergone various anonymization processes, resulting in the loss of original information, and most of the data is outdated and can no longer meet the needs of rapidly evolving phishing strategies. This work aims to use diffusion models and LLMs to generate phishing emails, providing high-quality training data for downstream detection models.</p>
+          <section id="datasets">
+<h1>Datasets<a class="headerlink" href="#datasets" title="Link to this heading">¶</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>The datasets are collections of data used for training and evaluating the model. It is crucial to have well-structured datasets to ensure the development process is effective and efficient.</p>
 </section>
-<section id="design-principles">
-<h1>Design Principles<a class="headerlink" href="#design-principles" title="Link to this heading">¶</a></h1>
-<p>Built on <a class="reference external" href="https://www.lightning.ai/">Pytorch Lightning</a> and <a class="reference external" href="https://hydra.cc/">Hydra</a>, adopting a configuration-driven design philosophy to support flexible experiment configuration and management.</p>
+<section id="structure">
+<h2>Structure<a class="headerlink" href="#structure" title="Link to this heading">¶</a></h2>
+<p>The datasets are organized into the following directories:</p>
 <ul class="simple">
-<li><p><strong>Modularity</strong>: Model factory, component decoupling, easy maintenance and upgrades.</p></li>
-<li><p><strong>Reproducibility</strong>: Data/model/config versioning, experiment restoration.</p></li>
-<li><p><strong>Portability</strong>: Support rapid migration and deployment across different environments.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">raw/</span></code>: Contains the raw, unprocessed data.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">processed/</span></code>: Contains the <strong>well-structured</strong> processed data ready for training.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">scripts/</span></code>: Contains scripts for data processing and augmentation.</p></li>
 </ul>
 </section>
-<section id="functional-architecture">
-<h1>Functional Architecture<a class="headerlink" href="#functional-architecture" title="Link to this heading">¶</a></h1>
-<pre  class="mermaid">
-        flowchart TD
-    A[&quot;Data Source
-    (Open source dataset)&quot;] --&gt; B[&quot;Data Cleaning
-    Cleaning/Deidentification/Annotation
-    Vectorization/Feature Extraction&quot;]
-    B --&gt; C1[&quot;Diffusion Model: Initial Style Generation&quot;]
-    C1 --&gt; C2[&quot;LLM: Proofreading Enhancement&quot;]
-    C1 --&gt; RAG
-
-    DATABASE[&quot;Spear Target Database&quot;] --&gt; RAG
-    RAG[&quot;Retrieval-Augmented Generation&quot;] --&gt; C2
-    C2 --&gt; D[&quot;Downstream Model: Training/Evaluation&quot;]
-    D --&gt; E[&quot;Entropy Feedback&quot;]
-    E --&gt; C1
-    E --&gt; C2
-    </pre></section>
-<section id="core-modules">
-<h1>Core Modules<a class="headerlink" href="#core-modules" title="Link to this heading">¶</a></h1>
-<section id="configuration-module">
-<h2>Configuration Module<a class="headerlink" href="#configuration-module" title="Link to this heading">¶</a></h2>
-<p>Input: YAML configuration file path
-Output: Configuration object
-Function: Load YAML configuration file based on Hydra framework, parse and return configuration object.</p>
+<section id="data-sources">
+<h2>Data Sources<a class="headerlink" href="#data-sources" title="Link to this heading">¶</a></h2>
+<p>Classic datasets:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://spamassassin.apache.org/old/publiccorpus">Assassin</a> (Apache Open-Source Dataset, 2005)</p></li>
+<li><p><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/ceascorpus/">CEAS_08</a> (University of Waterloo, 2008)</p></li>
+<li><p><a class="reference external" href="https://www.cs.cmu.edu/~enron/">Enron</a> (Carnegie Mellon University, 2000 - 2015)</p></li>
+<li><p><a class="reference external" href="https://monkey.org/~jose/phishing/">Nazario</a> (José Nazario, 2005 - 2024)</p></li>
+<li><p>Nigerian (1998 - 2007)</p></li>
+<li><p><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/treccorpus07/">TREC</a> (University of Waterloo, 2007)</p></li>
+</ul>
+<p>Improved datasets:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://figshare.com/articles/dataset/Phishing_Email_11_Curated_Datasets/24952503/1">Curated Datasets 1</a></p></li>
+<li><p><a class="reference external" href="https://figshare.com/articles/dataset/Curated_Dataset_-_Phishing_Email/24899952">Curated Datasets 2</a></p></li>
+</ul>
+<p>The improved datasets are enhanced and optimized based on the classic datasets. In fact, they are still subsets of the classic datasets and do not include more recent phishing patterns.</p>
 </section>
-<section id="data-cleaning-module">
-<h2>Data Cleaning Module<a class="headerlink" href="#data-cleaning-module" title="Link to this heading">¶</a></h2>
-<p>Input: Raw email data
-Output: Cleaned email data
-Function: Perform preprocessing operations such as cleaning, de-identification, and annotation on the raw email data, and extract feature vectors.</p>
+<section id="processing">
+<h2>Processing<a class="headerlink" href="#processing" title="Link to this heading">¶</a></h2>
+<p>Data processing is completed in two steps. The first step is performed in the datasets directory using scripts, where the raw datasets are cleaned and extracted, and organized into a well-structured, class-balanced format. The second step is carried out in the corresponding dataset’s <code class="docutils literal notranslate"><span class="pre">LightningDataModule</span></code>, which handles tokenization, collation, and other operations, ultimately generating a <code class="docutils literal notranslate"><span class="pre">DataLoader</span></code> for model training and testing.</p>
 </section>
-<section id="data-preparation-module">
-<h2>Data Preparation Module<a class="headerlink" href="#data-preparation-module" title="Link to this heading">¶</a></h2>
-<p>Input: Cleaned email data
-Output: Prepared training data
-Function: Format, split, and otherwise process the cleaned email data to prepare it for model training.</p>
+<section id="dataset-specific-information">
+<h2>Dataset-specific Information<a class="headerlink" href="#dataset-specific-information" title="Link to this heading">¶</a></h2>
+<blockquote>
+<div><p>WARNING! Corpus may contain viruses, fraudulent solicitations, and other files that may pose a security risk.  Do not view any files in the folder with an ordinary browser or email client.  Also note that virus or adware removal tools may damage the corpus.</p>
+</div></blockquote>
+<section id="classic-datasets">
+<h3>Classic Datasets<a class="headerlink" href="#classic-datasets" title="Link to this heading">¶</a></h3>
+<p>Kaggle all-in-one solution <a class="reference external" href="https://www.kaggle.com/datasets/naserabdullahalam/phishing-email-dataset">link</a>.</p>
+<section id="assassin-apache-open-source-dataset-2005">
+<h4><a class="reference external" href="https://spamassassin.apache.org/old/publiccorpus">Assassin</a> (Apache Open-Source Dataset, 2005)<a class="headerlink" href="#assassin-apache-open-source-dataset-2005" title="Link to this heading">¶</a></h4>
+<p>This dataset is contributed by the internet community and is one of the earliest spam email datasets, covering a variety of topics.</p>
+<ul class="simple">
+<li><p>spam: 500 spam messages, all received from non-spam-trap sources.</p></li>
+<li><p>easy_ham: 2500 non-spam messages.  These are typically quite easy to differentiate from spam, since they frequently do not contain any spammish signatures (like HTML etc).</p></li>
+<li><p>hard_ham: 250 non-spam messages which are closer in many respects to typical spam: use of HTML, unusual HTML markup, coloured text, “spammish-sounding” phrases etc.</p></li>
+<li><p>easy_ham_2: 1400 non-spam messages.  A more recent addition to the set.</p></li>
+<li><p>spam_2: 1397 spam messages.  Again, more recent.</p></li>
+</ul>
+<p>Total count: 6047 messages, with about a 31% spam ratio.</p>
 </section>
-<section id="model-training-module">
-<h2>Model Training Module<a class="headerlink" href="#model-training-module" title="Link to this heading">¶</a></h2>
-<p>Input: Prepared training data, model configuration object
-Output: Trained model
-Function: Train the model using the prepared training data and the Pytorch Lightning framework, save the trained model.</p>
+<section id="ceas-08-university-of-waterloo-2008">
+<h4><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/ceascorpus/">CEAS_08</a> (University of Waterloo, 2008)<a class="headerlink" href="#ceas-08-university-of-waterloo-2008" title="Link to this heading">¶</a></h4>
+<p>This dataset comes from the CEAS 2008 email detection challenge. All emails during the competition were collected in real time and cover a wide range of topics.
+The structure of the original dataset is relatively complex. You can use the existing CEAS_08 dataset available on Kaggle, such as <a class="reference external" href="https://www.kaggle.com/datasets/doryanay/ceas-08">link</a>. 39154 samples in total, 17312 (44.2%) benign, 21842 (55.8%) spam.</p>
 </section>
-<section id="logging-module">
-<h2>Logging Module<a class="headerlink" href="#logging-module" title="Link to this heading">¶</a></h2>
-<p>Function: Monitoring various information during the training process, including loss values, accuracy, etc., and support visual display (TensorBoard, etc.)</p>
+<section id="enron-carnegie-mellon-university-2000-2015">
+<h4><a class="reference external" href="https://www.cs.cmu.edu/~enron/">Enron</a> (Carnegie Mellon University, 2000 - 2015)<a class="headerlink" href="#enron-carnegie-mellon-university-2000-2015" title="Link to this heading">¶</a></h4>
+<p>This dataset is a collection of emails from the Enron Corporation, which was involved in a major corporate scandal.
+Kaggle version can be found at <a class="reference external" href="https://www.kaggle.com/datasets/wcukierski/enron-email-dataset">link</a>. 517401 samples in total.</p>
 </section>
-<section id="evaluation-module">
-<h2>Evaluation Module<a class="headerlink" href="#evaluation-module" title="Link to this heading">¶</a></h2>
-<p>Input: Test data, trained model
-Output: Evaluation metrics
-Function: Evaluate the trained model, including metrics such as accuracy, recall, etc.</p>
+<section id="nazario-jose-nazario-2005-2024">
+<h4><a class="reference external" href="https://monkey.org/~jose/phishing/">Nazario</a> (José Nazario, 2005 - 2024)<a class="headerlink" href="#nazario-jose-nazario-2005-2024" title="Link to this heading">¶</a></h4>
+<p>This dataset is a collection of phishing emails curated by José Nazario over nearly two decades. Its most notable feature is that it is entirely constructed from phishing emails received in his personal inbox.</p>
 </section>
-<section id="documentation-module">
-<h2>Documentation Module<a class="headerlink" href="#documentation-module" title="Link to this heading">¶</a></h2>
-<p>Function: Generate project-related documentation, including usage instructions, API documentation, etc.</p>
+<section id="nigerian-1998-2007">
+<h4>Nigerian (1998 - 2007)<a class="headerlink" href="#nigerian-1998-2007" title="Link to this heading">¶</a></h4>
+<p>These “Nigerian” datasets typically focus on “Nigerian fraud emails,” that is, phishing and scam emails, rather than the more common advertising or junk mail types found in spam/ham classification.</p>
 </section>
-<section id="testing-module">
-<h2>Testing Module<a class="headerlink" href="#testing-module" title="Link to this heading">¶</a></h2>
-<p>Function: Perform unit testing and integration testing on the project to ensure the correctness of each module’s functionality.</p>
+<section id="trec-university-of-waterloo-2007">
+<h4><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/treccorpus07/">TREC</a> (University of Waterloo, 2007)<a class="headerlink" href="#trec-university-of-waterloo-2007" title="Link to this heading">¶</a></h4>
+</section>
+</section>
+<section id="improved-datasets">
+<h3>Improved Datasets<a class="headerlink" href="#improved-datasets" title="Link to this heading">¶</a></h3>
+<section id="curated-datasets-1">
+<h4><a class="reference external" href="https://figshare.com/articles/dataset/Phishing_Email_11_Curated_Datasets/24952503/1">Curated Datasets 1</a><a class="headerlink" href="#curated-datasets-1" title="Link to this heading">¶</a></h4>
+</section>
+<section id="curated-datasets-2">
+<h4><a class="reference external" href="https://figshare.com/articles/dataset/Curated_Dataset_-_Phishing_Email/24899952">Curated Datasets 2</a><a class="headerlink" href="#curated-datasets-2" title="Link to this heading">¶</a></h4>
+</section>
+</section>
 </section>
 </section>
 
@@ -342,14 +347,14 @@ Function: Evaluate the trained model, including metrics such as accuracy, recall
         
         <div class="related-pages">
           
-          <a class="prev-page" href="codestyle.html">
+          <a class="prev-page" href="readme.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">codestyle</div>
+                <div class="title">Project Overview</div>
                 
               </div>
             </a>
@@ -371,8 +376,47 @@ Function: Evaluate the trained model, including metrics such as accuracy, recall
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Datasets</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#structure">Structure</a></li>
+<li><a class="reference internal" href="#data-sources">Data Sources</a></li>
+<li><a class="reference internal" href="#processing">Processing</a></li>
+<li><a class="reference internal" href="#dataset-specific-information">Dataset-specific Information</a><ul>
+<li><a class="reference internal" href="#classic-datasets">Classic Datasets</a><ul>
+<li><a class="reference internal" href="#assassin-apache-open-source-dataset-2005">Assassin (Apache Open-Source Dataset, 2005)</a></li>
+<li><a class="reference internal" href="#ceas-08-university-of-waterloo-2008">CEAS_08 (University of Waterloo, 2008)</a></li>
+<li><a class="reference internal" href="#enron-carnegie-mellon-university-2000-2015">Enron (Carnegie Mellon University, 2000 - 2015)</a></li>
+<li><a class="reference internal" href="#nazario-jose-nazario-2005-2024">Nazario (José Nazario, 2005 - 2024)</a></li>
+<li><a class="reference internal" href="#nigerian-1998-2007">Nigerian (1998 - 2007)</a></li>
+<li><a class="reference internal" href="#trec-university-of-waterloo-2007">TREC (University of Waterloo, 2007)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#improved-datasets">Improved Datasets</a><ul>
+<li><a class="reference internal" href="#curated-datasets-1">Curated Datasets 1</a></li>
+<li><a class="reference internal" href="#curated-datasets-2">Curated Datasets 2</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
@@ -381,13 +425,5 @@ Function: Evaluate the trained model, including metrics such as accuracy, recall
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
-    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
-    <script type="module">
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
-window.addEventListener("load", () => mermaid.run());
-</script>
     </body>
 </html>

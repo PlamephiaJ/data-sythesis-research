@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Project Overview" href="../design/readme.html" /><link rel="prev" title="Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset" href="quickstart.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Datasets" href="datasets.html" /><link rel="prev" title="codestyle" href="../start/codestyle.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
-        <title>codestyle - Phish-Generator 0.0.1 documentation</title>
+        <title>Project Overview - Phish-Generator 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=25af2a20" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -199,17 +199,17 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <p class="caption" role="heading"><span class="caption-text">GETTING STARTED</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html#pre-requisites">Pre-requisites</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html#install-dependencies">Install Dependencies</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html#post-installation">Post-installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">codestyle</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design/readme.html">Project Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design/readme.html#design-principles">Design Principles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design/readme.html#functional-architecture">Functional Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design/readme.html#core-modules">Core Modules</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../design/datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html#pre-requisites">Pre-requisites</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html#install-dependencies">Install Dependencies</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/install.html#post-installation">Post-installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/quickstart.html">Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../start/codestyle.html">codestyle</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Project Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#design-principles">Design Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#functional-architecture">Functional Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#core-modules">Core Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="datasets.html">Datasets</a></li>
 </ul>
 
 </div>
@@ -230,7 +230,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/start/codestyle.rst.txt" title="View this page">
+  <a class="muted-link" href="../_sources/design/readme.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -250,11 +250,91 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="codestyle">
-<h1>codestyle<a class="headerlink" href="#codestyle" title="Link to this heading">¶</a></h1>
-<p>docstring style follow google docstring style</p>
-<p>pip install pydocstyle
-pydocstyle src/</p>
+          <h1 align="center">Email Data Generation using Deep Learning</h1>
+<div align="center">
+<p>Project for deep-learning-based email generator.</p>
+<p><a class="reference external" href="https://plamephiaj.github.io/data-sythesis-research/">Document</a></p>
+</div>
+<blockquote>
+<div><p>For lawful and compliant research use only. Operate in controlled and isolated environments. Any generated content must not be used for dissemination.</p>
+</div></blockquote>
+<section id="project-overview">
+<h1>Project Overview<a class="headerlink" href="#project-overview" title="Link to this heading">¶</a></h1>
+<p>This project aims to design and implement a deep learning framework that leverages both <strong>Diffusion Models</strong> and <strong>Large Language Models (LLMs)</strong> to collaboratively generate “phishing-style” email samples, enabling security researchers to test/evaluate email filters and train anti-phishing detection models.</p>
+<p>With the development of deep learning technology, using deep learning—especially advanced large language models—for phishing email detection has become a promising solution. Data is fundamental to driving the progress of deep learning models, but due to the sensitive nature of phishing emails, which often contain a large amount of malicious content and sensitive information, obtaining such data is much more difficult than for other types. Existing open-source phishing email datasets have undergone various anonymization processes, resulting in the loss of original information, and most of the data is outdated and can no longer meet the needs of rapidly evolving phishing strategies. This work aims to use diffusion models and LLMs to generate phishing emails, providing high-quality training data for downstream detection models.</p>
+</section>
+<section id="design-principles">
+<h1>Design Principles<a class="headerlink" href="#design-principles" title="Link to this heading">¶</a></h1>
+<p>Built on <a class="reference external" href="https://www.lightning.ai/">Pytorch Lightning</a> and <a class="reference external" href="https://hydra.cc/">Hydra</a>, adopting a configuration-driven design philosophy to support flexible experiment configuration and management.</p>
+<ul class="simple">
+<li><p><strong>Modularity</strong>: Model factory, component decoupling, easy maintenance and upgrades.</p></li>
+<li><p><strong>Reproducibility</strong>: Data/model/config versioning, experiment restoration.</p></li>
+<li><p><strong>Portability</strong>: Support rapid migration and deployment across different environments.</p></li>
+</ul>
+</section>
+<section id="functional-architecture">
+<h1>Functional Architecture<a class="headerlink" href="#functional-architecture" title="Link to this heading">¶</a></h1>
+<pre  class="mermaid">
+        flowchart TD
+    A[&quot;Data Source
+    (Open source dataset)&quot;] --&gt; B[&quot;Data Processing
+    Cleaning/Deidentification/Annotation
+    Vectorization/Feature Extraction&quot;]
+    B --&gt; C1[&quot;Diffusion Model: Initial Style Generation&quot;]
+    C1 --&gt; C2[&quot;LLM: Proofreading Enhancement&quot;]
+    C1 --&gt; RAG
+
+    DATABASE[&quot;Spear Target Database&quot;] --&gt; RAG
+    RAG[&quot;Retrieval-Augmented Generation&quot;] --&gt; C2
+    C2 --&gt; D[&quot;Downstream Model: Training/Evaluation&quot;]
+    D --&gt; E[&quot;Entropy Feedback&quot;]
+    E --&gt; C1
+    E --&gt; C2
+    </pre></section>
+<section id="core-modules">
+<h1>Core Modules<a class="headerlink" href="#core-modules" title="Link to this heading">¶</a></h1>
+<section id="configuration-module">
+<h2>Configuration Module<a class="headerlink" href="#configuration-module" title="Link to this heading">¶</a></h2>
+<p>Input: YAML configuration file path
+Output: Configuration object
+Function: Load YAML configuration file based on Hydra framework, parse and return configuration object.</p>
+</section>
+<section id="data-cleaning-module">
+<h2>Data Cleaning Module<a class="headerlink" href="#data-cleaning-module" title="Link to this heading">¶</a></h2>
+<p>Input: Raw email data
+Output: Cleaned email data
+Function: Perform preprocessing operations such as cleaning, de-identification, and annotation on the raw email data, and extract feature vectors.</p>
+</section>
+<section id="data-preparation-module">
+<h2>Data Preparation Module<a class="headerlink" href="#data-preparation-module" title="Link to this heading">¶</a></h2>
+<p>Input: Cleaned email data
+Output: Prepared training data
+Function: Format, split, and otherwise process the cleaned email data to prepare it for model training.</p>
+</section>
+<section id="model-training-module">
+<h2>Model Training Module<a class="headerlink" href="#model-training-module" title="Link to this heading">¶</a></h2>
+<p>Input: Prepared training data, model configuration object
+Output: Trained model
+Function: Train the model using the prepared training data and the Pytorch Lightning framework, save the trained model.</p>
+</section>
+<section id="logging-module">
+<h2>Logging Module<a class="headerlink" href="#logging-module" title="Link to this heading">¶</a></h2>
+<p>Function: Monitoring various information during the training process, including loss values, accuracy, etc., and support visual display (TensorBoard, etc.)</p>
+</section>
+<section id="evaluation-module">
+<h2>Evaluation Module<a class="headerlink" href="#evaluation-module" title="Link to this heading">¶</a></h2>
+<p>Input: Test data, trained model
+Output: Evaluation metrics
+Function: Evaluate the trained model, including metrics such as accuracy, recall, etc.</p>
+</section>
+<section id="documentation-module">
+<h2>Documentation Module<a class="headerlink" href="#documentation-module" title="Link to this heading">¶</a></h2>
+<p>Function: Generate project-related documentation, including usage instructions, API documentation, etc.</p>
+</section>
+<section id="testing-module">
+<h2>Testing Module<a class="headerlink" href="#testing-module" title="Link to this heading">¶</a></h2>
+<p>Function: Perform unit testing and integration testing on the project to ensure the correctness of each module’s functionality.</p>
+</section>
 </section>
 
         </article>
@@ -262,23 +342,23 @@ pydocstyle src/</p>
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../design/readme.html">
+          <a class="next-page" href="datasets.html">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Project Overview</div>
+                <div class="title">Datasets</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="quickstart.html">
+          <a class="prev-page" href="../start/codestyle.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset</div>
+                <div class="title">codestyle</div>
                 
               </div>
             </a>
@@ -310,5 +390,13 @@ pydocstyle src/</p>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.1.4/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">
+import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.2.0/dist/mermaid.esm.min.mjs";
+window.addEventListener("load", () => mermaid.run());
+</script>
     </body>
 </html>
