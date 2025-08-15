@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main # Or whatever your main branch is
-
+    paths:
+      - 'docs/**'
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
