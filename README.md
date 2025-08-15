@@ -4,6 +4,6 @@
 
 Project for deep-learning-based email generator.
 
-[Full Documentation](https://plamephiaj.github.io/data-sythesis-research/start/readme.html)
+[Full Documentation](https://plamephiaj.github.io/data-sythesis-research/design/readme.html)
 
 </div>
