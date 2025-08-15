@@ -28,7 +28,7 @@ Built on [Pytorch Lightning](https://www.lightning.ai/) and [Hydra](https://hydr
 ```{mermaid}
 flowchart TD
     A["Data Source
-    (Open source dataset)"] --> B["Data Cleaning
+    (Open source dataset)"] --> B["Data Processing
     Cleaning/Deidentification/Annotation
     Vectorization/Feature Extraction"]
     B --> C1["Diffusion Model: Initial Style Generation"]
