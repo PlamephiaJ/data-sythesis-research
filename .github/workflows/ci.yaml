@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"] # 建议先固定一个版本进行测试
+        python-version: ["3.11"]
 
     steps:
       - name: Check out repository code
@@ -24,7 +24,6 @@ jobs:
 
       - name: Install uv
         run: |
-          # uv 官方推荐的安装方式
           curl -LsSf https://astral.sh/uv/install.sh | sh
           source ~/.cargo/env
           uv --version
