@@ -29,7 +29,7 @@ class MLP(nn.Module):
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(hidden_dim, output_dim)
+            nn.Linear(hidden_dim, output_dim),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

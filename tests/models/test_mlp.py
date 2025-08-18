@@ -25,6 +25,7 @@ def mlp_model() -> MLP:
 
 # ---- Test Cases ----
 
+
 def test_mlp_initialization(mlp_model: MLP):
     """Tests if the MLP model layers are initialized with correct dimensions."""
     # Check the first linear layer's input and output dimensions.
