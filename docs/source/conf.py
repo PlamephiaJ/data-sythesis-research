@@ -1,31 +1,30 @@
-# Configuration file for the Sphinx documentation builder.
-#
+"""Configuration file for the Sphinx documentation builder."""
+
 # For the full list of built-in configuration values, see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Phish-Generator'
-copyright = '2025, CNLab_Victoria'
-author = 'CNLab_Victoria'
-release = '0.0.1'
+project = "Phish-Generator"
+copyright = "2025, CNLab_Victoria"
+author = "CNLab_Victoria"
+release = "0.0.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'myst_parser',      # Markdown support
-    'sphinxcontrib.mermaid',  # Mermaid diagrams support
+    "myst_parser",  # Markdown support
+    "sphinxcontrib.mermaid",  # Mermaid diagrams support
 ]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'furo'
-html_static_path = ['_static']
+html_theme = "furo"
+html_static_path = ["_static"]
