@@ -34,7 +34,7 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.python-version }}-uv-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.python-version }}-uv-
-      
+
       - name: Install dependencies with uv
         run: |
           uv pip install -e ".[dev]" --system

@@ -18,4 +18,3 @@ This is the home page of data synthesis project from CNLAB-University of Victori
    start/codestyle
    design/readme
    design/datasets
-
