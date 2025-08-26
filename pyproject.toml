@@ -103,16 +103,34 @@ package-dir = {"" = "src"}
 
 # --- Ruff (Linter & Formatter) ---
 [tool.ruff]
-line-length = 88
+target-version = "py311"
+line-length = 119
 indent-width = 4
 
 [tool.ruff.lint]
-# E/F: pyflakes/pycodestyle, I: isort, B: flake8-bugbear, C90: mccabe complexity
-select = ["E", "F", "I", "B", "C90"]
+ignore = ["C408", "C901", "E501", "E731", "E741", "W605"]
+select = ["C", "E", "F", "I", "W"]
+
+[tool.ruff.lint.isort]
+lines-after-imports = 2
+known-first-party = ["llamafactory"]
+known-third-party = [
+    "accelerate",
+    "datasets",
+    "gradio",
+    "numpy",
+    "peft",
+    "torch",
+    "transformers",
+    "trl"
+]
 
 [tool.ruff.format]
 quote-style = "double"
-
+indent-style = "space"
+docstring-code-format = true
+skip-magic-trailing-comma = false
+line-ending = "auto"
 
 # --- Pytest ---
 [tool.pytest.ini_options]
