@@ -46,4 +46,4 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest --cov=src
+          pytest -v --cov=src
