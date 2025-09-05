@@ -17,6 +17,7 @@ release = "0.0.1"
 extensions = [
     "myst_parser",  # Markdown support
     "sphinxcontrib.mermaid",  # Mermaid diagrams support
+    "sphinx.ext.mathjax",  # Latex math support
 ]
 
 templates_path = ["_templates"]
