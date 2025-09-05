@@ -264,7 +264,7 @@
 <div class="math notranslate nohighlight">
 \[q(x_t|x_{t-1})=\mathcal{N}(x_t;\sqrt{1-\beta_t}x_{t-1},\beta_tI)\]</div>
 </div>
-<p>In the text scenario, this can be: token embedding → add noise → obtain $x_t$.</p>
+<p>In the text scenario, this can be: token embedding → add noise → obtain <span class="math notranslate nohighlight">\(x_t\)</span>.</p>
 </li>
 <li><p>Reverse process (denoising):</p>
 <div class="math-wrapper docutils container">
@@ -275,7 +275,7 @@
 <div class="math notranslate nohighlight">
 \[\mu_\theta(x_t,t,cond)=\frac{1}{\sqrt{1-\beta_t}}\left(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon_\theta(x_t,t,cond)\right)\]</div>
 </div>
-<p>The model learns $\epsilon_\theta(x_t,t,\mathrm{cond})$ and gradually recovers $x_0$.</p>
+<p>The model learns <span class="math notranslate nohighlight">\(\epsilon_\theta(x_t,t,\mathrm{cond})\)</span> and gradually recovers <span class="math notranslate nohighlight">\(x_0\)</span>.</p>
 </li>
 <li><p>Training objective:</p>
 <div class="math-wrapper docutils container">
@@ -291,7 +291,7 @@
 <ol class="arabic">
 <li><p>Classifier / Guidance style (Inference-time rule guidance, plug-and-play)</p>
 <ul>
-<li><p>Treat the rule $R$ as a “constraint classifier”:</p>
+<li><p>Treat the rule <span class="math notranslate nohighlight">\(R\)</span> as a “constraint classifier”:</p>
 <ul class="simple">
 <li><p>At each denoising step, compute whether the generated sample satisfies the rule.</p></li>
 <li><p>If it deviates from the rule, modify the noise gradient (similar to classifier guidance).</p></li>
@@ -353,15 +353,15 @@ r_brand(x)</p></li>
 </section>
 <section id="equations-for-rule-guided-diffusion">
 <h4>Equations for rule-guided diffusion<a class="headerlink" href="#equations-for-rule-guided-diffusion" title="Link to this heading">¶</a></h4>
-<p>In the latent space, diffusion is performed with the current state denoted as $x_t$. The standard model predicts noise $\epsilon_\theta(x_t,t,c)$, where $c$ is the condition (e.g., task/topic).
+<p>In the latent space, diffusion is performed with the current state denoted as <span class="math notranslate nohighlight">\(x_t\)</span>. The standard model predicts noise <span class="math notranslate nohighlight">\(\epsilon_\theta(x_t,t,c)\)</span>, where <span class="math notranslate nohighlight">\(c\)</span> is the condition (e.g., task/topic).
 Incorporating rule-guided gradient adjustment (similar to classifier-free guidance):</p>
 <div class="math-wrapper docutils container">
 <div class="math notranslate nohighlight">
 \[\tilde{\epsilon}(x_t)=\epsilon_\theta(x_t,t,c)-\lambda\cdot\nabla_{x_t}\mathcal{E}(x_t),\quad\mathcal{E}(x_t)=-\sum_kw_k\log r_k(x_t)\]</div>
 </div>
 <ul class="simple">
-<li><p>$\mathcal{E}$ is the “energy”: the more the rules are satisfied, the lower $\mathcal{E}$ becomes.</p></li>
-<li><p>$w_k$ is the rule weight; $\lambda$ is the guidance strength.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\mathcal{E}\)</span> is the “energy”: the more the rules are satisfied, the lower <span class="math notranslate nohighlight">\(\mathcal{E}\)</span> becomes.</p></li>
+<li><p><span class="math notranslate nohighlight">\(w_k\)</span> is the rule weight; <span class="math notranslate nohighlight">\(\lambda\)</span> is the guidance strength.</p></li>
 <li><p>Intuition: Denoise in the direction of increasing rule scores.</p></li>
 </ul>
 </section>
@@ -371,7 +371,7 @@ Incorporating rule-guided gradient adjustment (similar to classifier-free guidan
 <li><p>Gradient guidance of rule scores</p></li>
 </ol>
 <ul class="simple">
-<li><p>At each sampling step, use a discriminator/scorer to obtain $r_k(x_t)$, and backpropagate to get $\nabla_{x_t}\log r_k$, which can be injected into the above equation.</p></li>
+<li><p>At each sampling step, use a discriminator/scorer to obtain <span class="math notranslate nohighlight">\(r_k(x_t)\)</span>, and backpropagate to get <span class="math notranslate nohighlight">\(\nabla_{x_t}\log r_k\)</span>, which can be injected into the above equation.</p></li>
 <li><p>Advantages: Simple to implement and compatible with any rule surrogate.</p></li>
 <li><p>PS: Apply temperature/smoothing to each scorer to avoid gradient explosion.</p></li>
 </ul>
@@ -382,7 +382,7 @@ Incorporating rule-guided gradient adjustment (similar to classifier-free guidan
 <li><p>First, use rule templates to produce a skeleton (pure placeholders):
 <code class="docutils literal notranslate"><span class="pre">[SUBJ]</span> <span class="pre">::</span> <span class="pre">[ORG]</span> <span class="pre">[NOTICE]</span></code>
 <code class="docutils literal notranslate"><span class="pre">Dear</span> <span class="pre">[RECIPIENT],</span> <span class="pre">...</span> <span class="pre">[CTA]</span> <span class="pre">...</span> <span class="pre">[URL]</span> <span class="pre">...</span> <span class="pre">[SIGNOFF]</span></code></p></li>
-<li><p>Create a noise mask $M$: slots that must satisfy the rules are frozen or have low noise, while unimportant slots have high noise to increase diversity.</p></li>
+<li><p>Create a noise mask <span class="math notranslate nohighlight">\(M\)</span>: slots that must satisfy the rules are frozen or have low noise, while unimportant slots have high noise to increase diversity.</p></li>
 <li><p>During sampling:
 <code class="docutils literal notranslate"><span class="pre">x_t</span> <span class="pre">=</span> <span class="pre">M</span> <span class="pre">⊙</span> <span class="pre">x_t</span> <span class="pre">+</span> <span class="pre">(1-M)</span> <span class="pre">⊙</span> <span class="pre">(x_t</span> <span class="pre">-</span> <span class="pre">η</span> <span class="pre">*</span> <span class="pre">guidance_grad)</span></code></p></li>
 </ul>
