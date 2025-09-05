@@ -9,7 +9,7 @@ The diffusion model is one of the earliest generative models used for image gene
     ```{math}
     q(x_t|x_{t-1})=\mathcal{N}(x_t;\sqrt{1-\beta_t}x_{t-1},\beta_tI)
     ```
-    In the text scenario, this can be: token embedding → add noise → obtain $x_t$.
+    In the text scenario, this can be: token embedding → add noise → obtain {math}`x_t`.
 - Reverse process (denoising):
     ```{math}
     p_\theta(x_{t-1}|x_t,cond)=\mathcal{N}(x_{t-1};\mu_\theta(x_t,t,cond),\Sigma_\theta(x_t,t,cond))
@@ -17,7 +17,7 @@ The diffusion model is one of the earliest generative models used for image gene
     ```{math}
     \mu_\theta(x_t,t,cond)=\frac{1}{\sqrt{1-\beta_t}}\left(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon_\theta(x_t,t,cond)\right)
     ```
-    The model learns $\epsilon_\theta(x_t,t,\mathrm{cond})$ and gradually recovers $x_0$.
+    The model learns {math}`\epsilon_\theta(x_t,t,\mathrm{cond})` and gradually recovers {math}`x_0`.
 - Training objective:
     ```{math}
     L_{simple}=\mathbb{E}_{t,x_0,\epsilon}[\|\epsilon-\epsilon_\theta(x_t,t,\mathrm{cond})\|^2]
@@ -26,7 +26,7 @@ The diffusion model is one of the earliest generative models used for image gene
 ### Incorporate rules into diffusion
 Rules can be integrated into the diffusion process during the noise prediction / sampling constraint stages:
 1. Classifier / Guidance style (Inference-time rule guidance, plug-and-play)
-    - Treat the rule $R$ as a "constraint classifier":
+    - Treat the rule {math}`R` as a "constraint classifier":
         - At each denoising step, compute whether the generated sample satisfies the rule.
         - If it deviates from the rule, modify the noise gradient (similar to classifier guidance).
         - Formally:
@@ -69,25 +69,25 @@ Rule set:
 ```
 
 #### Equations for rule-guided diffusion
-In the latent space, diffusion is performed with the current state denoted as $x_t$. The standard model predicts noise $\epsilon_\theta(x_t,t,c)$, where $c$ is the condition (e.g., task/topic).
+In the latent space, diffusion is performed with the current state denoted as {math}`x_t`. The standard model predicts noise {math}`\epsilon_\theta(x_t,t,c)`, where {math}`c` is the condition (e.g., task/topic).
 Incorporating rule-guided gradient adjustment (similar to classifier-free guidance):
 ```{math}
 \tilde{\epsilon}(x_t)=\epsilon_\theta(x_t,t,c)-\lambda\cdot\nabla_{x_t}\mathcal{E}(x_t),\quad\mathcal{E}(x_t)=-\sum_kw_k\log r_k(x_t)
 ```
-- $\mathcal{E}$ is the "energy": the more the rules are satisfied, the lower $\mathcal{E}$ becomes.
-- $w_k$ is the rule weight; $\lambda$ is the guidance strength.
+- {math}`\mathcal{E}` is the "energy": the more the rules are satisfied, the lower {math}`\mathcal{E}` becomes.
+- {math}`w_k` is the rule weight; {math}`\lambda` is the guidance strength.
 - Intuition: Denoise in the direction of increasing rule scores.
 
 #### Approaches to incorporate rules into diffusion
 1. Gradient guidance of rule scores
-- At each sampling step, use a discriminator/scorer to obtain $r_k(x_t)$, and backpropagate to get $\nabla_{x_t}\log r_k$, which can be injected into the above equation.
+- At each sampling step, use a discriminator/scorer to obtain {math}`r_k(x_t)`, and backpropagate to get {math}`\nabla_{x_t}\log r_k`, which can be injected into the above equation.
 - Advantages: Simple to implement and compatible with any rule surrogate.
 - PS: Apply temperature/smoothing to each scorer to avoid gradient explosion.
 2. Masked diffusion (rules determine "which positions to diffuse")
 - First, use rule templates to produce a skeleton (pure placeholders):
 `[SUBJ] :: [ORG] [NOTICE]`
 `Dear [RECIPIENT], ... [CTA] ... [URL] ... [SIGNOFF]`
-- Create a noise mask $M$: slots that must satisfy the rules are frozen or have low noise, while unimportant slots have high noise to increase diversity.
+- Create a noise mask {math}`M`: slots that must satisfy the rules are frozen or have low noise, while unimportant slots have high noise to increase diversity.
 - During sampling:
 `x_t = M ⊙ x_t + (1-M) ⊙ (x_t - η * guidance_grad)`
 3. Projection/Constraint Sampling
