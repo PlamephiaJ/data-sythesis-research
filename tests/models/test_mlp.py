@@ -4,8 +4,8 @@
 
 import pytest
 import torch
-
 from models.mlp import MLP
+
 
 # ---- Test Constants ----
 INPUT_DIM = 784  # Example: 28x28 images flattened
