@@ -18,4 +18,4 @@ This is the home page of data synthesis project from CNLAB-University of Victori
    start/codestyle
    design/readme
    design/datasets
-   design/rule_guided_diffusion
+   design/rule-guided_diffusion
