@@ -6,14 +6,22 @@ The diffusion model is one of the earliest generative models used for image gene
 
 ### The process of diffusion models
 - Forward process (adding noise):
-    $$q(x_t|x_{t-1})=\mathcal{N}(x_t;\sqrt{1-\beta_t}x_{t-1},\beta_tI)$$
+    ```{math}
+    q(x_t|x_{t-1})=\mathcal{N}(x_t;\sqrt{1-\beta_t}x_{t-1},\beta_tI)
+    ```
     In the text scenario, this can be: token embedding → add noise → obtain $x_t$.
 - Reverse process (denoising):
-    $$p_\theta(x_{t-1}|x_t,cond)=\mathcal{N}(x_{t-1};\mu_\theta(x_t,t,cond),\Sigma_\theta(x_t,t,cond))$$
-    $$\mu_\theta(x_t,t,cond)=\frac{1}{\sqrt{1-\beta_t}}\left(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon_\theta(x_t,t,cond)\right)$$
+    ```{math}
+    p_\theta(x_{t-1}|x_t,cond)=\mathcal{N}(x_{t-1};\mu_\theta(x_t,t,cond),\Sigma_\theta(x_t,t,cond))
+    ```
+    ```{math}
+    \mu_\theta(x_t,t,cond)=\frac{1}{\sqrt{1-\beta_t}}\left(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon_\theta(x_t,t,cond)\right)
+    ```
     The model learns $\epsilon_\theta(x_t,t,\mathrm{cond})$ and gradually recovers $x_0$.
 - Training objective:
-    $$L_{simple}=\mathbb{E}_{t,x_0,\epsilon}[\|\epsilon-\epsilon_\theta(x_t,t,\mathrm{cond})\|^2]$$
+    ```{math}
+    L_{simple}=\mathbb{E}_{t,x_0,\epsilon}[\|\epsilon-\epsilon_\theta(x_t,t,\mathrm{cond})\|^2]
+    ```
 
 ### Incorporate rules into diffusion
 Rules can be integrated into the diffusion process during the noise prediction / sampling constraint stages:
@@ -22,12 +30,16 @@ Rules can be integrated into the diffusion process during the noise prediction /
         - At each denoising step, compute whether the generated sample satisfies the rule.
         - If it deviates from the rule, modify the noise gradient (similar to classifier guidance).
         - Formally:
-        $$\nabla_{x_t}\log p(x_t|R)\approx\nabla_{x_t}\log p_\theta(x_t)+w\cdot\nabla_{x_t}\log p(R|x_t)$$
+        ```{math}
+        \nabla_{x_t}\log p(x_t|R)\approx\nabla_{x_t}\log p_\theta(x_t)+w\cdot\nabla_{x_t}\log p(R|x_t)
+        ```
 
 2. Rules encoded as condition vectors (In-training rule guidance)
     - Formalize the rules (regex/logical predicates) → encode them as embeddings.
     - Incorporate them into the noise prediction network (similar to prompts):
-    $$\epsilon_\theta(x_t,t,rule\_embedding)$$
+    ```{math}
+    \epsilon_\theta(x_t,t,rule\_embedding)
+    ```
     - Effect: The model learns to follow these "rule signals" during denoising.
 
 3. Rule-driven noise masking
@@ -52,12 +64,16 @@ Surrogate: Named entity consistency/similarity constraint, aligning [ORG] with t
 r_brand(x)
 
 Rule set:
-$$\mathcal{R}=\{r_k(x)\}_{k=1}^K,\text{each}\quad r_k:\mathrm{text}\to[0,1]$$
+```{math}
+\mathcal{R}=\{r_k(x)\}_{k=1}^K,\text{each}\quad r_k:\mathrm{text}\to[0,1]
+```
 
 #### Equations for rule-guided diffusion
 In the latent space, diffusion is performed with the current state denoted as $x_t$. The standard model predicts noise $\epsilon_\theta(x_t,t,c)$, where $c$ is the condition (e.g., task/topic).
 Incorporating rule-guided gradient adjustment (similar to classifier-free guidance):
-$$\tilde{\epsilon}(x_t)=\epsilon_\theta(x_t,t,c)-\lambda\cdot\nabla_{x_t}\mathcal{E}(x_t),\quad\mathcal{E}(x_t)=-\sum_kw_k\log r_k(x_t)$$
+```{math}
+\tilde{\epsilon}(x_t)=\epsilon_\theta(x_t,t,c)-\lambda\cdot\nabla_{x_t}\mathcal{E}(x_t),\quad\mathcal{E}(x_t)=-\sum_kw_k\log r_k(x_t)
+```
 - $\mathcal{E}$ is the "energy": the more the rules are satisfied, the lower $\mathcal{E}$ becomes.
 - $w_k$ is the rule weight; $\lambda$ is the guidance strength.
 - Intuition: Denoise in the direction of increasing rule scores.
