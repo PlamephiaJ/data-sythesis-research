@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Rule-guided Diffusion" href="rule-guided_diffusion.html" /><link rel="prev" title="Project Overview" href="readme.html" />
+<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="prev" title="Rule-guided Diffusion" href="../design/rule-guided_diffusion.html" />
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
-        <title>Datasets - Phish-Generator 0.0.1 documentation</title>
+        <title>Diffusers Library for Quickly Building and Deploying Diffusion Models - Phish-Generator 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=25af2a20" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -205,13 +205,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../start/install.html#post-installation">Post-installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../start/quickstart.html">Quickstart: BERT Pre-trained Model Fine-tuning on WAF Dataset</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../start/codestyle.html">codestyle</a></li>
-<li class="toctree-l1"><a class="reference internal" href="readme.html">Project Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="readme.html#design-principles">Design Principles</a></li>
-<li class="toctree-l1"><a class="reference internal" href="readme.html#functional-architecture">Functional Architecture</a></li>
-<li class="toctree-l1"><a class="reference internal" href="readme.html#core-modules">Core Modules</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Datasets</a></li>
-<li class="toctree-l1"><a class="reference internal" href="rule-guided_diffusion.html">Rule-guided Diffusion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../tools/diffusers.html">Diffusers Library for Quickly Building and Deploying Diffusion Models</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/readme.html">Project Overview</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/readme.html#design-principles">Design Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/readme.html#functional-architecture">Functional Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/readme.html#core-modules">Core Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/datasets.html">Datasets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../design/rule-guided_diffusion.html">Rule-guided Diffusion</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Diffusers Library for Quickly Building and Deploying Diffusion Models</a></li>
 </ul>
 
 </div>
@@ -232,7 +232,7 @@
         </a>
         <div class="content-icon-container">
           <div class="view-this-page">
-  <a class="muted-link" href="../_sources/design/datasets.md.txt" title="View this page">
+  <a class="muted-link" href="../_sources/tools/diffusers.md.txt" title="View this page">
     <svg><use href="#svg-eye"></use></svg>
     <span class="visually-hidden">View this page</span>
   </a>
@@ -252,92 +252,53 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="datasets">
-<h1>Datasets<a class="headerlink" href="#datasets" title="Link to this heading">¶</a></h1>
-<section id="overview">
-<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
-<p>The datasets are collections of data used for training and evaluating the model. It is crucial to have well-structured datasets to ensure the development process is effective and efficient.</p>
+          <section id="diffusers-library-for-quickly-building-and-deploying-diffusion-models">
+<h1>Diffusers Library for Quickly Building and Deploying Diffusion Models<a class="headerlink" href="#diffusers-library-for-quickly-building-and-deploying-diffusion-models" title="Link to this heading">¶</a></h1>
+<p>Diffusers is an open-source library developed by Hugging Face that aims to simplify the construction and deployment of diffusion models. It provides pre-trained diffusion models, easy-to-use APIs, and seamless integration with the Hugging Face ecosystem, enabling researchers and developers to quickly implement and apply diffusion models.</p>
+<p>Official Docs: https://huggingface.co/docs/diffusers/index</p>
+<section id="unique-features">
+<h2>Unique Features<a class="headerlink" href="#unique-features" title="Link to this heading">¶</a></h2>
+<section id="scheduler">
+<h3>Scheduler<a class="headerlink" href="#scheduler" title="Link to this heading">¶</a></h3>
+<p>A scheduler in diffusion models controls how noise is gradually removed from an image during the generation process.</p>
+<p>When generating an image, the model starts from pure noise and goes through many steps to produce a clear image. In each step, the model predicts the noise in the current image, and the scheduler decides how much of that noise to remove and how to update the image for the next step.</p>
+<section id="timestep">
+<h4>Timestep<a class="headerlink" href="#timestep" title="Link to this heading">¶</a></h4>
+<p>Controls the number of steps taken to generate an image. More timesteps can lead to higher quality images but take longer to compute. Only used during inference.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">diffusers.schedulers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AysSchedules</span>
+
+<span class="n">sampling_schedule</span> <span class="o">=</span> <span class="n">AysSchedules</span><span class="p">[</span><span class="s2">&quot;StableDiffusionXLTimesteps&quot;</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sampling_schedule</span><span class="p">)</span>
+<span class="s2">&quot;[999, 845, 730, 587, 443, 310, 193, 116, 53, 13]&quot;</span>
+</pre></div>
+</div>
 </section>
-<section id="structure">
-<h2>Structure<a class="headerlink" href="#structure" title="Link to this heading">¶</a></h2>
-<p>The datasets are organized into the following directories:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">raw/</span></code>: Contains the raw, unprocessed data.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">processed/</span></code>: Contains the <strong>well-structured</strong> processed data ready for training.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">scripts/</span></code>: Contains scripts for data processing and augmentation.</p></li>
-</ul>
-</section>
-<section id="data-sources">
-<h2>Data Sources<a class="headerlink" href="#data-sources" title="Link to this heading">¶</a></h2>
-<p>Classic datasets:</p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://spamassassin.apache.org/old/publiccorpus">Assassin</a> (Apache Open-Source Dataset, 2005)</p></li>
-<li><p><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/ceascorpus/">CEAS_08</a> (University of Waterloo, 2008)</p></li>
-<li><p><a class="reference external" href="https://www.cs.cmu.edu/~enron/">Enron</a> (Carnegie Mellon University, 2000 - 2015)</p></li>
-<li><p><a class="reference external" href="https://monkey.org/~jose/phishing/">Nazario</a> (José Nazario, 2005 - 2024)</p></li>
-<li><p>Nigerian (1998 - 2007)</p></li>
-<li><p><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/treccorpus07/">TREC</a> (University of Waterloo, 2007)</p></li>
-</ul>
-<p>Improved datasets:</p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://figshare.com/articles/dataset/Phishing_Email_11_Curated_Datasets/24952503/1">Curated Datasets 1</a></p></li>
-<li><p><a class="reference external" href="https://figshare.com/articles/dataset/Curated_Dataset_-_Phishing_Email/24899952">Curated Datasets 2</a></p></li>
-</ul>
-<p>The improved datasets are enhanced and optimized based on the classic datasets. In fact, they are still subsets of the classic datasets and do not include more recent phishing patterns.</p>
-</section>
-<section id="processing">
-<h2>Processing<a class="headerlink" href="#processing" title="Link to this heading">¶</a></h2>
-<p>Data processing is completed in two steps. The first step is performed in the datasets directory using scripts, where the raw datasets are cleaned and extracted, and organized into a well-structured, class-balanced format. The second step is carried out in the corresponding dataset’s <code class="docutils literal notranslate"><span class="pre">LightningDataModule</span></code>, which handles tokenization, collation, and other operations, ultimately generating a <code class="docutils literal notranslate"><span class="pre">DataLoader</span></code> for model training and testing.</p>
-</section>
-<section id="dataset-specific-information">
-<h2>Dataset-specific Information<a class="headerlink" href="#dataset-specific-information" title="Link to this heading">¶</a></h2>
-<blockquote>
-<div><p>WARNING! Corpus may contain viruses, fraudulent solicitations, and other files that may pose a security risk.  Do not view any files in the folder with an ordinary browser or email client.  Also note that virus or adware removal tools may damage the corpus.</p>
-</div></blockquote>
-<section id="classic-datasets">
-<h3>Classic Datasets<a class="headerlink" href="#classic-datasets" title="Link to this heading">¶</a></h3>
-<p>Kaggle all-in-one solution <a class="reference external" href="https://www.kaggle.com/datasets/naserabdullahalam/phishing-email-dataset">link</a>.</p>
-<section id="assassin-apache-open-source-dataset-2005">
-<h4><a class="reference external" href="https://spamassassin.apache.org/old/publiccorpus">Assassin</a> (Apache Open-Source Dataset, 2005)<a class="headerlink" href="#assassin-apache-open-source-dataset-2005" title="Link to this heading">¶</a></h4>
-<p>This dataset is contributed by the internet community and is one of the earliest spam email datasets, covering a variety of topics.</p>
-<ul class="simple">
-<li><p>spam: 500 spam messages, all received from non-spam-trap sources.</p></li>
-<li><p>easy_ham: 2500 non-spam messages.  These are typically quite easy to differentiate from spam, since they frequently do not contain any spammish signatures (like HTML etc).</p></li>
-<li><p>hard_ham: 250 non-spam messages which are closer in many respects to typical spam: use of HTML, unusual HTML markup, coloured text, “spammish-sounding” phrases etc.</p></li>
-<li><p>easy_ham_2: 1400 non-spam messages.  A more recent addition to the set.</p></li>
-<li><p>spam_2: 1397 spam messages.  Again, more recent.</p></li>
-</ul>
-<p>Total count: 6047 messages, with about a 31% spam ratio.</p>
-</section>
-<section id="ceas-08-university-of-waterloo-2008">
-<h4><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/ceascorpus/">CEAS_08</a> (University of Waterloo, 2008)<a class="headerlink" href="#ceas-08-university-of-waterloo-2008" title="Link to this heading">¶</a></h4>
-<p>This dataset comes from the CEAS 2008 email detection challenge. All emails during the competition were collected in real time and cover a wide range of topics.
-The structure of the original dataset is relatively complex. You can use the existing CEAS_08 dataset available on Kaggle, such as <a class="reference external" href="https://www.kaggle.com/datasets/doryanay/ceas-08">link</a>. 39154 samples in total, 17312 (44.2%) benign, 21842 (55.8%) spam.</p>
-</section>
-<section id="enron-carnegie-mellon-university-2000-2015">
-<h4><a class="reference external" href="https://www.cs.cmu.edu/~enron/">Enron</a> (Carnegie Mellon University, 2000 - 2015)<a class="headerlink" href="#enron-carnegie-mellon-university-2000-2015" title="Link to this heading">¶</a></h4>
-<p>This dataset is a collection of emails from the Enron Corporation, which was involved in a major corporate scandal.
-Kaggle version can be found at <a class="reference external" href="https://www.kaggle.com/datasets/wcukierski/enron-email-dataset">link</a>. 517401 samples in total.</p>
-</section>
-<section id="nazario-jose-nazario-2005-2024">
-<h4><a class="reference external" href="https://monkey.org/~jose/phishing/">Nazario</a> (José Nazario, 2005 - 2024)<a class="headerlink" href="#nazario-jose-nazario-2005-2024" title="Link to this heading">¶</a></h4>
-<p>This dataset is a collection of phishing emails curated by José Nazario over nearly two decades. Its most notable feature is that it is entirely constructed from phishing emails received in his personal inbox.</p>
-</section>
-<section id="nigerian-1998-2007">
-<h4>Nigerian (1998 - 2007)<a class="headerlink" href="#nigerian-1998-2007" title="Link to this heading">¶</a></h4>
-<p>These “Nigerian” datasets typically focus on “Nigerian fraud emails,” that is, phishing and scam emails, rather than the more common advertising or junk mail types found in spam/ham classification.</p>
-</section>
-<section id="trec-university-of-waterloo-2007">
-<h4><a class="reference external" href="https://plg.uwaterloo.ca/~gvcormac/treccorpus07/">TREC</a> (University of Waterloo, 2007)<a class="headerlink" href="#trec-university-of-waterloo-2007" title="Link to this heading">¶</a></h4>
-</section>
-</section>
-<section id="improved-datasets">
-<h3>Improved Datasets<a class="headerlink" href="#improved-datasets" title="Link to this heading">¶</a></h3>
-<section id="curated-datasets-1">
-<h4><a class="reference external" href="https://figshare.com/articles/dataset/Phishing_Email_11_Curated_Datasets/24952503/1">Curated Datasets 1</a><a class="headerlink" href="#curated-datasets-1" title="Link to this heading">¶</a></h4>
-</section>
-<section id="curated-datasets-2">
-<h4><a class="reference external" href="https://figshare.com/articles/dataset/Curated_Dataset_-_Phishing_Email/24899952">Curated Datasets 2</a><a class="headerlink" href="#curated-datasets-2" title="Link to this heading">¶</a></h4>
+<section id="sigmas">
+<h4>Sigmas<a class="headerlink" href="#sigmas" title="Link to this heading">¶</a></h4>
+<p>A list of noise levels corresponding to each timestep. Higher sigma values indicate more noise, while lower values indicate less noise. The model uses these values to determine how much noise to remove at each step.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">EulerDiscreteScheduler</span>
+
+<span class="n">model_id</span> <span class="o">=</span> <span class="s2">&quot;stabilityai/stable-diffusion-xl-base-1.0&quot;</span>
+<span class="n">pipeline</span> <span class="o">=</span> <span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span>
+  <span class="s2">&quot;stabilityai/stable-diffusion-xl-base-1.0&quot;</span><span class="p">,</span>
+  <span class="n">torch_dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span>
+  <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;fp16&quot;</span><span class="p">,</span>
+<span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="s2">&quot;cuda&quot;</span><span class="p">)</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">EulerDiscreteScheduler</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">pipeline</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+
+<span class="n">sigmas</span> <span class="o">=</span> <span class="p">[</span><span class="mf">14.615</span><span class="p">,</span> <span class="mf">6.315</span><span class="p">,</span> <span class="mf">3.771</span><span class="p">,</span> <span class="mf">2.181</span><span class="p">,</span> <span class="mf">1.342</span><span class="p">,</span> <span class="mf">0.862</span><span class="p">,</span> <span class="mf">0.555</span><span class="p">,</span> <span class="mf">0.380</span><span class="p">,</span> <span class="mf">0.234</span><span class="p">,</span> <span class="mf">0.113</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">]</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;anthropomorphic capybara wearing a suit and working with a computer&quot;</span>
+<span class="n">generator</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="s1">&#39;cuda&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span>
+<span class="n">image</span> <span class="o">=</span> <span class="n">pipeline</span><span class="p">(</span>
+    <span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+    <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">sigmas</span><span class="o">=</span><span class="n">sigmas</span><span class="p">,</span>
+    <span class="n">generator</span><span class="o">=</span><span class="n">generator</span>
+<span class="p">)</span><span class="o">.</span><span class="n">images</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</pre></div>
+</div>
 </section>
 </section>
 </section>
@@ -348,23 +309,15 @@ Kaggle version can be found at <a class="reference external" href="https://www.k
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="rule-guided_diffusion.html">
-              <div class="page-info">
-                <div class="context">
-                  <span>Next</span>
-                </div>
-                <div class="title">Rule-guided Diffusion</div>
-              </div>
-              <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
-            </a>
-          <a class="prev-page" href="readme.html">
+          
+          <a class="prev-page" href="../design/rule-guided_diffusion.html">
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Project Overview</div>
+                <div class="title">Rule-guided Diffusion</div>
                 
               </div>
             </a>
@@ -398,24 +351,11 @@ Kaggle version can be found at <a class="reference external" href="https://www.k
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Datasets</a><ul>
-<li><a class="reference internal" href="#overview">Overview</a></li>
-<li><a class="reference internal" href="#structure">Structure</a></li>
-<li><a class="reference internal" href="#data-sources">Data Sources</a></li>
-<li><a class="reference internal" href="#processing">Processing</a></li>
-<li><a class="reference internal" href="#dataset-specific-information">Dataset-specific Information</a><ul>
-<li><a class="reference internal" href="#classic-datasets">Classic Datasets</a><ul>
-<li><a class="reference internal" href="#assassin-apache-open-source-dataset-2005">Assassin (Apache Open-Source Dataset, 2005)</a></li>
-<li><a class="reference internal" href="#ceas-08-university-of-waterloo-2008">CEAS_08 (University of Waterloo, 2008)</a></li>
-<li><a class="reference internal" href="#enron-carnegie-mellon-university-2000-2015">Enron (Carnegie Mellon University, 2000 - 2015)</a></li>
-<li><a class="reference internal" href="#nazario-jose-nazario-2005-2024">Nazario (José Nazario, 2005 - 2024)</a></li>
-<li><a class="reference internal" href="#nigerian-1998-2007">Nigerian (1998 - 2007)</a></li>
-<li><a class="reference internal" href="#trec-university-of-waterloo-2007">TREC (University of Waterloo, 2007)</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#improved-datasets">Improved Datasets</a><ul>
-<li><a class="reference internal" href="#curated-datasets-1">Curated Datasets 1</a></li>
-<li><a class="reference internal" href="#curated-datasets-2">Curated Datasets 2</a></li>
+<li><a class="reference internal" href="#">Diffusers Library for Quickly Building and Deploying Diffusion Models</a><ul>
+<li><a class="reference internal" href="#unique-features">Unique Features</a><ul>
+<li><a class="reference internal" href="#scheduler">Scheduler</a><ul>
+<li><a class="reference internal" href="#timestep">Timestep</a></li>
+<li><a class="reference internal" href="#sigmas">Sigmas</a></li>
 </ul>
 </li>
 </ul>
