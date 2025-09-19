@@ -13,5 +13,5 @@ Project for deep-learning-based email generator.
 We can run sampling using a command 
 
 ```
-python run_sample.py --model_path MODEL_PATH --steps STEPS
+ds-run --model_path MODEL_PATH --steps STEPS
 ```
