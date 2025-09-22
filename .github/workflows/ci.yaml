@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.13"]
 
     steps:
       - name: Check out repository code
@@ -38,7 +38,6 @@ jobs:
       - name: Install dependencies with uv
         run: |
           uv pip install -e ".[dev]" --system
-          uv pip install flash-attn --no-build-isolation --system
 
       - name: Lint with ruff
         run: |
