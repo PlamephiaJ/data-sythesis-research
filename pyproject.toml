@@ -50,6 +50,8 @@ dependencies = [
     "tqdm",
     "pyyaml",
     "OmegaConf",
+    "hydra-core",
+    "hydra-submitit-launcher",
     "transformers",
     "requests",
 ]

@@ -3,12 +3,12 @@ defaults:
   - model: small
   - override hydra/launcher: submitit_slurm
 
-ngpus: 8
+ngpus: 2
 tokens: 50257
 
 training:
-  batch_size: 512
-  accum: 1
+  batch_size: 256
+  accum: 2
   n_iters: 1300001
   snapshot_freq: 50000
   log_freq: 50

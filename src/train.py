@@ -13,7 +13,7 @@ import run_train
 import utils
 
 
-@hydra.main(version_base=None, config_path="configs", config_name="config")
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg):
     ngpus = cfg.ngpus
     if "load_dir" in cfg:
