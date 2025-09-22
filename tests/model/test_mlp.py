@@ -5,7 +5,7 @@
 import pytest
 import torch
 
-from models.mlp import MLP
+from model.mlp import MLP
 
 
 # ---- Test Constants ----

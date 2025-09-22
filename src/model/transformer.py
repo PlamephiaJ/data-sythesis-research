@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
 
 # from flash_attn.ops.fused_dense import FusedMLP, FusedDense
 from huggingface_hub import PyTorchModelHubMixin
@@ -142,6 +141,8 @@ class DDiTBlock(nn.Module):
         return bias_dropout_add_scale_fused_train if self.training else bias_dropout_add_scale_fused_inference
 
     def forward(self, x, rotary_cos_sin, c, seqlens=None):
+        from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
+
         batch_size, seq_len = x.shape[0], x.shape[1]
 
         bias_dropout_scale_fn = self._get_bias_dropout_scale()
