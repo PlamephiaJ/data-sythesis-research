@@ -10,7 +10,7 @@ Project for deep-learning-based email generator.
 
 ### Run Sampling
 
-We can run sampling using a command 
+We can run sampling using a command
 
 ```
 ds-run --model_path MODEL_PATH --steps STEPS

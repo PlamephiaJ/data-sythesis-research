@@ -1,5 +1,4 @@
 import torch
-import torch.nn.functional as F
 
 
 def get_model_fn(model, train=False):
@@ -8,7 +7,7 @@ def get_model_fn(model, train=False):
     Args:
         model: The score model.
         train: `True` for training and `False` for evaluation.
-        mlm: If the input model is a mlm and models the base probability 
+        mlm: If the input model is a mlm and models the base probability
 
     Returns:
         A model function.
@@ -29,7 +28,7 @@ def get_model_fn(model, train=False):
             model.train()
         else:
             model.eval()
-        
+
             # otherwise output the raw values (we handle mlm training in losses.py)
         return model(x, sigma)
 
@@ -42,14 +41,15 @@ def get_score_fn(model, train=False, sampling=False):
     model_fn = get_model_fn(model, train=train)
 
     with torch.cuda.amp.autocast(dtype=torch.bfloat16):
+
         def score_fn(x, sigma):
             sigma = sigma.reshape(-1)
             score = model_fn(x, sigma)
-            
+
             if sampling:
                 # when sampling return true score (not log used for training)
                 return score.exp()
-                
+
             return score
 
     return score_fn

@@ -43,6 +43,7 @@ dependencies = [
     "torchvision",
     "torchaudio",
     "pandas",
+    "datasets",
     "scikit-learn",
     "einops",
     "huggingface_hub",
@@ -50,6 +51,7 @@ dependencies = [
     "pyyaml",
     "OmegaConf",
     "transformers",
+    "requests",
 ]
 
 # --- Project URLs (Optional) ---
@@ -130,7 +132,6 @@ docstring-code-format = true
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-# --- Pytest ---
 [tool.pytest.ini_options]
 minversion = "6.0"
 # Add the 'src' directory to the python path so imports work correctly.

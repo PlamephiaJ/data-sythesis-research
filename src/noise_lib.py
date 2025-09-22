@@ -1,7 +1,7 @@
 import abc
+
 import torch
 import torch.nn as nn
-import numpy as np
 
 
 def get_noise(config):
@@ -17,12 +17,14 @@ class Noise(abc.ABC, nn.Module):
     """
     Baseline forward method to get the total + rate of noise at a timestep
     """
+
     def forward(self, t):
         return self.total_noise(t), self.rate_noise(t)
 
     """
     Assume time goes from 0 to 1
     """
+
     @abc.abstractmethod
     def rate_noise(self, t):
         """
@@ -60,6 +62,7 @@ class LogLinearNoise(Noise, nn.Module):
 
     Total noise is -log(1 - (1 - eps) * t), so the sigma will be (1 - eps) * t
     """
+
     def __init__(self, eps=1e-3):
         super().__init__()
         self.eps = eps
@@ -70,4 +73,3 @@ class LogLinearNoise(Noise, nn.Module):
 
     def total_noise(self, t):
         return -torch.log1p(-(1 - self.eps) * t)
-

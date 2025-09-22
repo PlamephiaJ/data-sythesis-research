@@ -13,4 +13,3 @@ def sample_categorical(categorical_probs, method="hard"):
         return (categorical_probs / gumbel_norm).argmax(dim=-1)
     else:
         raise ValueError(f"Method {method} for sampling categorical variables is not valid.")
-    

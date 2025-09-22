@@ -1,7 +1,9 @@
+from typing import Optional
+
 import torch
 import torch.nn.functional as F
-from typing import Optional
 from torch import Tensor
+
 
 # flags required to enable jit fusion kernels
 torch._C._jit_set_profiling_mode(False)
@@ -46,6 +48,7 @@ def bias_dropout_add_scale_fused_inference(
     x: Tensor, bias: Optional[Tensor], scale: Tensor, residual: Optional[Tensor], prob: float
 ) -> Tensor:
     return bias_dropout_add_scale(x, bias, scale, residual, prob, False)
+
 
 @torch.jit.script
 def modulate_fused(x: Tensor, shift: Tensor, scale: Tensor) -> Tensor:

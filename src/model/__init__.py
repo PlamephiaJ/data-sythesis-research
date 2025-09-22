@@ -1,1 +1,1 @@
-from .transformer import SEDD
+from .transformer import SEDD as SEDD

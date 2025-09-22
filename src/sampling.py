@@ -1,9 +1,10 @@
 import abc
-import torch
-import torch.nn.functional as F
-from catsample import sample_categorical
 
+import torch
+
+from catsample import sample_categorical
 from model import utils as mutils
+
 
 _PREDICTORS = {}
 
@@ -17,8 +18,7 @@ def register_predictor(cls=None, *, name=None):
         else:
             local_name = name
         if local_name in _PREDICTORS:
-            raise ValueError(
-                f'Already registered model with name: {local_name}')
+            raise ValueError(f"Already registered model with name: {local_name}")
         _PREDICTORS[local_name] = cls
         return cls
 
@@ -27,10 +27,9 @@ def register_predictor(cls=None, *, name=None):
     else:
         return _register(cls)
 
-    
+
 def get_predictor(name):
     return _PREDICTORS[name]
-
 
 
 class Predictor(abc.ABC):
@@ -66,6 +65,7 @@ class EulerPredictor(Predictor):
         x = self.graph.sample_rate(x, rev_rate)
         return x
 
+
 @register_predictor(name="none")
 class NonePredictor(Predictor):
     def update_fn(self, score_fn, x, t, step_size):
@@ -85,7 +85,7 @@ class AnalyticPredictor(Predictor):
         probs = stag_score * self.graph.transp_transition(x, dsigma)
         return sample_categorical(probs)
 
-    
+
 class Denoiser:
     def __init__(self, graph, noise):
         self.graph = graph
@@ -100,26 +100,37 @@ class Denoiser:
         # truncate probabilities
         if self.graph.absorb:
             probs = probs[..., :-1]
-        
-        #return probs.argmax(dim=-1)
+
+        # return probs.argmax(dim=-1)
         return sample_categorical(probs)
-                       
+
 
 def get_sampling_fn(config, graph, noise, batch_dims, eps, device):
-    
-    sampling_fn = get_pc_sampler(graph=graph,
-                                 noise=noise,
-                                 batch_dims=batch_dims,
-                                 predictor=config.sampling.predictor,
-                                 steps=config.sampling.steps,
-                                 denoise=config.sampling.noise_removal,
-                                 eps=eps,
-                                 device=device)
-    
-    return sampling_fn
-    
+    sampling_fn = get_pc_sampler(
+        graph=graph,
+        noise=noise,
+        batch_dims=batch_dims,
+        predictor=config.sampling.predictor,
+        steps=config.sampling.steps,
+        denoise=config.sampling.noise_removal,
+        eps=eps,
+        device=device,
+    )
 
-def get_pc_sampler(graph, noise, batch_dims, predictor, steps, denoise=True, eps=1e-5, device=torch.device('cpu'), proj_fun=lambda x: x):
+    return sampling_fn
+
+
+def get_pc_sampler(
+    graph,
+    noise,
+    batch_dims,
+    predictor,
+    steps,
+    denoise=True,
+    eps=1e-5,
+    device=torch.device("cpu"),
+    proj_fun=lambda x: x,
+):
     predictor = get_predictor(predictor)(graph, noise)
     projector = proj_fun
     denoiser = Denoiser(graph, noise)
@@ -135,15 +146,13 @@ def get_pc_sampler(graph, noise, batch_dims, predictor, steps, denoise=True, eps
             t = timesteps[i] * torch.ones(x.shape[0], 1, device=device)
             x = projector(x)
             x = predictor.update_fn(sampling_score_fn, x, t, dt)
-            
 
         if denoise:
             # denoising step
             x = projector(x)
             t = timesteps[-1] * torch.ones(x.shape[0], 1, device=device)
             x = denoiser.update_fn(sampling_score_fn, x, t)
-            
-        return x
-    
-    return pc_sampler
 
+        return x
+
+    return pc_sampler

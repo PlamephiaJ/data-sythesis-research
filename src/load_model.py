@@ -1,12 +1,13 @@
 import os
+
 import torch
-from model import SEDD
-import utils
-from model.ema import ExponentialMovingAverage
+
 import graph_lib
 import noise_lib
+import utils
+from model import SEDD
+from model.ema import ExponentialMovingAverage
 
-from omegaconf import OmegaConf
 
 def load_model_hf(dir, device):
     score_model = SEDD.from_pretrained(dir).to(device)
@@ -25,8 +26,8 @@ def load_model_local(root_dir, device):
     ckpt_dir = os.path.join(root_dir, "checkpoints-meta", "checkpoint.pth")
     loaded_state = torch.load(ckpt_dir, map_location=device)
 
-    score_model.load_state_dict(loaded_state['model'])
-    ema.load_state_dict(loaded_state['ema'])
+    score_model.load_state_dict(loaded_state["model"])
+    ema.load_state_dict(loaded_state["ema"])
 
     ema.store(score_model.parameters())
     ema.copy_to(score_model.parameters())
@@ -36,5 +37,6 @@ def load_model_local(root_dir, device):
 def load_model(root_dir, device):
     try:
         return load_model_hf(root_dir, device)
-    except:
+    except Exception as e:
+        print(f"Failed to load model from Hugging Face: {e}. Falling back to local.")
         return load_model_local(root_dir, device)
