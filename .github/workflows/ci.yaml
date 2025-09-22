@@ -38,6 +38,7 @@ jobs:
       - name: Install dependencies with uv
         run: |
           uv pip install -e ".[dev]" --system
+          uv pip install flash-attn --no-build-isolation
 
       - name: Lint with ruff
         run: |
