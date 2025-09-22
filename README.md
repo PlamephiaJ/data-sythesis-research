@@ -8,7 +8,6 @@ Project for deep-learning-based email generator.
 
 </div>
 
-
 # TriGuardFL: TRIPLE-LAYER DETECTION FOR BYZANTINE-ROBUST FEDERATED LEARNING AGAINST MODEL POISONING ATTACKS
 
 [![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
