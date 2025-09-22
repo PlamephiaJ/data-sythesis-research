@@ -64,3 +64,9 @@ Thumbs.db
 # Documentation
 docs/_build/
 site/
+
+# Data files
+data/*
+
+# Logs
+exp_local/

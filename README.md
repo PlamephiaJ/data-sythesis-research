@@ -8,17 +8,19 @@ Project for deep-learning-based email generator.
 
 </div>
 
-# TriGuardFL: TRIPLE-LAYER DETECTION FOR BYZANTINE-ROBUST FEDERATED LEARNING AGAINST MODEL POISONING ATTACKS
+# Data Sythesis Research: Rule-guided Discrete Diffusion for Email Generation
 
-[![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Abstract
 
-**Data Sythesis Research" ....
+This project aims to design and implement a deep learning framework that leverages both Diffusion Models and Large Language Models (LLMs) to collaboratively generate “phishing-style” email samples, enabling security researchers to test/evaluate email filters and train anti-phishing detection models.
+
+With the development of deep learning technology, using deep learning—especially advanced large language models—for phishing email detection has become a promising solution. Data is fundamental to driving the progress of deep learning models, but due to the sensitive nature of phishing emails, which often contain a large amount of malicious content and sensitive information, obtaining such data is much more difficult than for other types. Existing open-source phishing email datasets have undergone various anonymization processes, resulting in the loss of original information, and most of the data is outdated and can no longer meet the needs of rapidly evolving phishing strategies. This work aims to use diffusion models and LLMs to generate phishing emails, providing high-quality training data for downstream detection models.
 ## Tech Stack
 
-* **Python 3.9+**
+* **Python 3.13+**
 * **uv**: For fast and reliable project environment and dependency management.
 * **PyTorch**
 * **pyproject.toml**: For declaring project metadata and dependencies.
@@ -29,13 +31,13 @@ This project uses `uv` for environment management to ensure a fast and consisten
 
 ### 1. Prerequisites
 
-Ensure you have Python 3.9+ and `uv` installed on your system.
+Ensure you have Python 3.13+ and `uv` installed on your system.
 
 ### 2. Setup Steps
 
 ```bash
 # 1. Clone this repository
-git clone repo_addr
+git clone https://github.com/PlamephiaJ/data-sythesis-research
 cd data-sythesis-research
 
 # 2. Create a virtual environment using uv
@@ -58,7 +60,7 @@ uv pip install ".[dev]"
 
 ### 3. Running an Experiment
 
-This project is configured with a command-line entry point called 'ds-run', which makes running experiments simple and reproducible. You no longer need to call python src/byzantine_robust_fl/main.py directly.
+This project is configured with a command-line entry point called 'ds-run', which makes running experiments simple and reproducible. You no longer need to call python directly.
 
 All parameters are controlled via command-line arguments.
 
