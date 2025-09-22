@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# AI Firewall - Development Environment Setup Script (Final Simplified Version)
+# Data Synthesis Research - Environment Setup Script
 #
-# This script manages two primary lockfiles:
-#     - requirements.txt: For production deployments.
-#     - requirements-dev.txt: For all local development and CI/CD purposes.
+# This script manages setup process for the packages that cannot be directly
+# installed via uv.
 #
 # USAGE:
 #     ./setup.sh         - Sets up the environment using existing lockfiles.
