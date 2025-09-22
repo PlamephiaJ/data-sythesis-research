@@ -38,22 +38,20 @@ classifiers = [
 
 # --- Core Dependencies ---
 dependencies = [
-    # Deep Learning Framework
-    "torch>=2.0",
+    "torch",
+    "numpy",
     "torchvision",
     "torchaudio",
-
-    # High-level Training Framework
-    "lightning>=2.2",
-
-    # Data Handling and Scientific Computing
-    "numpy",
     "pandas",
+    "datasets",
     "scikit-learn",
-
-    # Utility Libraries
+    "einops",
+    "huggingface_hub",
     "tqdm",
     "pyyaml",
+    "OmegaConf",
+    "transformers",
+    "requests",
 ]
 
 # --- Project URLs (Optional) ---
@@ -62,6 +60,8 @@ Homepage = "https://github.com/your-username/your-repo"
 Repository = "https://github.com/your-username/your-repo"
 "Bug Tracker" = "https://github.com/your-username/your-repo/issues"
 
+[project.scripts]
+ds-run = "run_sample:main"
 
 # ==============================================================================
 #                        Optional Dependencies (Extras)
@@ -132,7 +132,6 @@ docstring-code-format = true
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-# --- Pytest ---
 [tool.pytest.ini_options]
 minversion = "6.0"
 # Add the 'src' directory to the python path so imports work correctly.
