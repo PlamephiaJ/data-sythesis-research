@@ -40,16 +40,16 @@ def get_score_fn(model, train=False, sampling=False):
         assert not train, "Must sample in eval mode"
     model_fn = get_model_fn(model, train=train)
 
-    with torch.cuda.amp.autocast(dtype=torch.bfloat16):
-
-        def score_fn(x, sigma):
+    def score_fn(x, sigma):
+        device = x.device
+        with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=(device.type == "cuda")):
             sigma = sigma.reshape(-1)
             score = model_fn(x, sigma)
 
-            if sampling:
-                # when sampling return true score (not log used for training)
-                return score.exp()
+        if sampling:
+            # when sampling return true score (not log used for training)
+            return score.exp()
 
-            return score
+        return score
 
     return score_fn
