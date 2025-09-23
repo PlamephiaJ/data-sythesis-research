@@ -32,7 +32,7 @@ class LayerNorm(nn.Module):
         self.dim = dim
 
     def forward(self, x):
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast(device_type="cuda", enabled=False):
             x = F.layer_norm(x.float(), [self.dim])
         return x * self.weight[None, None, :]
 
@@ -158,7 +158,7 @@ class DDiTBlock(nn.Module):
 
         qkv = self.attn_qkv(x)
         qkv = rearrange(qkv, "b s (three h d) -> b s three h d", three=3, h=self.n_heads)
-        with torch.cuda.amp.autocast(enabled=False):
+        with torch.amp.autocast(device_type="cuda", enabled=False):
             cos, sin = rotary_cos_sin
             qkv = rotary.apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
         qkv = rearrange(qkv, "b s ... -> (b s) ...")
