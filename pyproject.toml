@@ -54,7 +54,9 @@ dependencies = [
     "hydra-submitit-launcher",
     "transformers",
     "requests",
-    "flash-attn>=2.8.3",
+    # Disable due to CI test support issues. Must be installed manually.
+    # 'uv pip install flash-attn --no-build-isolation'
+    # "flash-attn>=2.8.3",
 ]
 
 # --- Project URLs (Optional) ---
