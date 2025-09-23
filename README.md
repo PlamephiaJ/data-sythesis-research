@@ -50,6 +50,9 @@ source .venv/bin/activate
 # 4. Install project dependencies
 # uv will automatically read the pyproject.toml file and install all dependencies
 uv pip install -e .
+
+# 5. Install flash attention manually
+uv add flash-attn --no-build-isolation
 ```
 
 If you have defined development dependencies (e.g., `pytest`) in your `pyproject.toml`, you can install them with:
