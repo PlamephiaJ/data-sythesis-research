@@ -98,7 +98,7 @@ def _run(rank, world_size, cfg):
     # build optimization state
     optimizer = losses.get_optimizer(cfg, chain(score_model.parameters(), noise.parameters()))
     mprint(f"Optimizer: {optimizer}")
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = torch.amp.GradScaler()
     mprint(f"Scaler: {scaler}")
     state = dict(optimizer=optimizer, scaler=scaler, model=score_model, noise=noise, ema=ema, step=0)
 
