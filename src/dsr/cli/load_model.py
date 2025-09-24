@@ -2,24 +2,23 @@ import os
 
 import torch
 
-import graph_lib
-import noise_lib
-import utils
-from model import SEDD
-from model.ema import ExponentialMovingAverage
+from ..models import SEDD
+from ..models.ema import ExponentialMovingAverage
+from ..utils.dist import load_hydra_config_from_run
+from ..utils.graph_noise import get_graph, get_noise
 
 
 def load_model_hf(dir, device):
     score_model = SEDD.from_pretrained(dir).to(device)
-    graph = graph_lib.get_graph(score_model.config, device)
-    noise = noise_lib.get_noise(score_model.config).to(device)
+    graph = get_graph(score_model.config, device)
+    noise = get_noise(score_model.config).to(device)
     return score_model, graph, noise
 
 
 def load_model_local(root_dir, device):
-    cfg = utils.load_hydra_config_from_run(root_dir)
-    graph = graph_lib.get_graph(cfg, device)
-    noise = noise_lib.get_noise(cfg).to(device)
+    cfg = load_hydra_config_from_run(root_dir)
+    graph = get_graph(cfg, device)
+    noise = get_noise(cfg).to(device)
     score_model = SEDD(cfg).to(device)
     ema = ExponentialMovingAverage(score_model.parameters(), decay=cfg.training.ema)
 

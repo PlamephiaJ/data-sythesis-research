@@ -66,7 +66,9 @@ docs/_build/
 site/
 
 # Data files
-data/*
+data/**
+!data/**/.gitkeep
 
 # Logs
-exp_local/
+outputs/**
+!outputs/.gitkeep

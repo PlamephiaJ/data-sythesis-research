@@ -9,14 +9,13 @@ import torch.nn.functional as F
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
-import data
-import graph_lib
-import losses
-import noise_lib
-import sampling
-import utils
-from model import SEDD
-from model.ema import ExponentialMovingAverage
+from ..data.datamodule import get_dataloaders
+from ..models import SEDD
+from ..models.ema import ExponentialMovingAverage
+from ..utils.dist import restore_checkpoint, save_checkpoint
+from ..utils.graph_noise import get_graph, get_noise
+from ..utils.logging import get_logger, makedirs
+from . import evaluator, sampler
 
 
 torch.backends.cudnn.benchmark = True
@@ -52,13 +51,13 @@ def _run(rank, world_size, cfg):
     checkpoint_dir = os.path.join(work_dir, "checkpoints")
     checkpoint_meta_dir = os.path.join(work_dir, "checkpoints-meta", "checkpoint.pth")
     if rank == 0:
-        utils.makedirs(sample_dir)
-        utils.makedirs(checkpoint_dir)
-        utils.makedirs(os.path.dirname(checkpoint_meta_dir))
+        makedirs(sample_dir)
+        makedirs(checkpoint_dir)
+        makedirs(os.path.dirname(checkpoint_meta_dir))
 
     # logging
     if rank == 0:
-        logger = utils.get_logger(os.path.join(work_dir, "logs"))
+        logger = get_logger(os.path.join(work_dir, "logs"))
 
     def mprint(msg):
         if rank == 0:
@@ -77,7 +76,7 @@ def _run(rank, world_size, cfg):
     mprint(f"Found {os.cpu_count()} total number of CPUs.")
 
     # build token graph
-    graph = graph_lib.get_graph(cfg, device)
+    graph = get_graph(cfg, device)
 
     # build score model
     score_model = SEDD(cfg).to(device)
@@ -91,26 +90,26 @@ def _run(rank, world_size, cfg):
     mprint(f"EMA: {ema}")
 
     # build noise
-    noise = noise_lib.get_noise(cfg).to(device)
+    noise = get_noise(cfg).to(device)
     noise = DDP(noise, device_ids=[rank], static_graph=True)
     sampling_eps = 1e-5
 
     # build optimization state
-    optimizer = losses.get_optimizer(cfg, chain(score_model.parameters(), noise.parameters()))
+    optimizer = evaluator.get_optimizer(cfg, chain(score_model.parameters(), noise.parameters()))
     mprint(f"Optimizer: {optimizer}")
     scaler = torch.amp.GradScaler()
     mprint(f"Scaler: {scaler}")
     state = dict(optimizer=optimizer, scaler=scaler, model=score_model, noise=noise, ema=ema, step=0)
 
     # load in state
-    state = utils.restore_checkpoint(checkpoint_meta_dir, state, device)
+    state = restore_checkpoint(checkpoint_meta_dir, state, device)
     initial_step = int(state["step"])
 
     # load in tokenizer
     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
 
     # Build data iterators
-    train_ds, eval_ds = data.get_dataloaders(cfg)
+    train_ds, eval_ds = get_dataloaders(cfg)
 
     # mprint(f"Length of datasets: {len(train_ds)}, {len(eval_ds)}")
 
@@ -118,13 +117,13 @@ def _run(rank, world_size, cfg):
     eval_iter = iter(eval_ds)
 
     # Build one-step training and evaluation functions
-    optimize_fn = losses.optimization_manager(cfg)
-    train_step_fn = losses.get_step_fn(noise, graph, True, optimize_fn, cfg.training.accum)
-    eval_step_fn = losses.get_step_fn(noise, graph, False, optimize_fn, cfg.training.accum)
+    optimize_fn = evaluator.optimization_manager(cfg)
+    train_step_fn = evaluator.get_step_fn(noise, graph, True, optimize_fn, cfg.training.accum)
+    eval_step_fn = evaluator.get_step_fn(noise, graph, False, optimize_fn, cfg.training.accum)
 
     if cfg.training.snapshot_sampling:
         sampling_shape = (cfg.training.batch_size // (cfg.ngpus * cfg.training.accum), cfg.model.length)
-        sampling_fn = sampling.get_sampling_fn(cfg, graph, noise, sampling_shape, sampling_eps, device)
+        sampling_fn = sampler.get_sampling_fn(cfg, graph, noise, sampling_shape, sampling_eps, device)
 
     num_train_steps = cfg.training.n_iters
     mprint(f"Starting training loop at step {initial_step}.")
@@ -147,7 +146,7 @@ def _run(rank, world_size, cfg):
                 mprint("step: %d, training_loss: %.5e" % (step, loss.item()))
 
             if step % cfg.training.snapshot_freq_for_preemption == 0 and rank == 0:
-                utils.save_checkpoint(checkpoint_meta_dir, state)
+                save_checkpoint(checkpoint_meta_dir, state)
 
             if step % cfg.training.eval_freq == 0:
                 if cfg.data.valid != "text8":
@@ -165,14 +164,14 @@ def _run(rank, world_size, cfg):
                 # Save the checkpoint.
                 save_step = step // cfg.training.snapshot_freq
                 if rank == 0:
-                    utils.save_checkpoint(os.path.join(checkpoint_dir, f"checkpoint_{save_step}.pth"), state)
+                    save_checkpoint(os.path.join(checkpoint_dir, f"checkpoint_{save_step}.pth"), state)
 
                 # Generate and save samples
                 if cfg.training.snapshot_sampling:
                     mprint(f"Generating text at step: {step}")
 
-                    this_sample_dir = os.path.join(sample_dir, "iter_{}".format(step))
-                    utils.makedirs(this_sample_dir)
+                    this_sample_dir = os.path.join(sample_dir, f"iter_{step}")
+                    makedirs(this_sample_dir)
 
                     ema.store(score_model.parameters())
                     ema.copy_to(score_model.parameters())

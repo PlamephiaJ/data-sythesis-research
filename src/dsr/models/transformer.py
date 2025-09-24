@@ -11,7 +11,7 @@ from huggingface_hub import PyTorchModelHubMixin
 from omegaconf import OmegaConf
 
 from . import rotary
-from .fused_add_dropout_scale import (
+from .fused_ops import (
     bias_dropout_add_scale_fused_inference,
     bias_dropout_add_scale_fused_train,
     modulate_fused,

@@ -1,0 +1,9 @@
+data:
+  train: openwebtext
+  valid: wikitext103
+  cache_dir: ${paths.data_root}/raw
+
+graph:
+  type: absorb
+  file: ${paths.data_root}
+  report_all: false

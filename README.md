@@ -10,7 +10,7 @@ Project for deep-learning-based email generator.
 
 # Data Sythesis Research: Rule-guided Discrete Diffusion for Email Generation
 
-[![Python Version](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
+[![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Abstract
@@ -20,10 +20,10 @@ This project aims to design and implement a deep learning framework that leverag
 With the development of deep learning technology, using deep learning—especially advanced large language models—for phishing email detection has become a promising solution. Data is fundamental to driving the progress of deep learning models, but due to the sensitive nature of phishing emails, which often contain a large amount of malicious content and sensitive information, obtaining such data is much more difficult than for other types. Existing open-source phishing email datasets have undergone various anonymization processes, resulting in the loss of original information, and most of the data is outdated and can no longer meet the needs of rapidly evolving phishing strategies. This work aims to use diffusion models and LLMs to generate phishing emails, providing high-quality training data for downstream detection models.
 ## Tech Stack
 
-* **Python 3.13+**
-* **uv**: For fast and reliable project environment and dependency management.
-* **PyTorch**
-* **pyproject.toml**: For declaring project metadata and dependencies.
+* **Python 3.9–3.12**
+* **PyTorch** + CUDA for distributed training
+* **Hydra/OmegaConf** for hierarchical configuration
+* **uv** (*optional*) for environment and dependency management
 
 ## Installation and Usage
 
@@ -61,31 +61,72 @@ uv pip install ".[dev]"
 ```
 
 
-### 3. Running an Experiment
+### 3. Data & Outputs
 
-This project is configured with a command-line entry point called 'ds-run', which makes running experiments simple and reproducible. You no longer need to call python directly.
+The repository keeps the working directories inside the workspace:
 
-All parameters are controlled via command-line arguments.
+* `data/` – structured into `raw/`, `interim/`, and `processed/`. Populate `data/raw/` with the corpora you plan to train on or link it to shared datasets.
+* `outputs/` – Hydra writes experiment artifacts here (checkpoints, logs, samples). Each run gets its own timestamped subdirectory.
 
-Example 1: Basic MNIST experiment without attacks
-This command runs a simple experiment for 10 epochs on the MNIST dataset with an MLP model.
 
-```bash
-ds-run --config configs/demo1.yaml
-```
-You can see all available options by running:
+### 4. Running an Experiment
+
+The refactored package exposes a small set of import-friendly CLI tools. Launch them directly or reuse the helper scripts under `scripts/`.
 
 ```bash
-ds-run --help
+# Launch a Hydra-driven training job
+python3 -m dsr.cli.train
+# or simply
+./scripts/train.sh
+
+# Generate samples (supports optional --prefix/--suffix constraints)
+python3 -m dsr.cli.sample --model_path louaaron/sedd-medium
+# or use the wrapper
+./scripts/sample.sh --steps 512 --batch_size 4
+
+# Run the smoke test suite (requires `uv pip install ".[dev]"`)
+./scripts/eval.sh
 ```
 
-## Expected Results
+Hydra config groups live under `configs/`:
 
-(Optional) You can showcase example plots or key results from your project runs here, such as:
-* A comparison of model accuracy under different aggregation rules.
-* The loss curve convergence with and without Byzantine attacks.
+* `configs/dataset/` – data sources (`dataset=openwebtext` by default)
+* `configs/model/` – model architecture presets (`model=transformer_small`/`transformer_medium`)
+* `configs/train/` – training, evaluation, and optimization schedules
 
-![Model Accuracy Comparison](placeholder_accuracy_plot.png)
+Override any value on the command line, for example:
+
+```bash
+python3 -m dsr.cli.train model=transformer_medium train.training.batch_size=128
+```
+
+### 5. Project Layout
+
+```
+data-sythesis-research/
+├── configs/            # Hydra configuration groups
+├── scripts/            # Convenience wrappers for CLI entry points
+├── src/dsr/            # Python package (data, models, train, utils, cli)
+├── tests/              # Smoke tests
+├── data/               # (Git-ignored) datasets with .gitkeep placeholders
+├── outputs/            # (Git-ignored) experiment artifacts
+└── notebooks/          # Exploratory analysis notebooks
+```
+
+### 6. Testing
+
+A lightweight smoke test ensures the sampler registry stays wired up:
+
+```bash
+./scripts/eval.sh
+# internally runs: python3 -m pytest tests/test_smoke.py
+```
+
+## Monitoring Runs
+
+Each Hydra run writes logs to `outputs/<timestamp>/logs` and checkpoints to `outputs/<timestamp>/checkpoints/`. Sample generations are saved under `outputs/<timestamp>/samples/` when `training.snapshot_sampling=true`.
+
+Use the console logs or inspect the JSON/`train.log` files under the run directory to track loss and evaluation metrics. Integrations such as Weights & Biases can be re-enabled by pointing the code to your account in `configs/train/base.yaml`.
 
 ## Contributing
 

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from model import utils as mutils
+from ..models import utils as mutils
 
 
 def get_loss_fn(noise, graph, train, sampling_eps=1e-3, lv=False):
