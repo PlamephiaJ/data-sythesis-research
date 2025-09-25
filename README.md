@@ -97,7 +97,7 @@ Hydra config groups live under `configs/`:
 Override any value on the command line, for example:
 
 ```bash
-python3 -m dsr.cli.train model=transformer_medium train.training.batch_size=128
+python3 -m dsr.cli.train model=transformer_medium training.batch_size=128
 ```
 
 ### 5. Project Layout
