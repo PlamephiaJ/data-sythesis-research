@@ -10,14 +10,15 @@ from einops import rearrange
 
 # from flash_attn.ops.fused_dense import FusedMLP, FusedDense
 from huggingface_hub import PyTorchModelHubMixin
-from transformers import PretrainedConfig
 
-from . import rotary
-from .fused_ops import (
+from ..components import (
+    Rotary,
+    apply_rotary_pos_emb,
     bias_dropout_add_scale_fused_inference,
     bias_dropout_add_scale_fused_train,
     modulate_fused,
 )
+from .config import SEDDConfig
 
 
 def modulate(x, shift, scale):
@@ -162,7 +163,7 @@ class DDiTBlock(nn.Module):
         qkv = rearrange(qkv, "b s (three h d) -> b s three h d", three=3, h=self.n_heads)
         with torch.amp.autocast(device_type="cuda", enabled=False):
             cos, sin = rotary_cos_sin
-            qkv = rotary.apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
+            qkv = apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
         qkv = rearrange(qkv, "b s ... -> (b s) ...")
         if seqlens is None:
             cu_seqlens = torch.arange(
@@ -216,35 +217,6 @@ class DDitFinalLayer(nn.Module):
         return x
 
 
-class SEDDConfig(PretrainedConfig):
-    model_type = "sedd"
-
-    def __init__(
-        self,
-        tokens: int,
-        graph_type: str = "absorb",
-        hidden_size: int = 768,
-        cond_dim: int = 128,
-        length: int = 1024,
-        n_blocks: int = 12,
-        n_heads: int = 12,
-        scale_by_sigma: bool = True,
-        dropout: float = 0.1,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.tokens = tokens
-        self.graph_type = graph_type
-        self.hidden_size = hidden_size
-        self.cond_dim = cond_dim
-        self.length = length
-        self.n_blocks = n_blocks
-        self.n_heads = n_heads
-        self.scale_by_sigma = scale_by_sigma
-        self.dropout = dropout
-        self.vocab_size = tokens + (1 if graph_type == "absorb" else 0)
-
-
 class SEDD(nn.Module, PyTorchModelHubMixin):
     config_class = SEDDConfig
 
@@ -261,7 +233,7 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
 
         self.vocab_embed = EmbeddingLayer(config.hidden_size, vocab_size)
         self.sigma_map = TimestepEmbedder(config.cond_dim)
-        self.rotary_emb = rotary.Rotary(config.hidden_size // config.n_heads)
+        self.rotary_emb = Rotary(config.hidden_size // config.n_heads)
 
         self.blocks = nn.ModuleList(
             [
