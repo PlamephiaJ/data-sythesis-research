@@ -1,4 +1,6 @@
 import math
+from collections.abc import Mapping
+from typing import Any, Union
 
 import numpy as np
 import torch
@@ -8,14 +10,15 @@ from einops import rearrange
 
 # from flash_attn.ops.fused_dense import FusedMLP, FusedDense
 from huggingface_hub import PyTorchModelHubMixin
-from omegaconf import OmegaConf
 
-from . import rotary
-from .fused_add_dropout_scale import (
+from ..components import (
+    Rotary,
+    apply_rotary_pos_emb,
     bias_dropout_add_scale_fused_inference,
     bias_dropout_add_scale_fused_train,
     modulate_fused,
 )
+from .config import SEDDConfig
 
 
 def modulate(x, shift, scale):
@@ -160,7 +163,7 @@ class DDiTBlock(nn.Module):
         qkv = rearrange(qkv, "b s (three h d) -> b s three h d", three=3, h=self.n_heads)
         with torch.amp.autocast(device_type="cuda", enabled=False):
             cos, sin = rotary_cos_sin
-            qkv = rotary.apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
+            qkv = apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
         qkv = rearrange(qkv, "b s ... -> (b s) ...")
         if seqlens is None:
             cu_seqlens = torch.arange(
@@ -215,32 +218,37 @@ class DDitFinalLayer(nn.Module):
 
 
 class SEDD(nn.Module, PyTorchModelHubMixin):
-    def __init__(self, config):
+    config_class = SEDDConfig
+
+    def __init__(self, config: Union[SEDDConfig, Mapping[str, Any], Any]):
         super().__init__()
 
-        if isinstance(config, dict):
-            config = OmegaConf.create(config)
+        if not isinstance(config, SEDDConfig):
+            config = self._standardize_config(config)
 
-        self.config = config
+        self.config: SEDDConfig = config
 
-        self.absorb = config.graph.type == "absorb"
-        vocab_size = config.tokens + (1 if self.absorb else 0)
+        self.absorb = config.graph_type == "absorb"
+        vocab_size = config.vocab_size
 
-        self.vocab_embed = EmbeddingLayer(config.model.hidden_size, vocab_size)
-        self.sigma_map = TimestepEmbedder(config.model.cond_dim)
-        self.rotary_emb = rotary.Rotary(config.model.hidden_size // config.model.n_heads)
+        self.vocab_embed = EmbeddingLayer(config.hidden_size, vocab_size)
+        self.sigma_map = TimestepEmbedder(config.cond_dim)
+        self.rotary_emb = Rotary(config.hidden_size // config.n_heads)
 
         self.blocks = nn.ModuleList(
             [
                 DDiTBlock(
-                    config.model.hidden_size, config.model.n_heads, config.model.cond_dim, dropout=config.model.dropout
+                    config.hidden_size,
+                    config.n_heads,
+                    config.cond_dim,
+                    dropout=config.dropout,
                 )
-                for _ in range(config.model.n_blocks)
+                for _ in range(config.n_blocks)
             ]
         )
 
-        self.output_layer = DDitFinalLayer(config.model.hidden_size, vocab_size, config.model.cond_dim)
-        self.scale_by_sigma = config.model.scale_by_sigma
+        self.output_layer = DDitFinalLayer(config.hidden_size, vocab_size, config.cond_dim)
+        self.scale_by_sigma = config.scale_by_sigma
 
     def _get_bias_dropout_scale(self):
         return bias_dropout_add_scale_fused_train if self.training else bias_dropout_add_scale_fused_inference
@@ -265,3 +273,52 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         x = torch.scatter(x, -1, indices[..., None], torch.zeros_like(x[..., :1]))
 
         return x
+
+    @staticmethod
+    def _standardize_config(config: Union[Mapping[str, Any], Any]) -> SEDDConfig:
+        def _maybe_get(obj, key, default=None):
+            if isinstance(obj, Mapping):
+                return obj[key] if key in obj else default
+            return getattr(obj, key, default)
+
+        tokens = _maybe_get(config, "tokens")
+        if tokens is None:
+            raise ValueError("`tokens` must be provided in the SEDD configuration.")
+
+        graph_cfg = _maybe_get(config, "graph", {})
+        graph_type = _maybe_get(graph_cfg, "type", "absorb")
+
+        model_cfg = _maybe_get(config, "model", {})
+        hidden_size = _maybe_get(model_cfg, "hidden_size")
+        cond_dim = _maybe_get(model_cfg, "cond_dim")
+        length = _maybe_get(model_cfg, "length")
+        n_blocks = _maybe_get(model_cfg, "n_blocks")
+        n_heads = _maybe_get(model_cfg, "n_heads")
+        scale_by_sigma = _maybe_get(model_cfg, "scale_by_sigma", True)
+        dropout = _maybe_get(model_cfg, "dropout", 0.1)
+
+        missing = [
+            name
+            for name, value in {
+                "hidden_size": hidden_size,
+                "cond_dim": cond_dim,
+                "length": length,
+                "n_blocks": n_blocks,
+                "n_heads": n_heads,
+            }.items()
+            if value is None
+        ]
+        if missing:
+            raise ValueError(f"Missing model hyperparameters in configuration: {', '.join(missing)}")
+
+        return SEDDConfig(
+            tokens=int(tokens),
+            graph_type=str(graph_type),
+            hidden_size=int(hidden_size),
+            cond_dim=int(cond_dim),
+            length=int(length),
+            n_blocks=int(n_blocks),
+            n_heads=int(n_heads),
+            scale_by_sigma=bool(scale_by_sigma),
+            dropout=float(dropout),
+        )

@@ -1,6 +1,7 @@
-"""Training and evaluation"""
+"""CLI entrypoint for launching distributed training."""
 
 import os
+from pathlib import Path
 
 import hydra
 import numpy as np
@@ -9,21 +10,25 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.types import RunMode
 from omegaconf import OmegaConf, open_dict
 
-import run_train
-import utils
+from ..train import train_loop
+from ..utils.dist import load_hydra_config_from_run
+from ..utils.logging import get_logger, makedirs
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="config")
+CONFIG_PATH = Path(__file__).resolve().parents[3] / "configs"
+
+
+@hydra.main(version_base=None, config_path=str(CONFIG_PATH), config_name="config")
 def main(cfg):
     ngpus = cfg.ngpus
     if "load_dir" in cfg:
         hydra_cfg_path = os.path.join(cfg.load_dir, ".hydra/hydra.yaml")
         hydra_cfg = OmegaConf.load(hydra_cfg_path).hydra
 
-        cfg = utils.load_hydra_config_from_run(cfg.load_dir)
+        cfg = load_hydra_config_from_run(cfg.load_dir)
 
         work_dir = cfg.work_dir
-        utils.makedirs(work_dir)
+        makedirs(work_dir)
     else:
         hydra_cfg = HydraConfig.get()
         work_dir = (
@@ -31,16 +36,18 @@ def main(cfg):
             if hydra_cfg.mode == RunMode.RUN
             else os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir)
         )
-        utils.makedirs(work_dir)
+        makedirs(work_dir)
 
     with open_dict(cfg):
         cfg.ngpus = ngpus
         cfg.work_dir = work_dir
         cfg.wandb_name = os.path.basename(os.path.normpath(work_dir))
 
+    OmegaConf.resolve(cfg)
+
     # Run the training pipeline
     port = int(np.random.randint(10000, 20000))
-    logger = utils.get_logger(os.path.join(work_dir, "logs"))
+    logger = get_logger(os.path.join(work_dir, "logs"))
 
     hydra_cfg = HydraConfig.get()
     if hydra_cfg.mode != RunMode.RUN:
@@ -48,7 +55,7 @@ def main(cfg):
 
     try:
         mp.set_start_method("forkserver")
-        mp.spawn(run_train.run_multiprocess, args=(ngpus, cfg, port), nprocs=ngpus, join=True)
+        mp.spawn(train_loop.run_multiprocess, args=(ngpus, cfg, port), nprocs=ngpus, join=True)
     except Exception as e:
         logger.critical(e, exc_info=True)
 
