@@ -1,6 +1,6 @@
 """Model architectures."""
 
-from .transformer import SEDD
+from .sedd import SEDD, SEDDConfig
 
 
-__all__ = ["SEDD"]
+__all__ = ["SEDD", "SEDDConfig"]
