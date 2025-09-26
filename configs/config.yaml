@@ -1,5 +1,5 @@
 defaults:
-  - dataset@_global_: openwebtext
+  - dataset@_global_: openwebtext-modern
   - model: transformer_small
   - train@_global_: base
   - _self_

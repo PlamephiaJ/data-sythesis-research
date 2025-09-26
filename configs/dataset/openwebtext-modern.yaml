@@ -1,5 +1,5 @@
 data:
-  train: openwebtext
+  train: Plamephia/openwebtext-modern
   valid: wikitext103
   cache_dir: ${paths.data_root}/raw
 
