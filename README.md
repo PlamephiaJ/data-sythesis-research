@@ -79,9 +79,15 @@ You can see all available options by running:
 ds-run --help
 ```
 
+Quick Start:
+```bash
+./src/scripts/train.sh
+```
+
 To run from original python script, you can use:
 
 ```bash
+chmod +x src/scripts/train.sh
 python src/train/train.py graph.type=uniform model=small model.scale_by_sigma=False
 ```
 

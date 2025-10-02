@@ -113,7 +113,7 @@ def get_lambada_test_dataset():
     return dataset
 
 
-def get_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=8):
+def get_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120):
     if name == "wikitext103":
         dataset = load_dataset("wikitext", name="wikitext-103-raw-v1", cache_dir=cache_dir)
     elif name == "wikitext2":
