@@ -3,6 +3,7 @@ import os
 import os.path
 from itertools import chain
 
+import losses
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
@@ -10,7 +11,6 @@ from ema import ExponentialMovingAverage
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
-import losses
 import noise_lib
 import sampling
 import utils
