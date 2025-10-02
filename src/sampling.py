@@ -2,8 +2,8 @@ import abc
 
 import torch
 
-from catsample import sample_categorical
 from model import utils as mutils
+from sample.catsample import sample_categorical
 
 
 _PREDICTORS = {}

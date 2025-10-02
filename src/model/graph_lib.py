@@ -3,7 +3,7 @@ import abc
 import torch
 import torch.nn.functional as F
 
-from catsample import sample_categorical
+from sample.catsample import sample_categorical
 
 
 def get_graph(config, device):
