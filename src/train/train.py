@@ -4,16 +4,16 @@ import os
 
 import hydra
 import numpy as np
+import run_train as run_train
 import torch.multiprocessing as mp
 from hydra.core.hydra_config import HydraConfig
 from hydra.types import RunMode
 from omegaconf import OmegaConf, open_dict
 
-import run_train
-import utils
+from utils import utils
 
 
-@hydra.main(version_base=None, config_path="../configs", config_name="config")
+@hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def main(cfg):
     ngpus = cfg.ngpus
     if "load_dir" in cfg:

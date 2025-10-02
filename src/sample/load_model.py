@@ -2,11 +2,11 @@ import os
 
 import torch
 
-import graph_lib
-import noise_lib
+import model.graph_lib as graph_lib
+import model.noise_lib as noise_lib
 import utils
 from model import SEDD
-from model.ema import ExponentialMovingAverage
+from train.ema import ExponentialMovingAverage
 
 
 def load_model_hf(dir, device):

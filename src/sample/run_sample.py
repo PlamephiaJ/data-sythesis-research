@@ -3,8 +3,8 @@ import argparse
 import torch
 from transformers import GPT2TokenizerFast
 
-import sampling
-from load_model import load_model
+import sample.sampling as sampling
+from sample.load_model import load_model
 
 
 def main():

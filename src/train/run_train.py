@@ -3,20 +3,19 @@ import os
 import os.path
 from itertools import chain
 
+import losses
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+from ema import ExponentialMovingAverage
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
-import data
-import graph_lib
-import losses
-import noise_lib
-import sampling
-import utils
-from model import SEDD
-from model.ema import ExponentialMovingAverage
+import model.noise_lib as noise_lib
+from data_process import data
+from model import SEDD, graph_lib
+from sample import sampling
+from utils import utils
 
 
 torch.backends.cudnn.benchmark = True
