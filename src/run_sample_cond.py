@@ -1,10 +1,10 @@
 import argparse
 
 import torch
+from load_model import load_model
 from transformers import GPT2TokenizerFast
 
 import sampling
-from load_model import load_model
 
 
 def main():

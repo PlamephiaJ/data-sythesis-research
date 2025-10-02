@@ -6,6 +6,7 @@ from itertools import chain
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+from ema import ExponentialMovingAverage
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
@@ -16,7 +17,6 @@ import noise_lib
 import sampling
 import utils
 from model import SEDD
-from train.ema import ExponentialMovingAverage
 
 
 torch.backends.cudnn.benchmark = True
