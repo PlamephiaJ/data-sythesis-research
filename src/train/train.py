@@ -10,7 +10,7 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.types import RunMode
 from omegaconf import OmegaConf, open_dict
 
-import utils
+from utils import utils
 
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")

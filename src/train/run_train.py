@@ -12,10 +12,10 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
 import model.noise_lib as noise_lib
-import utils
 from data import data
 from model import SEDD, graph_lib
 from sample import sampling
+from utils import utils
 
 
 torch.backends.cudnn.benchmark = True
