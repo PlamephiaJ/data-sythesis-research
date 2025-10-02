@@ -16,7 +16,7 @@ import noise_lib
 import sampling
 import utils
 from model import SEDD
-from model.ema import ExponentialMovingAverage
+from train.ema import ExponentialMovingAverage
 
 
 torch.backends.cudnn.benchmark = True
