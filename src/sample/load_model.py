@@ -3,7 +3,7 @@ import os
 import torch
 
 import model.graph_lib as graph_lib
-import noise_lib
+import model.noise_lib as noise_lib
 import utils
 from model import SEDD
 from train.ema import ExponentialMovingAverage

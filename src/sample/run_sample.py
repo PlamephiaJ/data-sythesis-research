@@ -1,9 +1,9 @@
 import argparse
 
+import sampling
 import torch
 from transformers import GPT2TokenizerFast
 
-import sampling
 from sample.load_model import load_model
 
 

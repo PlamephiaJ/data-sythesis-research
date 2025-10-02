@@ -11,11 +11,11 @@ from ema import ExponentialMovingAverage
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
-import noise_lib
-import sampling
+import model.noise_lib as noise_lib
 import utils
 from data import data
 from model import SEDD, graph_lib
+from sample import sampling
 
 
 torch.backends.cudnn.benchmark = True
