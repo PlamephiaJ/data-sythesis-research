@@ -1,7 +1,8 @@
 defaults:
+  - dataset@_global_: openwebtext-modern
+  - model: transformer_small
+  - train@_global_: base
   - _self_
-  - model: small
-  - override hydra/launcher: submitit_slurm
 
 ngpus: 2
 tokens: 50257
@@ -56,16 +57,7 @@ optim:
 
 hydra:
   run:
-    dir: exp_local/${data.train}/${now:%Y.%m.%d}/${now:%H%M%S}
+    dir: ${paths.outputs_root}/${now:%Y-%m-%d_%H%M%S}
   sweep:
-    dir: exp/${data.train}/${now:%Y.%m.%d}/${now:%H%M%S}
+    dir: ${paths.outputs_root}/sweeps/${now:%Y-%m-%d_%H%M%S}
     subdir: ${hydra.job.num}
-  launcher:
-    max_num_timeout: 100000
-    # timeout_min: 10079
-    partition: g40x
-    account: stanford
-    mem_gb: 96
-    cpus_per_task: 40
-    gpus_per_node: ${ngpus}
-    constraint: null

@@ -1,4 +1,4 @@
-name: medium
+name: transformer_medium
 type: ddit
 hidden_size: 1024
 cond_dim: 128
