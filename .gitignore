@@ -67,6 +67,8 @@ site/
 
 # Data files
 data/*
+data
 
 # Logs
 exp_local/
+outputs/

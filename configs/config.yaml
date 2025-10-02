@@ -19,7 +19,7 @@ training:
   ema: 0.9999
 
 data:
-  train: openwebtext
+  train: Plamephia/openwebtext-modern
   valid: wikitext103
   cache_dir: data
 

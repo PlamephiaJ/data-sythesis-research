@@ -79,6 +79,12 @@ You can see all available options by running:
 ds-run --help
 ```
 
+To run from original python script, you can use:
+
+```bash
+python src/train.py graph.type=uniform model=small model.scale_by_sigma=False
+```
+
 ## Expected Results
 
 (Optional) You can showcase example plots or key results from your project runs here, such as:
