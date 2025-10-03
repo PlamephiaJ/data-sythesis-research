@@ -42,7 +42,11 @@ def get_score_fn(model, train=False, sampling=False):
 
     def score_fn(x, sigma):
         device = x.device
-        with torch.amp.autocast(device_type=device.type, dtype=torch.bfloat16, enabled=(device.type == "cuda")):
+        with torch.amp.autocast(
+            device_type=device.type,
+            dtype=torch.bfloat16,
+            enabled=(device.type == "cuda"),
+        ):
             sigma = sigma.reshape(-1)
             score = model_fn(x, sigma)
 

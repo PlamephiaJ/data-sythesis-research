@@ -49,7 +49,9 @@ def get_logger(logpath, package_files=[], displaying=True, saving=True, debug=Fa
 def restore_checkpoint(ckpt_dir, state, device):
     if not os.path.exists(ckpt_dir):
         makedirs(os.path.dirname(ckpt_dir))
-        logging.warning(f"No checkpoint found at {ckpt_dir}. Returned the same state as input")
+        logging.warning(
+            f"No checkpoint found at {ckpt_dir}. Returned the same state as input"
+        )
         return state
     else:
         loaded_state = torch.load(ckpt_dir, map_location=device)

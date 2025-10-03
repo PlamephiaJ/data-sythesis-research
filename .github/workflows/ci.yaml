@@ -41,9 +41,12 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff format --check .
           ruff check .
 
       - name: Test with pytest
         run: |
           pytest -v --cov=src
+
+      - name: Check code formatting with pyink
+        run: |
+          pyink --config pyproject.toml .
