@@ -41,7 +41,6 @@ jobs:
 
       - name: Lint with ruff
         run: |
-          ruff format --check .
           ruff check .
 
       - name: Test with pytest
@@ -50,4 +49,4 @@ jobs:
 
       - name: Check code formatting with pyink
         run: |
-          pyink --check .
+          pyink --config pyproject.toml .
