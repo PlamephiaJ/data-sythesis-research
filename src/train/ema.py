@@ -87,7 +87,11 @@ class ExponentialMovingAverage:
             param.data.copy_(c_param.data)
 
     def state_dict(self):
-        return dict(decay=self.decay, num_updates=self.num_updates, shadow_params=self.shadow_params)
+        return dict(
+            decay=self.decay,
+            num_updates=self.num_updates,
+            shadow_params=self.shadow_params,
+        )
 
     def load_state_dict(self, state_dict):
         self.decay = state_dict["decay"]

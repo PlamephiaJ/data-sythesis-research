@@ -22,7 +22,9 @@ def main():
     prefix_ids = tokenizer(args.prefix).input_ids
     suffix_ids = tokenizer(args.suffix).input_ids
     input_ids = prefix_ids + suffix_ids
-    input_locs = list(range(len(prefix_ids))) + list(range(1024 - len(suffix_ids), 1024))
+    input_locs = list(range(len(prefix_ids))) + list(
+        range(1024 - len(suffix_ids), 1024)
+    )
 
     # more generaly commands can be defined with something like below:
     # input_ids = [0, 1, 512, 8080, 50256, 20000]
@@ -38,7 +40,13 @@ def main():
     model, graph, noise = load_model(args.model_path, device)
 
     sampling_fn = sampling.get_pc_sampler(
-        graph, noise, (args.batch_size, 1024), "analytic", args.steps, device=device, proj_fun=proj_fun
+        graph,
+        noise,
+        (args.batch_size, 1024),
+        "analytic",
+        args.steps,
+        device=device,
+        proj_fun=proj_fun,
     )
 
     samples = proj_fun(sampling_fn(model))

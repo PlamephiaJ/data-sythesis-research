@@ -48,7 +48,9 @@ def main(cfg):
 
     try:
         mp.set_start_method("forkserver")
-        mp.spawn(run_train.run_multiprocess, args=(ngpus, cfg, port), nprocs=ngpus, join=True)
+        mp.spawn(
+            run_train.run_multiprocess, args=(ngpus, cfg, port), nprocs=ngpus, join=True
+        )
     except Exception as e:
         logger.critical(e, exc_info=True)
 

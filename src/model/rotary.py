@@ -2,6 +2,7 @@ import torch
 
 
 class Rotary(torch.nn.Module):
+
     def __init__(self, dim, base=10_000):
         super().__init__()
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))

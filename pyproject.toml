@@ -79,6 +79,8 @@ dev = [
     "pytest",       # Testing framework
     "pytest-cov",   # Test coverage
     "pre-commit",   # Git pre-commit hooks
+    "mypy",         # Static type checker
+    "pyink",        # Code formatter
 ]
 
 # For data exploration: pip install -e ".[notebook]"
@@ -143,3 +145,37 @@ minversion = "6.0"
 pythonpath = ["src"]
 # -ra: report extra test summary info. -q: quiet mode.
 addopts = "-ra -q"
+
+[tool.pyink]
+line-length = 88
+target-version = ["py313"]
+skip-string-normalization = false
+preview = true
+# Exclude certain directories from being formatted
+exclude = '''
+(
+  /(
+      \.git
+    | \.mypy_cache
+    | \.venv
+  )/
+)
+'''
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+ignore_missing_imports = true
+strict_optional = true
+no_implicit_optional = true
+show_error_codes = true
+pretty = true
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "pyink>=24.10.1",
+]

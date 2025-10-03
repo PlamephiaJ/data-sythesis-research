@@ -41,6 +41,7 @@ class Noise(abc.ABC, nn.Module):
 
 
 class GeometricNoise(Noise, nn.Module):
+
     def __init__(self, sigma_min=1e-3, sigma_max=1, learnable=False):
         super().__init__()
         self.sigmas = 1.0 * torch.tensor([sigma_min, sigma_max])
@@ -49,7 +50,11 @@ class GeometricNoise(Noise, nn.Module):
         self.empty = nn.Parameter(torch.tensor(0.0))
 
     def rate_noise(self, t):
-        return self.sigmas[0] ** (1 - t) * self.sigmas[1] ** t * (self.sigmas[1].log() - self.sigmas[0].log())
+        return (
+            self.sigmas[0] ** (1 - t)
+            * self.sigmas[1] ** t
+            * (self.sigmas[1].log() - self.sigmas[0].log())
+        )
 
     def total_noise(self, t):
         return self.sigmas[0] ** (1 - t) * self.sigmas[1] ** t

@@ -57,6 +57,7 @@ class Predictor(abc.ABC):
 
 @register_predictor(name="euler")
 class EulerPredictor(Predictor):
+
     def update_fn(self, score_fn, x, t, step_size):
         sigma, dsigma = self.noise(t)
         score = score_fn(x, sigma)
@@ -68,12 +69,14 @@ class EulerPredictor(Predictor):
 
 @register_predictor(name="none")
 class NonePredictor(Predictor):
+
     def update_fn(self, score_fn, x, t, step_size):
         return x
 
 
 @register_predictor(name="analytic")
 class AnalyticPredictor(Predictor):
+
     def update_fn(self, score_fn, x, t, step_size):
         curr_sigma = self.noise(t)[0]
         next_sigma = self.noise(t - step_size)[0]
@@ -87,6 +90,7 @@ class AnalyticPredictor(Predictor):
 
 
 class Denoiser:
+
     def __init__(self, graph, noise):
         self.graph = graph
         self.noise = noise

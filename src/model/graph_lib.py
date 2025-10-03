@@ -23,6 +23,7 @@ def unsqueeze_as(x, y, back=True):
 
 
 class Graph(abc.ABC):
+
     @property
     def dim(self):
         pass
@@ -73,7 +74,9 @@ class Graph(abc.ABC):
         normalized_rate = self.transp_rate(i) * score
 
         normalized_rate.scatter_(-1, i[..., None], torch.zeros_like(normalized_rate))
-        normalized_rate.scatter_(-1, i[..., None], -normalized_rate.sum(dim=-1, keepdim=True))
+        normalized_rate.scatter_(
+            -1, i[..., None], -normalized_rate.sum(dim=-1, keepdim=True)
+        )
         return normalized_rate
 
     def sample_rate(self, i, rate):
@@ -127,7 +130,11 @@ class Uniform(Graph):
         return self.rate(i)
 
     def transition(self, i, sigma):
-        trans = torch.ones(*i.shape, self.dim, device=i.device) * (1 - (-sigma[..., None]).exp()) / self.dim
+        trans = (
+            torch.ones(*i.shape, self.dim, device=i.device)
+            * (1 - (-sigma[..., None]).exp())
+            / self.dim
+        )
         trans = trans.scatter(-1, i[..., None], torch.zeros_like(trans))
         trans = trans.scatter(-1, i[..., None], 1 - trans.sum(dim=-1, keepdim=True))
         return trans
@@ -144,7 +151,9 @@ class Uniform(Graph):
     def staggered_score(self, score, dsigma):
         dim = score.shape[-1]
         epow = (-dsigma).exp()[..., None]
-        return ((epow - 1) / (dim * epow)) * score.sum(dim=-1, keepdim=True) + score / epow
+        return ((epow - 1) / (dim * epow)) * score.sum(
+            dim=-1, keepdim=True
+        ) + score / epow
 
     def sample_limit(self, *batch_dims):
         return torch.randint(0, self.dim, batch_dims)
@@ -154,10 +163,15 @@ class Uniform(Graph):
         ratio = 1 - self.dim / (esigm1 + self.dim)
 
         # negative term
-        neg_term = score.mean(dim=-1) - torch.gather(score, -1, x[..., None]).squeeze(-1) / self.dim
+        neg_term = (
+            score.mean(dim=-1)
+            - torch.gather(score, -1, x[..., None]).squeeze(-1) / self.dim
+        )
         # no move means scaling by the uniform ratio. move means alter only one ratio away from 1
         neg_term = torch.where(
-            x == x0, ratio * neg_term, torch.gather(score, -1, x0[..., None]).squeeze(-1) / esigm1 + neg_term
+            x == x0,
+            ratio * neg_term,
+            torch.gather(score, -1, x0[..., None]).squeeze(-1) / esigm1 + neg_term,
         )
 
         # constant factor
@@ -169,11 +183,15 @@ class Uniform(Graph):
 
         # positive term
         sexp = score.exp()
-        pos_term = sexp.mean(dim=-1) - torch.gather(sexp, -1, x[..., None]).squeeze(-1) / self.dim
+        pos_term = (
+            sexp.mean(dim=-1)
+            - torch.gather(sexp, -1, x[..., None]).squeeze(-1) / self.dim
+        )
         return pos_term - neg_term + const
 
 
 class Absorbing(Graph):
+
     def __init__(self, dim):
         super().__init__()
         self._dim = dim
@@ -189,9 +207,9 @@ class Absorbing(Graph):
     def rate(self, i):
         # edge = - F.one_hot(i, num_classes=self.dim)
         # edge.scatter_add_(-1, i[..., None], torch.ones_like(edge[..., :1]))
-        return F.one_hot((self.dim - 1) * torch.ones_like(i), num_classes=self.dim) - F.one_hot(
-            i, num_classes=self.dim
-        )
+        return F.one_hot(
+            (self.dim - 1) * torch.ones_like(i), num_classes=self.dim
+        ) - F.one_hot(i, num_classes=self.dim)
 
     def transp_rate(self, i):
         edge = -F.one_hot(i, num_classes=self.dim)
@@ -204,7 +222,9 @@ class Absorbing(Graph):
     def transp_transition(self, i, sigma):
         sigma = unsqueeze_as(sigma, i[..., None])
         edge = (-sigma).exp() * F.one_hot(i, num_classes=self.dim)
-        edge += torch.where(i == self.dim - 1, 1 - (-sigma).squeeze(-1).exp(), 0)[..., None]
+        edge += torch.where(i == self.dim - 1, 1 - (-sigma).squeeze(-1).exp(), 0)[
+            ..., None
+        ]
         return edge
 
     def sample_transition(self, i, sigma):
@@ -231,7 +251,9 @@ class Absorbing(Graph):
         other_ind = x0[rel_ind]
 
         # negative_term
-        neg_term = ratio * torch.gather(score[rel_ind], -1, other_ind[..., None]).squeeze(-1)
+        neg_term = ratio * torch.gather(
+            score[rel_ind], -1, other_ind[..., None]
+        ).squeeze(-1)
 
         # positive term
         pos_term = score[rel_ind][:, :-1].exp().sum(dim=-1)

@@ -12,4 +12,6 @@ def sample_categorical(categorical_probs, method="hard"):
         gumbel_norm = 1e-10 - (torch.rand_like(categorical_probs) + 1e-10).log()
         return (categorical_probs / gumbel_norm).argmax(dim=-1)
     else:
-        raise ValueError(f"Method {method} for sampling categorical variables is not valid.")
+        raise ValueError(
+            f"Method {method} for sampling categorical variables is not valid."
+        )

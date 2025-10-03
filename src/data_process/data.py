@@ -115,9 +115,13 @@ def get_lambada_test_dataset():
 
 def get_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120):
     if name == "wikitext103":
-        dataset = load_dataset("wikitext", name="wikitext-103-raw-v1", cache_dir=cache_dir)
+        dataset = load_dataset(
+            "wikitext", name="wikitext-103-raw-v1", cache_dir=cache_dir
+        )
     elif name == "wikitext2":
-        dataset = load_dataset("wikitext", name="wikitext-2-raw-v1", cache_dir=cache_dir)
+        dataset = load_dataset(
+            "wikitext", name="wikitext-2-raw-v1", cache_dir=cache_dir
+        )
     elif name == "ptb":
         dataset = load_dataset("ptb_text_only", cache_dir=cache_dir)
     elif name == "lambada":
@@ -170,7 +174,12 @@ def get_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120):
             token.append(EOS)
         return tokens
 
-    tokenized_dataset = data.map(preprocess_and_tokenize, batched=True, num_proc=num_proc, load_from_cache_file=True)
+    tokenized_dataset = data.map(
+        preprocess_and_tokenize,
+        batched=True,
+        num_proc=num_proc,
+        load_from_cache_file=True,
+    )
     if name == "ptb":
         tokenized_dataset = tokenized_dataset.remove_columns("sentence")
     else:
@@ -190,7 +199,9 @@ def get_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120):
         }
         return result
 
-    chunked_dataset = tokenized_dataset.map(group_texts, batched=True, num_proc=num_proc, load_from_cache_file=True)
+    chunked_dataset = tokenized_dataset.map(
+        group_texts, batched=True, num_proc=num_proc, load_from_cache_file=True
+    )
     chunked_dataset = chunked_dataset.with_format("torch")
 
     return chunked_dataset
@@ -207,7 +218,10 @@ def get_dataloaders(config, distributed=True):
         )
 
     train_set = get_dataset(
-        config.data.train, "train", cache_dir=config.data.cache_dir, block_size=config.model.length
+        config.data.train,
+        "train",
+        cache_dir=config.data.cache_dir,
+        block_size=config.model.length,
     )
     valid_set = get_dataset(
         config.data.valid,
@@ -226,7 +240,8 @@ def get_dataloaders(config, distributed=True):
     train_loader = cycle_loader(
         DataLoader(
             train_set,
-            batch_size=config.training.batch_size // (config.ngpus * config.training.accum),
+            batch_size=config.training.batch_size
+            // (config.ngpus * config.training.accum),
             sampler=train_sampler,
             num_workers=4,
             pin_memory=True,

@@ -27,7 +27,9 @@ def setup(rank, world_size, port):
     os.environ["MASTER_PORT"] = str(port)
 
     # initialize the process group
-    dist.init_process_group("nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=30))
+    dist.init_process_group(
+        "nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=30)
+    )
 
 
 def cleanup():
@@ -70,7 +72,11 @@ def _run(rank, world_size, cfg):
         mprint("Found {} CUDA devices.".format(torch.cuda.device_count()))
         for i in range(torch.cuda.device_count()):
             props = torch.cuda.get_device_properties(i)
-            mprint("{} \t Memory: {:.2f}GB".format(props.name, props.total_memory / (1024**3)))
+            mprint(
+                "{} \t Memory: {:.2f}GB".format(
+                    props.name, props.total_memory / (1024**3)
+                )
+            )
     else:
         mprint("WARNING: Using device {}".format(device))
     mprint(f"Found {os.cpu_count()} total number of CPUs.")
@@ -80,7 +86,9 @@ def _run(rank, world_size, cfg):
 
     # build score model
     score_model = SEDD(cfg).to(device)
-    score_model = DDP(score_model, device_ids=[rank], static_graph=True, find_unused_parameters=True)
+    score_model = DDP(
+        score_model, device_ids=[rank], static_graph=True, find_unused_parameters=True
+    )
 
     num_parameters = sum(p.numel() for p in score_model.parameters())
     mprint(f"Number of parameters in the model: {num_parameters}")
@@ -95,11 +103,20 @@ def _run(rank, world_size, cfg):
     sampling_eps = 1e-5
 
     # build optimization state
-    optimizer = losses.get_optimizer(cfg, chain(score_model.parameters(), noise.parameters()))
+    optimizer = losses.get_optimizer(
+        cfg, chain(score_model.parameters(), noise.parameters())
+    )
     mprint(f"Optimizer: {optimizer}")
     scaler = torch.amp.GradScaler()
     mprint(f"Scaler: {scaler}")
-    state = dict(optimizer=optimizer, scaler=scaler, model=score_model, noise=noise, ema=ema, step=0)
+    state = dict(
+        optimizer=optimizer,
+        scaler=scaler,
+        model=score_model,
+        noise=noise,
+        ema=ema,
+        step=0,
+    )
 
     # load in state
     state = utils.restore_checkpoint(checkpoint_meta_dir, state, device)
@@ -118,12 +135,21 @@ def _run(rank, world_size, cfg):
 
     # Build one-step training and evaluation functions
     optimize_fn = losses.optimization_manager(cfg)
-    train_step_fn = losses.get_step_fn(noise, graph, True, optimize_fn, cfg.training.accum)
-    eval_step_fn = losses.get_step_fn(noise, graph, False, optimize_fn, cfg.training.accum)
+    train_step_fn = losses.get_step_fn(
+        noise, graph, True, optimize_fn, cfg.training.accum
+    )
+    eval_step_fn = losses.get_step_fn(
+        noise, graph, False, optimize_fn, cfg.training.accum
+    )
 
     if cfg.training.snapshot_sampling:
-        sampling_shape = (cfg.training.batch_size // (cfg.ngpus * cfg.training.accum), cfg.model.length)
-        sampling_fn = sampling.get_sampling_fn(cfg, graph, noise, sampling_shape, sampling_eps, device)
+        sampling_shape = (
+            cfg.training.batch_size // (cfg.ngpus * cfg.training.accum),
+            cfg.model.length,
+        )
+        sampling_fn = sampling.get_sampling_fn(
+            cfg, graph, noise, sampling_shape, sampling_eps, device
+        )
 
     num_train_steps = cfg.training.n_iters
     mprint(f"Starting training loop at step {initial_step}.")
@@ -160,11 +186,18 @@ def _run(rank, world_size, cfg):
 
                 mprint("step: %d, evaluation_loss: %.5e" % (step, eval_loss.item()))
 
-            if step > 0 and step % cfg.training.snapshot_freq == 0 or step == num_train_steps:
+            if (
+                step > 0
+                and step % cfg.training.snapshot_freq == 0
+                or step == num_train_steps
+            ):
                 # Save the checkpoint.
                 save_step = step // cfg.training.snapshot_freq
                 if rank == 0:
-                    utils.save_checkpoint(os.path.join(checkpoint_dir, f"checkpoint_{save_step}.pth"), state)
+                    utils.save_checkpoint(
+                        os.path.join(checkpoint_dir, f"checkpoint_{save_step}.pth"),
+                        state,
+                    )
 
                 # Generate and save samples
                 if cfg.training.snapshot_sampling:
@@ -190,17 +223,25 @@ def _run(rank, world_size, cfg):
 
                     if cfg.eval.perplexity:
                         with torch.no_grad():
-                            eval_model = GPT2LMHeadModel.from_pretrained("gpt2-large").to(device).eval()
+                            eval_model = (
+                                GPT2LMHeadModel.from_pretrained("gpt2-large")
+                                .to(device)
+                                .eval()
+                            )
                             batches = sample.shape[0] // cfg.eval.perplexity_batch_size
                             total_perplexity = 0
                             for i in range(batches):
                                 s = sample[
-                                    i * cfg.eval.perplexity_batch_size : (i + 1) * cfg.eval.perplexity_batch_size
+                                    i
+                                    * cfg.eval.perplexity_batch_size : (i + 1)
+                                    * cfg.eval.perplexity_batch_size
                                 ]
                                 loss, logits = eval_model(s, labels=s)[:2]
                                 logits = logits.transpose(-1, -2)
                                 perplexity = (
-                                    F.cross_entropy(logits[..., :-1], s[..., 1:], reduction="none")
+                                    F.cross_entropy(
+                                        logits[..., :-1], s[..., 1:], reduction="none"
+                                    )
                                     .mean(dim=-1)
                                     .exp()
                                     .mean()
@@ -209,7 +250,9 @@ def _run(rank, world_size, cfg):
                             total_perplexity /= batches
                             dist.all_reduce(total_perplexity)
                             total_perplexity /= world_size
-                            mprint(f"Generative Perplexity at step: {step}. Perplexity: {total_perplexity:.3f}.")
+                            mprint(
+                                f"Generative Perplexity at step: {step}. Perplexity: {total_perplexity:.3f}."
+                            )
 
                             del eval_model, logits, loss
 
