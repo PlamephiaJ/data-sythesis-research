@@ -68,6 +68,7 @@ site/
 # Data files
 data/
 data
+data_phish/
 
 # Logs
 exp_local/
