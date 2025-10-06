@@ -65,10 +65,10 @@ Thumbs.db
 docs/_build/
 site/
 
-# Data files
+# Data files (both soft link and directory)
 data/
 data
-data_phish/
+data_phish
 
 # Logs
 exp_local/
