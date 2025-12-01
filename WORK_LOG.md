@@ -13,9 +13,9 @@ Project for deep-learning-based email generator.
 [![Python Version](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-# Soft Link in this project
-data --> /home/shared_folder/shared_datasets/data-sythesis-research/data
-data_phish --> /home/shared_folder/shared_datasets/data-sythesis-research/data_phish
+# Soft Links in this project
+- data --> /home/shared_folder/shared_datasets/data-sythesis-research/data
+- data_phish --> /home/shared_folder/shared_datasets/data-sythesis-research/data_phish
 
 # Reverse Chronological Order
 
