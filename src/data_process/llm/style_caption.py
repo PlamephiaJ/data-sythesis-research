@@ -1,4 +1,6 @@
-"""The script to run the Ollama LLM model for style captioning."""
+"""The script to run the Ollama LLM model for style captioning.
+The Ollama is very slow, future work should consider using a faster framework like VLLM.
+"""
 
 import json
 import logging
