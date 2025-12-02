@@ -15,6 +15,8 @@ def get_loss_fn(noise, graph, train, sampling_eps=1e-3, lv=False):
             if lv:
                 raise NotImplementedError("Yeah I gotta do this later")
             else:
+                # t 是连续时间维度上的采样，均匀分布采样，范围是 [sampling_eps, 1]
+                # 加入 sampling_eps 是为了避免 sigma=0 的情况
                 t = (1 - sampling_eps) * torch.rand(
                     batch.shape[0], device=batch.device
                 ) + sampling_eps
