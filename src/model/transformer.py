@@ -158,13 +158,15 @@ class DDiTBlock(nn.Module):
 
         bias_dropout_scale_fn = self._get_bias_dropout_scale()
 
+        # 将 conditioning c 映射到 shift 和 scale 参数
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.adaLN_modulation(c)[:, None].chunk(6, dim=2)
         )
 
         # attention operation
         x_skip = x
-        x = modulate_fused(self.norm1(x), shift_msa, scale_msa)
+        x = self.norm1(x)
+        x = modulate_fused(x, shift_msa, scale_msa)
         # dtype0 = x.dtype
 
         qkv = self.attn_qkv(x)
@@ -208,13 +210,13 @@ class DDiTBlock(nn.Module):
 
 class EmbeddingLayer(nn.Module):
 
-    def __init__(self, dim, vocab_dim):
+    def __init__(self, dim, vocab_size):
         """
         Mode arg: 0 -> use a learned layer, 1 -> use eigenvectors,
         2-> add in eigenvectors, 3 -> use pretrained embedding matrix
         """
         super().__init__()
-        self.embedding = nn.Parameter(torch.empty((vocab_dim, dim)))
+        self.embedding = nn.Parameter(torch.empty((vocab_size, dim)))
         torch.nn.init.kaiming_uniform_(self.embedding, a=math.sqrt(5))
 
     def forward(self, x):
