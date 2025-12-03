@@ -5,18 +5,23 @@ class Rotary(torch.nn.Module):
 
     def __init__(self, dim, base=10_000):
         super().__init__()
-        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
-        self.register_buffer("inv_freq", inv_freq)
+        # inverse_freq: (dim/2,): f0, f1, ..., f_{dim/2-1}'s inverse
+        inverse_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+        self.register_buffer("inv_freq", inverse_freq)
         self.seq_len_cached = None
         self.cos_cached = None
         self.sin_cached = None
 
     def forward(self, x, seq_dim=1):
+        """x: [..., seq_len, qkv, head, dim]"""
         seq_len = x.shape[seq_dim]
         if seq_len != self.seq_len_cached:
             self.seq_len_cached = seq_len
+            # t is (seq_len,): 0, 1, 2, ..., seq_len-1
             t = torch.arange(x.shape[seq_dim], device=x.device).type_as(self.inv_freq)
+            # freqs: (seq_len, dim/2)
             freqs = torch.einsum("i,j->ij", t, self.inv_freq.clone())
+            # from (seq_len, dim/2) to (seq_len, dim)
             emb = torch.cat((freqs, freqs), dim=-1).to(x.device)
             # dims are: batch, seq_len, qkv, head, dim
             self.cos_cached = emb.cos()[None, :, None, None, :].repeat(1, 1, 3, 1, 1)
