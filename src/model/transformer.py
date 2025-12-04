@@ -287,7 +287,15 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
 
     def forward(self, indices, sigma):
+        """
+        Docstring for forward
+
+        :param indices: (batch, seq_len), a batch of token indices
+        :param sigma: (batch,), a batch of sigma values
+        """
+        # x: batch seq_len voval_size, transform indices to embeddings
         x = self.vocab_embed(indices)
+        # c: batch cond_dim, condition embedding from sigma
         c = F.silu(self.sigma_map(sigma))
 
         rotary_cos_sin = self.rotary_emb(x)
@@ -309,6 +317,10 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
                 x - esigm1_log - np.log(x.shape[-1] - 1)
             )  # this will be approximately averaged at 0
 
-        x = torch.scatter(x, -1, indices[..., None], torch.zeros_like(x[..., :1]))
+        # x: batch seq_len voval_size
+        # indices: batch seq_len
+        x = torch.scatter(
+            x, dim=-1, index=indices[..., None], src=torch.zeros_like(x[..., :1])
+        )
 
         return x

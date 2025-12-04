@@ -73,3 +73,6 @@ data_phish
 # Logs
 exp_local/
 outputs/
+
+# Custom files
+draft.py
