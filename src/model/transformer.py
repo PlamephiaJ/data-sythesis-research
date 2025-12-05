@@ -152,19 +152,29 @@ class DDiTBlock(nn.Module):
         )
 
     def forward(self, x, rotary_cos_sin, c, seqlens=None):
+        """
+        Docstring for forward
+
+        :param x: (batch, seq_len, dim), input tensor
+        :param rotary_cos_sin: (cos, sin) tuple for rotary positional embeddings
+        :param c: (batch, cond_dim), conditioning tensor
+        :param seqlens: (batch,) sequence lengths for variable length sequences
+        """
         from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
 
         batch_size, seq_len = x.shape[0], x.shape[1]
 
         bias_dropout_scale_fn = self._get_bias_dropout_scale()
 
+        # 将 conditioning c 映射到 shift 和 scale 参数
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.adaLN_modulation(c)[:, None].chunk(6, dim=2)
         )
 
         # attention operation
         x_skip = x
-        x = modulate_fused(self.norm1(x), shift_msa, scale_msa)
+        x = self.norm1(x)
+        x = modulate_fused(x, shift_msa, scale_msa)
         # dtype0 = x.dtype
 
         qkv = self.attn_qkv(x)
@@ -176,6 +186,7 @@ class DDiTBlock(nn.Module):
             qkv = rotary.apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
         qkv = rearrange(qkv, "b s ... -> (b s) ...")
         if seqlens is None:
+            # cumulative sequence lengths. Required by flash attention for variable length sequences
             cu_seqlens = torch.arange(
                 0,
                 (batch_size + 1) * seq_len,
@@ -184,7 +195,7 @@ class DDiTBlock(nn.Module):
                 device=qkv.device,
             )
         else:
-            cu_seqlens = seqlens.cumsum(-1)
+            cu_seqlens = seqlens.cumsum(-1)  # cumulative sum of seqlens
         x = flash_attn_varlen_qkvpacked_func(
             qkv, cu_seqlens, seq_len, 0.0, causal=False
         )
@@ -208,13 +219,13 @@ class DDiTBlock(nn.Module):
 
 class EmbeddingLayer(nn.Module):
 
-    def __init__(self, dim, vocab_dim):
+    def __init__(self, dim, vocab_size):
         """
         Mode arg: 0 -> use a learned layer, 1 -> use eigenvectors,
         2-> add in eigenvectors, 3 -> use pretrained embedding matrix
         """
         super().__init__()
-        self.embedding = nn.Parameter(torch.empty((vocab_dim, dim)))
+        self.embedding = nn.Parameter(torch.empty((vocab_size, dim)))
         torch.nn.init.kaiming_uniform_(self.embedding, a=math.sqrt(5))
 
     def forward(self, x):
@@ -285,7 +296,15 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
 
     def forward(self, indices, sigma):
+        """
+        Docstring for forward
+
+        :param indices: (batch, seq_len), a batch of token indices
+        :param sigma: (batch,), a batch of sigma values
+        """
+        # x: batch seq_len voval_size, transform indices to embeddings
         x = self.vocab_embed(indices)
+        # c: batch cond_dim, condition embedding from sigma
         c = F.silu(self.sigma_map(sigma))
 
         rotary_cos_sin = self.rotary_emb(x)
@@ -307,6 +326,10 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
                 x - esigm1_log - np.log(x.shape[-1] - 1)
             )  # this will be approximately averaged at 0
 
-        x = torch.scatter(x, -1, indices[..., None], torch.zeros_like(x[..., :1]))
+        # x: batch seq_len voval_size
+        # indices: batch seq_len
+        x = torch.scatter(
+            x, dim=-1, index=indices[..., None], src=torch.zeros_like(x[..., :1])
+        )
 
         return x

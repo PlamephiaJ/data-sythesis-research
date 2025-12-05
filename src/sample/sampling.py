@@ -84,6 +84,7 @@ class AnalyticPredictor(Predictor):
 
         score = score_fn(x, curr_sigma)
 
+        # staggered score = 把在噪声 σ 下的 score，转换成在噪声 σ−dσ 下的 score 的近似解析形式
         stag_score = self.graph.staggered_score(score, dsigma)
         probs = stag_score * self.graph.transp_transition(x, dsigma)
         return sample_categorical(probs)
@@ -143,6 +144,7 @@ def get_pc_sampler(
     def pc_sampler(model):
         sampling_score_fn = mutils.get_score_fn(model, train=False, sampling=True)
         x = graph.sample_limit(*batch_dims).to(device)
+        # 从 1 到 eps 线性取 steps+1 个点，递减时间
         timesteps = torch.linspace(1, eps, steps + 1, device=device)
         dt = (1 - eps) / steps
 

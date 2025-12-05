@@ -193,6 +193,7 @@ class Uniform(Graph):
 class Absorbing(Graph):
 
     def __init__(self, dim):
+        """dim is number of non-absorbing states"""
         super().__init__()
         self._dim = dim
 
@@ -207,6 +208,9 @@ class Absorbing(Graph):
     def rate(self, i):
         # edge = - F.one_hot(i, num_classes=self.dim)
         # edge.scatter_add_(-1, i[..., None], torch.ones_like(edge[..., :1]))
+        # i 是当前状态的索引
+        # 返回的是(batch, dim)的速率矩阵的第i列，代表从状态i出发到其他状态的速率，
+        # 只允许以速率1转移到吸收状态(dim-1)，保证其他行和为0
         return F.one_hot(
             (self.dim - 1) * torch.ones_like(i), num_classes=self.dim
         ) - F.one_hot(i, num_classes=self.dim)
@@ -228,8 +232,12 @@ class Absorbing(Graph):
         return edge
 
     def sample_transition(self, i, sigma):
+        # i shape: batch, Length
+        # 时间sigma内跳跃到吸收状态的概率是move_chance
         move_chance = 1 - (-sigma).exp()
+        # 生成(B, L)个0-1的随机数，如果小于move_chance则跳跃
         move_indices = torch.rand(*i.shape, device=i.device) < move_chance
+        # 跳跃到吸收态(dim-1)
         i_pert = torch.where(move_indices, self.dim - 1, i)
         return i_pert
 
@@ -244,6 +252,17 @@ class Absorbing(Graph):
         return (self.dim - 1) * torch.ones(*batch_dims, dtype=torch.int64)
 
     def score_entropy(self, score, sigma, x, x0):
+        """
+        Docstring for score_entropy
+
+        :param score: Model score output
+        :param sigma: [B, 1] noise levels
+        :param x: Perturbed batch [B, L]
+        :param x0: Original batch [B, L]
+        """
+        # rel_ind: indices where x == dim - 1, (absorbing state)
+        # relative indices where x is in the absorbing state, because only these
+        # contribute to the entropy (all other states have zero probability mass
         rel_ind = x == self.dim - 1
         esigm1 = torch.where(sigma < 0.5, torch.expm1(sigma), torch.exp(sigma) - 1)
 
