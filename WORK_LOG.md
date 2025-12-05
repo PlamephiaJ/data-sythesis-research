@@ -19,6 +19,11 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Dec. 5th, 2025 Update
+### Yuhao:
+- Added comments in source code to clarify details of the score entropy discrete diffusion model.
+- Methods studies in progress.
+
 ## Dec. 1st, 2025 Update
 ### Yuhao:
 - Updated `src/data_process/README.md` to include detailed workflow for data processing.
