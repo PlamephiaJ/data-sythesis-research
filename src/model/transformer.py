@@ -152,6 +152,14 @@ class DDiTBlock(nn.Module):
         )
 
     def forward(self, x, rotary_cos_sin, c, seqlens=None):
+        """
+        Docstring for forward
+
+        :param x: (batch, seq_len, dim), input tensor
+        :param rotary_cos_sin: (cos, sin) tuple for rotary positional embeddings
+        :param c: (batch, cond_dim), conditioning tensor
+        :param seqlens: (batch,) sequence lengths for variable length sequences
+        """
         from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
 
         batch_size, seq_len = x.shape[0], x.shape[1]
