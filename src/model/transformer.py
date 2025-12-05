@@ -186,6 +186,7 @@ class DDiTBlock(nn.Module):
             qkv = rotary.apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
         qkv = rearrange(qkv, "b s ... -> (b s) ...")
         if seqlens is None:
+            # cumulative sequence lengths. Required by flash attention for variable length sequences
             cu_seqlens = torch.arange(
                 0,
                 (batch_size + 1) * seq_len,
@@ -194,7 +195,7 @@ class DDiTBlock(nn.Module):
                 device=qkv.device,
             )
         else:
-            cu_seqlens = seqlens.cumsum(-1)
+            cu_seqlens = seqlens.cumsum(-1)  # cumulative sum of seqlens
         x = flash_attn_varlen_qkvpacked_func(
             qkv, cu_seqlens, seq_len, 0.0, causal=False
         )
