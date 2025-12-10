@@ -22,6 +22,9 @@ data:
   train: Plamephia/openwebtext-modern
   valid: wikitext103
   cache_dir: data
+  num_proc: 120
+  format: chunk # chunk or entry
+  max_length: 1024
 
 graph:
   type: absorb
