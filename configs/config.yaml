@@ -1,6 +1,7 @@
 defaults:
   - _self_
   - model: small
+  - data: default
   - override hydra/launcher: submitit_slurm
 
 ngpus: 2
@@ -17,11 +18,6 @@ training:
   weight: standard
   snapshot_sampling: True
   ema: 0.9999
-
-data:
-  train: Plamephia/openwebtext-modern
-  valid: wikitext103
-  cache_dir: data
 
 graph:
   type: absorb
@@ -56,9 +52,9 @@ optim:
 
 hydra:
   run:
-    dir: exp_local/${data.train}/${now:%Y.%m.%d}/${now:%H%M%S}
+    dir: exp_local/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
   sweep:
-    dir: exp/${data.train}/${now:%Y.%m.%d}/${now:%H%M%S}
+    dir: exp/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
     subdir: ${hydra.job.num}
   launcher:
     max_num_timeout: 100000

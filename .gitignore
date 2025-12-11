@@ -66,9 +66,9 @@ docs/_build/
 site/
 
 # Data files (both soft link and directory)
-data/
 data
 data_phish
+!/*/data/
 
 # Logs
 exp_local/
