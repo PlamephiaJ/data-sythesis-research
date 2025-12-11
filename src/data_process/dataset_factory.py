@@ -1,7 +1,8 @@
 import json
+from pathlib import Path
 from typing import Callable, Dict
 
-from datasets import Dataset, load_dataset
+from datasets import Dataset, concatenate_datasets, load_dataset
 
 
 _REGISTRY: Dict[str, Callable[..., object]] = {}
@@ -105,3 +106,48 @@ def make_openwebtext_modern(
 ):
     dataset = load_dataset("Plamephia/openwebtext-modern", cache_dir=cache_dir)
     return dataset[mode]
+
+
+@register_dataset("phish-email")
+def make_phish_emails(
+    mode: str = "train",
+    cache_dir: str = None,
+    **kwargs,
+):
+    dataroot = Path(cache_dir)
+    if not dataroot.exists():
+        raise FileNotFoundError(f"Data directory {dataroot} does not exist.")
+
+    # Collect all JSON file paths (they are in JSONL format)
+    json_files = sorted(dataroot.glob("*.json"))
+    if not json_files:
+        raise FileNotFoundError(f"No JSON files found in {dataroot}")
+
+    # Load and standardize all datasets
+    datasets = []
+    for json_file in json_files:
+        ds = load_dataset("json", data_files=str(json_file))["train"]
+
+        # Convert phish field to int64 for consistency, handle None/float values
+        def convert_phish_to_int(ex):
+            val = ex.get("phish")
+            ex["phish"] = int(val) if val is not None else 0
+            return ex
+
+        ds = ds.map(convert_phish_to_int)
+        # Cast phish to int64 type
+        from datasets.features import Features, Value
+
+        ds = ds.cast(
+            Features(
+                {
+                    k: v if k != "phish" else Value("int64")
+                    for k, v in ds.features.items()
+                }
+            )
+        )
+        datasets.append(ds)
+
+    # Merge all datasets into one
+    merged_dataset = concatenate_datasets(datasets)
+    return merged_dataset

@@ -1,0 +1,8 @@
+defaults:
+  - _self_
+  - dataset/openwebtext-modern@trainset
+  - dataset/wikitext103@validset
+
+num_proc: 120
+format: chunk # chunk or entry
+max_length: 1024

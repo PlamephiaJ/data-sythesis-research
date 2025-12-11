@@ -18,38 +18,8 @@ def cycle_loader(dataloader, sampler=None):
 
 
 def get_chunk_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120):
-    # if name == "wikitext103":
-    #     dataset = load_dataset(
-    #         "wikitext", name="wikitext-103-raw-v1", cache_dir=cache_dir
-    #     )
-    # elif name == "wikitext2":
-    #     dataset = load_dataset(
-    #         "wikitext", name="wikitext-2-raw-v1", cache_dir=cache_dir
-    #     )
-    # elif name == "ptb":
-    #     dataset = load_dataset("ptb_text_only", cache_dir=cache_dir)
-    # elif name == "lambada":
-    #     dataset = get_lambada_test_dataset()
-    # else:
-    #     dataset = load_dataset(name, cache_dir=cache_dir)
-
-    # if name == "lambada":
-    #     data = dataset
-    # else:
-    #     data = dataset[mode]
 
     data = dataset_factory.get_dataset(name, mode=mode, cache_dir=cache_dir)
-
-    # if name.startswith("wikitext"):
-    #     detokenizer = wt_detokenizer
-    # elif name == "ptb":
-    #     detokenizer = ptb_detokenizer
-    # elif name == "lm1b":
-    #     detokenizer = lm1b_detokenizer
-    # elif name == "lambada":
-    #     detokenizer = lambada_detokenizer
-    # else:
-    #     detokenizer = None
 
     try:
         detokenizer = get_detokenizer(name)
@@ -167,20 +137,40 @@ def get_dataloaders(config, distributed=True):
             f"Eval Batch Size for {config.eval.batch_size} is not divisible by {config.ngpus} gpus with accumulation {config.training.accum}."
         )
 
-    train_set = get_chunk_dataset(
-        config.data.train,
-        "train",
-        cache_dir=config.data.cache_dir,
-        block_size=config.model.length,
-        num_proc=config.data.num_proc,
-    )
-    valid_set = get_chunk_dataset(
-        config.data.valid,
-        "validation" if config.data.valid != "text8" else "test",
-        cache_dir=config.data.cache_dir,
-        block_size=config.model.length,
-        num_proc=config.data.num_proc,
-    )
+    if config.data.format == "chunk":
+        train_set = get_chunk_dataset(
+            config.data.trainset.name,
+            "train",
+            cache_dir=config.data.trainset.cache_dir,
+            block_size=config.model.length,
+            num_proc=config.data.num_proc,
+        )
+        valid_set = get_chunk_dataset(
+            config.data.validset.name,
+            "validation" if config.data.validset.name != "text8" else "test",
+            cache_dir=config.data.validset.cache_dir,
+            block_size=config.model.length,
+            num_proc=config.data.num_proc,
+        )
+    elif config.data.format == "entry":
+        train_set = get_entry_dataset(
+            config.data.train,
+            "train",
+            cache_dir=config.data.cache_dir,
+            max_length=config.data.max_length,
+            num_proc=config.data.num_proc,
+        )
+        valid_set = get_entry_dataset(
+            config.data.valid,
+            "validation" if config.data.valid != "text8" else "test",
+            cache_dir=config.data.cache_dir,
+            max_length=config.data.max_length,
+            num_proc=config.data.num_proc,
+        )
+    else:
+        raise ValueError(
+            f"Unknown data format {config.data.format}, must be 'chunk' for language modeling or 'entry' for conditioned generation."
+        )
 
     if distributed:
         train_sampler = DistributedSampler(train_set)

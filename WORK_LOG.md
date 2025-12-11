@@ -19,6 +19,13 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Dec. 10th, 2025 Update
+### Yuhao:
+- Refactored data loading code in `src/data_process/data.py` to decouple dataset loading and data processing.
+- Introduced `configs/data/*.yaml` to manage data-related configurations.
+- Updated `configs/config.yaml` and dataset-specific config files to align with the new data configuration structure.
+- The original data loading logic is mainly used for language modeling tasks, which can only support chunk-based data formats. The newly added structure allows for condition - text entry based data formats.
+
 ## Dec. 5th, 2025 Update
 ### Yuhao:
 - Added comments in source code to clarify details of the score entropy discrete diffusion model.
