@@ -89,22 +89,61 @@ def get_chunk_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120)
 
 
 def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120):
+    #   Example for phish-email:
+    #     Dataset({
+    #       features: ['id', 'text', 'labels', 'phish', 'style_caption'],
+    #       num_rows: 203793
+    #     })
+
+    if name != "phish-email":
+        raise NotImplementedError(f"Entry dataset {name} not implemented yet.")
+
     data = dataset_factory.get_dataset(name, mode=mode, cache_dir=cache_dir)
+
+    def is_valid_example(example):
+        return (
+            "text" in example
+            and example["text"] is not None
+            and len(example["text"].strip()) > 0
+            and "style_caption" in example
+            and example["style_caption"] is not None
+            and len(example["style_caption"].strip()) > 0
+        )
+
+    data = data.filter(is_valid_example, num_proc=num_proc)
 
     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
     EOS = tokenizer.encode(tokenizer.eos_token)[0]
+    tokenizer.pad_token = tokenizer.eos_token
 
-    def preprocess_and_tokenize(example):
-        if name == "ptb":
-            text = example["sentence"]
-        else:
-            text = example["text"]
+    def preprocess_and_tokenize(batch):
+        texts = batch["text"]
+        captions = batch["style_caption"]
 
-        tokens = tokenizer(text, return_attention_mask=False)
-        # add in EOS token following
-        for token in tokens["input_ids"]:
-            token.append(EOS)
-        return tokens
+        enc_text = tokenizer(
+            texts,
+            return_attention_mask=False,
+            add_special_tokens=False,
+            max_length=max_length,
+            truncation=True,
+            padding="max_length",
+        )
+        enc_cap = tokenizer(
+            captions,
+            return_attention_mask=False,
+            add_special_tokens=False,
+            max_length=max_length,
+            truncation=True,
+            padding="max_length",
+        )
+
+        enc_text["input_ids"] = [ids + [EOS] for ids in enc_text["input_ids"]]
+        enc_cap["input_ids"] = [ids + [EOS] for ids in enc_cap["input_ids"]]
+
+        return {
+            "text_input_ids": enc_text["input_ids"],
+            "style_caption_input_ids": enc_cap["input_ids"],
+        }
 
     tokenized_dataset = data.map(
         preprocess_and_tokenize,
@@ -112,18 +151,18 @@ def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120)
         num_proc=num_proc,
         load_from_cache_file=True,
     )
-    if name == "ptb":
-        tokenized_dataset = tokenized_dataset.remove_columns("sentence")
-    else:
-        tokenized_dataset = tokenized_dataset.remove_columns("text")
 
-    tokenized_dataset = tokenized_dataset.filter(
-        lambda example: all(len(ids) <= max_length for ids in example["input_ids"]),
-        num_proc=num_proc,
-    )
+    tokenized_dataset = tokenized_dataset.remove_columns("text")
+    tokenized_dataset = tokenized_dataset.remove_columns("style_caption")
+    tokenized_dataset = tokenized_dataset.remove_columns("labels")
 
     tokenized_dataset = tokenized_dataset.with_format("torch")
 
+    # Example for phish-email after processing:
+    #   Dataset({
+    #     features: ['id', 'text_input_ids', 'style_caption_input_ids', 'phish'],
+    #     num_rows: 203793
+    #   })
     return tokenized_dataset
 
 
@@ -154,16 +193,16 @@ def get_dataloaders(config, distributed=True):
         )
     elif config.data.format == "entry":
         train_set = get_entry_dataset(
-            config.data.train,
+            config.data.trainset.name,
             "train",
-            cache_dir=config.data.cache_dir,
+            cache_dir=config.data.trainset.cache_dir,
             max_length=config.data.max_length,
             num_proc=config.data.num_proc,
         )
         valid_set = get_entry_dataset(
-            config.data.valid,
-            "validation" if config.data.valid != "text8" else "test",
-            cache_dir=config.data.cache_dir,
+            config.data.validset.name,
+            "validation",
+            cache_dir=config.data.validset.cache_dir,
             max_length=config.data.max_length,
             num_proc=config.data.num_proc,
         )

@@ -157,8 +157,9 @@ def _run(rank, world_size, cfg):
     while state["step"] < num_train_steps + 1:
         step = state["step"]
 
-        if cfg.data.train != "text8":
-            batch = next(train_iter)["input_ids"].to(device)
+        if cfg.data.trainset.name != "text8":
+            # batch = next(train_iter)["input_ids"].to(device)
+            batch = next(train_iter)["text_input_ids"].to(device)
         else:
             batch = next(train_iter).to(device)
         loss = train_step_fn(state, batch)
@@ -175,8 +176,8 @@ def _run(rank, world_size, cfg):
                 utils.save_checkpoint(checkpoint_meta_dir, state)
 
             if step % cfg.training.eval_freq == 0:
-                if cfg.data.valid != "text8":
-                    eval_batch = next(eval_iter)["input_ids"].to(device)
+                if cfg.data.validset.name != "text8":
+                    eval_batch = next(eval_iter)["text_input_ids"].to(device)
                 else:
                     eval_batch = next(train_iter).to(device)
                 eval_loss = eval_step_fn(state, eval_batch)
