@@ -19,6 +19,13 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Dec. 15th, 2025 Update
+### Yuhao:
+- Finished data processing and loading for the phishing email dataset.
+- Now the phishing email dataset can be used for unconditional training.
+- Updated `configs/data/default.yaml` to include the phishing email dataset as the default dataset.
+- Updated `src/train/run_train.py` to accommodate the new data format with `text_input_ids`.
+
 ## Dec. 10th, 2025 Update
 ### Yuhao:
 - Refactored data loading code in `src/data_process/data.py` to decouple dataset loading and data processing.
