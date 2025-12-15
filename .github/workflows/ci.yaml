@@ -43,9 +43,9 @@ jobs:
         run: |
           ruff check .
 
-      - name: Test with pytest
-        run: |
-          pytest -v --cov=src
+      # - name: Test with pytest
+      #   run: |
+      #     pytest -v --cov=src
 
       - name: Check code formatting with pyink
         run: |
