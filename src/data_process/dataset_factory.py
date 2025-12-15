@@ -112,6 +112,8 @@ def make_openwebtext_modern(
 def make_phish_emails(
     mode: str = "train",
     cache_dir: str = None,
+    train_split_ratio: float = 0.9,
+    seed: int = 42,
     **kwargs,
 ):
     dataroot = Path(cache_dir)
@@ -150,4 +152,23 @@ def make_phish_emails(
 
     # Merge all datasets into one
     merged_dataset = concatenate_datasets(datasets)
+
+    # Split dataset according to mode
+    ds_phish = merged_dataset.filter(lambda x: x["phish"] == 1)
+    ds_benign = merged_dataset.filter(lambda x: x["phish"] == 0)
+
+    split_phish = ds_phish.train_test_split(test_size=1 - train_split_ratio, seed=seed)
+    split_benign = ds_benign.train_test_split(
+        test_size=1 - train_split_ratio, seed=seed
+    )
+    if mode == "train":
+        merged_dataset = concatenate_datasets(
+            [split_phish["train"], split_benign["train"]]
+        )
+    elif mode == "validation":
+        merged_dataset = concatenate_datasets(
+            [split_phish["test"], split_benign["test"]]
+        )
+    else:
+        raise ValueError(f"Unknown mode {mode} for phish-email dataset.")
     return merged_dataset
