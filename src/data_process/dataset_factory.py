@@ -157,6 +157,11 @@ def make_phish_emails(
     ds_phish = merged_dataset.filter(lambda x: x["phish"] == 1)
     ds_benign = merged_dataset.filter(lambda x: x["phish"] == 0)
 
+    if seed != 42:
+        raise ValueError(
+            "Randomness should not take place in data splitting. It's better to be placced during data loading."
+        )
+
     split_phish = ds_phish.train_test_split(test_size=1 - train_split_ratio, seed=seed)
     split_benign = ds_benign.train_test_split(
         test_size=1 - train_split_ratio, seed=seed

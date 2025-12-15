@@ -190,16 +190,16 @@ def get_dataloaders(config, distributed=True):
         )
     elif config.data.format == "entry":
         train_set = get_entry_dataset(
-            config.data.train,
+            config.data.trainset.name,
             "train",
-            cache_dir=config.data.cache_dir,
+            cache_dir=config.data.trainset.cache_dir,
             max_length=config.data.max_length,
             num_proc=config.data.num_proc,
         )
         valid_set = get_entry_dataset(
-            config.data.valid,
-            "validation" if config.data.valid != "text8" else "test",
-            cache_dir=config.data.cache_dir,
+            config.data.validset.name,
+            "validation",
+            cache_dir=config.data.validset.cache_dir,
             max_length=config.data.max_length,
             num_proc=config.data.num_proc,
         )

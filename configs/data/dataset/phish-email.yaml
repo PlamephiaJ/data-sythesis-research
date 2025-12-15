@@ -1,3 +1,3 @@
 name: phish-email
 mode: train
-cache_dir: data_phish/jsonl
+cache_dir: data_phish/json
