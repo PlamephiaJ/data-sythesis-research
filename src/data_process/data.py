@@ -114,6 +114,7 @@ def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120)
 
     tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
     EOS = tokenizer.encode(tokenizer.eos_token)[0]
+    tokenizer.pad_token = tokenizer.eos_token
 
     def preprocess_and_tokenize(batch):
         texts = batch["text"]
@@ -125,6 +126,7 @@ def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120)
             add_special_tokens=False,
             max_length=max_length,
             truncation=True,
+            padding="max_length",
         )
         enc_cap = tokenizer(
             captions,
@@ -132,6 +134,7 @@ def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120)
             add_special_tokens=False,
             max_length=max_length,
             truncation=True,
+            padding="max_length",
         )
 
         enc_text["input_ids"] = [ids + [EOS] for ids in enc_text["input_ids"]]

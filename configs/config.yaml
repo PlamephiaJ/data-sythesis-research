@@ -8,7 +8,7 @@ ngpus: 2
 tokens: 50257
 
 training:
-  batch_size: 256
+  batch_size: 128
   accum: 2
   n_iters: 1300001
   snapshot_freq: 50000
