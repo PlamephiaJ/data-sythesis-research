@@ -61,7 +61,9 @@ class LossFn:
         self,
         model,
         text,
+        text_mask,
         style_caption,
+        style_caption_mask,
         cond=None,
         t: Optional[torch.Tensor] = None,
         perturbed_batch: Optional[torch.Tensor] = None,
@@ -82,10 +84,14 @@ class LossFn:
         sigma, dsigma = self.noise(t)
 
         if perturbed_batch is None:
-            perturbed_batch = self.graph.sample_transition(text, sigma[:, None])
+            perturbed_batch = self.graph.sample_transition(
+                text, text_mask, sigma[:, None]
+            )
 
         log_score_fn = mutils.get_score_fn(model, train=self.train, sampling=False)
-        log_score = log_score_fn(perturbed_batch, style_caption, sigma)
+        log_score = log_score_fn(
+            perturbed_batch, style_caption, style_caption_mask, sigma
+        )
 
         loss = self.graph.score_entropy(
             log_score, sigma[:, None], perturbed_batch, text
@@ -239,7 +245,9 @@ class StepFn:
         self.accum_iter = 0
         self.total_loss = 0
 
-    def __call__(self, state, text, style_caption, cond=None):
+    def __call__(
+        self, state, text, text_mask, style_caption, style_caption_mask, cond=None
+    ):
         model = state["model"]
 
         if self.train:
@@ -247,7 +255,10 @@ class StepFn:
             scaler = state["scaler"]
 
             loss = (
-                self.loss_fn(model, text, style_caption, cond=cond).mean() / self.accum
+                self.loss_fn(
+                    model, text, text_mask, style_caption, style_caption_mask, cond=cond
+                ).mean()
+                / self.accum
             )
             scaler.scale(loss).backward()
 

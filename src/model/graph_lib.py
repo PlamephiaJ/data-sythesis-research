@@ -60,7 +60,7 @@ class Graph(abc.ABC):
         """
         pass
 
-    def sample_transition(self, i, sigma):
+    def sample_transition(self, i, i_mask, sigma):
         """
         Samples the transition vector.
         """
@@ -231,12 +231,15 @@ class Absorbing(Graph):
         ]
         return edge
 
-    def sample_transition(self, i, sigma):
+    def sample_transition(self, i, i_mask, sigma):
         # i shape: batch, Length
+        # i_mask shape: batch, Length
         # 时间sigma内跳跃到吸收状态的概率是move_chance
         move_chance = 1 - (-sigma).exp()
         # 生成(B, L)个0-1的随机数，如果小于move_chance则跳跃
         move_indices = torch.rand(*i.shape, device=i.device) < move_chance
+        # 只对mask位置进行跳跃
+        move_indices = move_indices & i_mask.bool()
         # 跳跃到吸收态(dim-1)
         i_pert = torch.where(move_indices, self.dim - 1, i)
         return i_pert

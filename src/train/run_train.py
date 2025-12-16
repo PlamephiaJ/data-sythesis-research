@@ -176,11 +176,10 @@ def _run(rank, world_size, cfg):
             text_mask = batch_data["text_attention_mask"].to(device)
             style_caption = batch_data["style_caption_input_ids"].to(device)
             style_caption_mask = batch_data["style_caption_attention_mask"].to(device)
-            print(text_mask.shape, style_caption_mask.shape)
         else:
             pass
             # batch = next(train_iter).to(device)
-        loss = train_step_fn(state, text, style_caption)
+        loss = train_step_fn(state, text, text_mask, style_caption, style_caption_mask)
 
         # flag to see if there was movement ie a full batch got computed
         if step != state["step"]:
