@@ -30,7 +30,7 @@ from typing import Callable, Optional
 import numpy as np
 import torch
 
-from model import utils as mutils
+from model.utils import ScoreFn
 
 
 class LossFn:
@@ -88,9 +88,9 @@ class LossFn:
                 text, text_mask, sigma[:, None]
             )
 
-        log_score_fn = mutils.get_score_fn(model, train=self.train, sampling=False)
+        log_score_fn = ScoreFn(model, train=self.train, sampling=False)
         log_score = log_score_fn(
-            perturbed_batch, style_caption, style_caption_mask, sigma
+            perturbed_batch, text_mask, style_caption, style_caption_mask, sigma
         )
 
         loss = self.graph.score_entropy(
