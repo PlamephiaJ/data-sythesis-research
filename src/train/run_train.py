@@ -3,11 +3,12 @@ import os
 import os.path
 from itertools import chain
 
-import losses
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 from ema import ExponentialMovingAverage
+from losses import LossFn, OptimizationManager, StepFn
+from optimizers import OptimizerRegistry
 from torch.nn.parallel import DistributedDataParallel as DDP
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
@@ -103,7 +104,10 @@ def _run(rank, world_size, cfg):
     sampling_eps = 1e-5
 
     # build optimization state
-    optimizer = losses.get_optimizer(
+    # optimizer = losses.get_optimizer(
+    #     cfg, chain(score_model.parameters(), noise.parameters())
+    # )
+    optimizer = OptimizerRegistry.build(
         cfg, chain(score_model.parameters(), noise.parameters())
     )
     mprint(f"Optimizer: {optimizer}")
@@ -134,12 +138,19 @@ def _run(rank, world_size, cfg):
     eval_iter = iter(eval_ds)
 
     # Build one-step training and evaluation functions
-    optimize_fn = losses.optimization_manager(cfg)
-    train_step_fn = losses.get_step_fn(
-        noise, graph, True, optimize_fn, cfg.training.accum
+    optimize_fn = OptimizationManager(cfg)
+    train_step_fn = StepFn(
+        loss_fn=LossFn(noise, graph, True),
+        train=True,
+        optimize_fn=optimize_fn,
+        accum=cfg.training.accum,
     )
-    eval_step_fn = losses.get_step_fn(
-        noise, graph, False, optimize_fn, cfg.training.accum
+
+    eval_step_fn = StepFn(
+        loss_fn=LossFn(noise, graph, False),
+        train=False,
+        optimize_fn=optimize_fn,
+        accum=cfg.training.accum,
     )
 
     if cfg.training.snapshot_sampling:
@@ -162,7 +173,10 @@ def _run(rank, world_size, cfg):
             # batch = next(train_iter)["text_input_ids"].to(device)
             batch_data = next(train_iter)
             text = batch_data["text_input_ids"].to(device)
+            text_mask = batch_data["text_attention_mask"].to(device)
             style_caption = batch_data["style_caption_input_ids"].to(device)
+            style_caption_mask = batch_data["style_caption_attention_mask"].to(device)
+            print(text_mask.shape, style_caption_mask.shape)
         else:
             pass
             # batch = next(train_iter).to(device)

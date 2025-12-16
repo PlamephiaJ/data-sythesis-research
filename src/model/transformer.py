@@ -152,7 +152,7 @@ class DDiTBlock(nn.Module):
             else bias_dropout_add_scale_fused_inference
         )
 
-    def forward(self, x, rotary_cos_sin, c, seqlens=None):
+    def forward(self, x, rotary_cos_sin, c, seqlens=None, attention_mask=None):
         """
         Docstring for forward
 
@@ -304,7 +304,14 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
             else bias_dropout_add_scale_fused_inference
         )
 
-    def forward(self, x_input_ids, caption_input_ids, sigma):
+    def forward(
+        self,
+        x_input_ids,
+        x_attention_mask,
+        caption_input_ids=None,
+        caption_attention_mask=None,
+        sigma=None,
+    ):
         """
         Docstring for forward
 
@@ -313,14 +320,31 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         """
         # x: batch seq_len voval_size, transform indices to embeddings
         x = self.vocab_embed(x_input_ids)
-        # c: batch cond_dim, condition embedding from sigma
-        c = F.silu(self.sigma_map(sigma))
+
+        if caption_input_ids is not None and caption_attention_mask is not None:
+            cond_style = self.caption_encoder(
+                input_ids=caption_input_ids, attention_mask=caption_attention_mask
+            )
+        else:
+            cond_style = self.caption_encoder(None, None)
+
+        # cond_sigma: batch cond_dim, condition embedding from sigma
+        cond_sigma = F.silu(self.sigma_map(sigma))
+
+        c = cond_sigma + cond_style
 
         rotary_cos_sin = self.rotary_emb(x)
 
         with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
-            for i in range(len(self.blocks)):
-                x = self.blocks[i](x, rotary_cos_sin, c, seqlens=None)
+            seqlens = x_attention_mask.sum(dim=1).to(torch.int32)  # [B]
+            for blk in self.blocks:
+                x = blk(
+                    x,
+                    rotary_cos_sin,
+                    c,
+                    seqlens=seqlens,
+                    attention_mask=x_attention_mask,
+                )
 
             x = self.output_layer(x, c)
 
