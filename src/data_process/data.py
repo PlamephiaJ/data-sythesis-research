@@ -2,7 +2,7 @@ from itertools import chain
 
 import numpy as np
 from torch.utils.data import DataLoader, DistributedSampler
-from transformers import GPT2TokenizerFast
+from transformers import BertTokenizerFast, GPT2TokenizerFast
 
 import data_process.dataset_factory as dataset_factory
 
@@ -88,7 +88,16 @@ def get_chunk_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120)
     return chunked_dataset
 
 
-def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120):
+def get_entry_dataset(
+    name,
+    mode,
+    cache_dir=None,
+    text_max_length=1024,
+    caption_max_length=256,
+    num_proc=120,
+    text_tokenizer_name="gpt2",
+    caption_tokenizer_name="bert-base-uncased",
+):
     #   Example for phish-email:
     #     Dataset({
     #       features: ['id', 'text', 'labels', 'phish', 'style_caption'],
@@ -112,37 +121,37 @@ def get_entry_dataset(name, mode, cache_dir=None, max_length=1024, num_proc=120)
 
     data = data.filter(is_valid_example, num_proc=num_proc)
 
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-    EOS = tokenizer.encode(tokenizer.eos_token)[0]
-    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer_text = GPT2TokenizerFast.from_pretrained(text_tokenizer_name)
+    tokenizer_text.pad_token = tokenizer_text.eos_token
+
+    tokenizer_caption = BertTokenizerFast.from_pretrained(caption_tokenizer_name)
 
     def preprocess_and_tokenize(batch):
         texts = batch["text"]
         captions = batch["style_caption"]
 
-        enc_text = tokenizer(
+        enc_text = tokenizer_text(
             texts,
-            return_attention_mask=False,
-            add_special_tokens=False,
-            max_length=max_length,
+            return_attention_mask=True,
+            add_special_tokens=True,
+            max_length=text_max_length,
             truncation=True,
             padding="max_length",
         )
-        enc_cap = tokenizer(
+        enc_cap = tokenizer_caption(
             captions,
-            return_attention_mask=False,
-            add_special_tokens=False,
-            max_length=max_length,
+            return_attention_mask=True,
+            add_special_tokens=True,
+            max_length=caption_max_length,
             truncation=True,
             padding="max_length",
         )
-
-        enc_text["input_ids"] = [ids + [EOS] for ids in enc_text["input_ids"]]
-        enc_cap["input_ids"] = [ids + [EOS] for ids in enc_cap["input_ids"]]
 
         return {
             "text_input_ids": enc_text["input_ids"],
+            "text_attention_mask": enc_text["attention_mask"],
             "style_caption_input_ids": enc_cap["input_ids"],
+            "style_caption_attention_mask": enc_cap["attention_mask"],
         }
 
     tokenized_dataset = data.map(
@@ -196,15 +205,19 @@ def get_dataloaders(config, distributed=True):
             config.data.trainset.name,
             "train",
             cache_dir=config.data.trainset.cache_dir,
-            max_length=config.data.max_length,
+            text_max_length=config.data.max_length,
             num_proc=config.data.num_proc,
+            text_tokenizer_name=config.tokenizer.text,
+            caption_tokenizer_name=config.tokenizer.caption,
         )
         valid_set = get_entry_dataset(
             config.data.validset.name,
             "validation",
             cache_dir=config.data.validset.cache_dir,
-            max_length=config.data.max_length,
+            text_max_length=config.data.max_length,
             num_proc=config.data.num_proc,
+            text_tokenizer_name=config.tokenizer.text,
+            caption_tokenizer_name=config.tokenizer.caption,
         )
     else:
         raise ValueError(

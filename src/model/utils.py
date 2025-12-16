@@ -13,7 +13,7 @@ def get_model_fn(model, train=False):
         A model function.
     """
 
-    def model_fn(x, sigma):
+    def model_fn(x, style_caption, sigma):
         """Compute the output of the score-based model.
 
         Args:
@@ -30,7 +30,7 @@ def get_model_fn(model, train=False):
             model.eval()
 
             # otherwise output the raw values (we handle mlm training in losses.py)
-        return model(x, sigma)
+        return model(x, style_caption, sigma)
 
     return model_fn
 
@@ -40,7 +40,7 @@ def get_score_fn(model, train=False, sampling=False):
         assert not train, "Must sample in eval mode"
     model_fn = get_model_fn(model, train=train)
 
-    def score_fn(x, sigma):
+    def score_fn(x, style_caption, sigma):
         device = x.device
         with torch.amp.autocast(
             device_type=device.type,
@@ -48,7 +48,7 @@ def get_score_fn(model, train=False, sampling=False):
             enabled=(device.type == "cuda"),
         ):
             sigma = sigma.reshape(-1)
-            score = model_fn(x, sigma)
+            score = model_fn(x, style_caption, sigma)
 
         if sampling:
             # when sampling return true score (not log used for training)

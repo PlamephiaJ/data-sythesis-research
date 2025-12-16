@@ -17,6 +17,7 @@ from kernel.fused_add_dropout_scale import (
 )
 
 from . import rotary
+from .caption_encoder import CaptionEncoder
 
 
 # def modulate(x, shift, scale):
@@ -288,6 +289,14 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
         self.scale_by_sigma = config.model.scale_by_sigma
 
+        self.caption_encoder = CaptionEncoder(
+            name=config.model.caption_encoder.name,
+            cond_dim=config.model.cond_dim,
+            pool=config.model.caption_encoder.pool,
+            dropout=config.model.caption_encoder.dropout,
+            freeze=config.model.caption_encoder.freeze,
+        )
+
     def _get_bias_dropout_scale(self):
         return (
             bias_dropout_add_scale_fused_train
@@ -295,7 +304,7 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
             else bias_dropout_add_scale_fused_inference
         )
 
-    def forward(self, indices, sigma):
+    def forward(self, x_input_ids, caption_input_ids, sigma):
         """
         Docstring for forward
 
@@ -303,7 +312,7 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         :param sigma: (batch,), a batch of sigma values
         """
         # x: batch seq_len voval_size, transform indices to embeddings
-        x = self.vocab_embed(indices)
+        x = self.vocab_embed(x_input_ids)
         # c: batch cond_dim, condition embedding from sigma
         c = F.silu(self.sigma_map(sigma))
 
@@ -329,7 +338,7 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         # x: batch seq_len voval_size
         # indices: batch seq_len
         x = torch.scatter(
-            x, dim=-1, index=indices[..., None], src=torch.zeros_like(x[..., :1])
+            x, dim=-1, index=x_input_ids[..., None], src=torch.zeros_like(x[..., :1])
         )
 
         return x

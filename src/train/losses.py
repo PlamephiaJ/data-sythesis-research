@@ -6,7 +6,7 @@ from model import utils as mutils
 
 
 def get_loss_fn(noise, graph, train, sampling_eps=1e-3, lv=False):
-    def loss_fn(model, batch, cond=None, t=None, perturbed_batch=None):
+    def loss_fn(model, text, style_caption, cond=None, t=None, perturbed_batch=None):
         """
         Batch shape: [B, L] int. D given from graph
         """
@@ -19,20 +19,20 @@ def get_loss_fn(noise, graph, train, sampling_eps=1e-3, lv=False):
                 # 加入 sampling_eps 是为了避免 sigma=0 的情况
                 # t shape: [B]
                 t = (1 - sampling_eps) * torch.rand(
-                    batch.shape[0], device=batch.device
+                    text.shape[0], device=text.device
                 ) + sampling_eps
 
         # sigma: [B], dsigma: [B]
         sigma, dsigma = noise(t)
 
         if perturbed_batch is None:
-            perturbed_batch = graph.sample_transition(batch, sigma[:, None])
+            perturbed_batch = graph.sample_transition(text, sigma[:, None])
 
         log_score_fn = mutils.get_score_fn(model, train=train, sampling=False)
         # log_score: [B, seqlen, vocab_size], 即每个位置上每个token的log得分
         # 在score model输出最终将跳转到自己的score设置为了0，其他地方是模型预测的log score
-        log_score = log_score_fn(perturbed_batch, sigma)
-        loss = graph.score_entropy(log_score, sigma[:, None], perturbed_batch, batch)
+        log_score = log_score_fn(perturbed_batch, style_caption, sigma)
+        loss = graph.score_entropy(log_score, sigma[:, None], perturbed_batch, text)
 
         loss = (dsigma[:, None] * loss).sum(dim=-1)
 
@@ -99,7 +99,7 @@ def get_step_fn(noise, graph, train, optimize_fn, accum):
     accum_iter = 0
     total_loss = 0
 
-    def step_fn(state, batch, cond=None):
+    def step_fn(state, text, style_caption, cond=None):
         nonlocal accum_iter
         nonlocal total_loss
 
@@ -108,7 +108,7 @@ def get_step_fn(noise, graph, train, optimize_fn, accum):
         if train:
             optimizer = state["optimizer"]
             scaler = state["scaler"]
-            loss = loss_fn(model, batch, cond=cond).mean() / accum
+            loss = loss_fn(model, text, style_caption, cond=cond).mean() / accum
 
             scaler.scale(loss).backward()
 
@@ -129,7 +129,7 @@ def get_step_fn(noise, graph, train, optimize_fn, accum):
                 ema = state["ema"]
                 ema.store(model.parameters())
                 ema.copy_to(model.parameters())
-                loss = loss_fn(model, batch, cond=cond).mean()
+                loss = loss_fn(model, text, style_caption, cond=cond).mean()
                 ema.restore(model.parameters())
 
         return loss

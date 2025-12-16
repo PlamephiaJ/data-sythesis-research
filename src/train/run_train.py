@@ -159,10 +159,14 @@ def _run(rank, world_size, cfg):
 
         if cfg.data.trainset.name != "text8":
             # batch = next(train_iter)["input_ids"].to(device)
-            batch = next(train_iter)["text_input_ids"].to(device)
+            # batch = next(train_iter)["text_input_ids"].to(device)
+            batch_data = next(train_iter)
+            text = batch_data["text_input_ids"].to(device)
+            style_caption = batch_data["style_caption_input_ids"].to(device)
         else:
-            batch = next(train_iter).to(device)
-        loss = train_step_fn(state, batch)
+            pass
+            # batch = next(train_iter).to(device)
+        loss = train_step_fn(state, text, style_caption)
 
         # flag to see if there was movement ie a full batch got computed
         if step != state["step"]:
