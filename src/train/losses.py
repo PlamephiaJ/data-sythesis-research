@@ -291,7 +291,9 @@ class StepFn:
             ema.store(model.parameters())
             ema.copy_to(model.parameters())
 
-            loss = self.loss_fn(model, text, style_caption, cond=cond).mean()
+            loss = self.loss_fn(
+                model, text, text_mask, style_caption, style_caption_mask, cond=cond
+            ).mean()
 
             ema.restore(model.parameters())
             return loss

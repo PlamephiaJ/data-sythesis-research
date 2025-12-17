@@ -17,7 +17,9 @@ from utils import utils
 def main(cfg):
     # Customized setting check
     if cfg.graph.type != "absorb":
-        raise NotImplementedError("Only absorb graph is supported now!")
+        raise NotImplementedError(
+            f"Only absorb graph is supported now! Currently using {cfg.graph.type}"
+        )
     ngpus = cfg.ngpus
     if "load_dir" in cfg:
         hydra_cfg_path = os.path.join(cfg.load_dir, ".hydra/hydra.yaml")

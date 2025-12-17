@@ -194,9 +194,9 @@ class DDiTBlock(nn.Module):
                 step=max_seq_len,
                 dtype=torch.int32,
                 device=qkv.device,
-            )
+            ).to(torch.int32)
         else:
-            cu_seqlens = seqlens.cumsum(-1)  # cumulative sum of seqlens
+            cu_seqlens = seqlens.cumsum(-1).to(torch.int32)  # cumulative sum of seqlens
         x = flash_attn_varlen_qkvpacked_func(
             qkv, cu_seqlens, max_seq_len, 0.0, causal=False
         )

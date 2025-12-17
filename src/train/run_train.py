@@ -194,10 +194,26 @@ def _run(rank, world_size, cfg):
 
             if step % cfg.training.eval_freq == 0:
                 if cfg.data.validset.name != "text8":
-                    eval_batch = next(eval_iter)["text_input_ids"].to(device)
+                    # eval_batch = next(eval_iter)["text_input_ids"].to(device)
+                    eval_batch_data = next(eval_iter)
+                    eval_text = eval_batch_data["text_input_ids"].to(device)
+                    eval_text_mask = eval_batch_data["text_attention_mask"].to(device)
+                    eval_style_caption = eval_batch_data["style_caption_input_ids"].to(
+                        device
+                    )
+                    eval_style_caption_mask = eval_batch_data[
+                        "style_caption_attention_mask"
+                    ].to(device)
                 else:
-                    eval_batch = next(train_iter).to(device)
-                eval_loss = eval_step_fn(state, eval_batch)
+                    pass
+                    # eval_batch = next(train_iter).to(device)
+                eval_loss = eval_step_fn(
+                    state,
+                    eval_text,
+                    eval_text_mask,
+                    eval_style_caption,
+                    eval_style_caption_mask,
+                )
 
                 dist.all_reduce(eval_loss)
                 eval_loss /= world_size
