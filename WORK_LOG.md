@@ -1,4 +1,4 @@
-<h1 align="center">Email Data Generation using Deep Learning</h1>
+<h1 align="center">Work Log for Email Data Generation using Deep Learning</h1>
 
 <div align="center">
 
@@ -18,6 +18,14 @@ Project for deep-learning-based email generator.
 - data_phish --> /home/shared_folder/shared_datasets/data-sythesis-research/data_phish
 
 # Reverse Chronological Order
+
+## Dec. 16th, 2025 Update
+### Yuhao:
+1. Tested the data loading pipeline for the phishing email dataset.
+    - The processed data contains `text`, `text_mask`, `style_caption`, `style_caption_mask` fields.
+1. Modify code to support masked input during training, including updates to graph, transformer, and score entropy calculation, etc.
+1. Currently, the condition is modulated with time step embedding. The effect is going to be investigated.
+1. All closure design patterns are refactored to class-based design patterns for better readability and maintainability.
 
 ## Dec. 15th, 2025 Update
 ### Yuhao:

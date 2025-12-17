@@ -9,7 +9,7 @@ def test_phish_email_dataset_loading(split):
         name="phish-email",
         mode=split,
         cache_dir="data_phish/json",
-        max_length=2048,
+        text_max_length=2048,
         num_proc=1,
     )
 

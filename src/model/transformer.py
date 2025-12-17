@@ -17,6 +17,7 @@ from kernel.fused_add_dropout_scale import (
 )
 
 from . import rotary
+from .caption_encoder import CaptionEncoder
 
 
 # def modulate(x, shift, scale):
@@ -151,7 +152,7 @@ class DDiTBlock(nn.Module):
             else bias_dropout_add_scale_fused_inference
         )
 
-    def forward(self, x, rotary_cos_sin, c, seqlens=None):
+    def forward(self, x, rotary_cos_sin, c, seqlens=None, attention_mask=None):
         """
         Docstring for forward
 
@@ -162,7 +163,7 @@ class DDiTBlock(nn.Module):
         """
         from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
 
-        batch_size, seq_len = x.shape[0], x.shape[1]
+        batch_size, max_seq_len = x.shape[0], x.shape[1]
 
         bias_dropout_scale_fn = self._get_bias_dropout_scale()
 
@@ -189,15 +190,15 @@ class DDiTBlock(nn.Module):
             # cumulative sequence lengths. Required by flash attention for variable length sequences
             cu_seqlens = torch.arange(
                 0,
-                (batch_size + 1) * seq_len,
-                step=seq_len,
+                (batch_size + 1) * max_seq_len,
+                step=max_seq_len,
                 dtype=torch.int32,
                 device=qkv.device,
             )
         else:
             cu_seqlens = seqlens.cumsum(-1)  # cumulative sum of seqlens
         x = flash_attn_varlen_qkvpacked_func(
-            qkv, cu_seqlens, seq_len, 0.0, causal=False
+            qkv, cu_seqlens, max_seq_len, 0.0, causal=False
         )
 
         x = rearrange(x, "(b s) h d -> b s (h d)", b=batch_size)
@@ -288,6 +289,14 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
         self.scale_by_sigma = config.model.scale_by_sigma
 
+        self.caption_encoder = CaptionEncoder(
+            name=config.model.caption_encoder.name,
+            cond_dim=config.model.cond_dim,
+            pool=config.model.caption_encoder.pool,
+            dropout=config.model.caption_encoder.dropout,
+            freeze=config.model.caption_encoder.freeze,
+        )
+
     def _get_bias_dropout_scale(self):
         return (
             bias_dropout_add_scale_fused_train
@@ -295,7 +304,14 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
             else bias_dropout_add_scale_fused_inference
         )
 
-    def forward(self, indices, sigma):
+    def forward(
+        self,
+        x_input_ids,
+        x_attention_mask,
+        caption_input_ids=None,
+        caption_attention_mask=None,
+        sigma=None,
+    ):
         """
         Docstring for forward
 
@@ -303,15 +319,32 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         :param sigma: (batch,), a batch of sigma values
         """
         # x: batch seq_len voval_size, transform indices to embeddings
-        x = self.vocab_embed(indices)
-        # c: batch cond_dim, condition embedding from sigma
-        c = F.silu(self.sigma_map(sigma))
+        x = self.vocab_embed(x_input_ids)
+
+        if caption_input_ids is not None and caption_attention_mask is not None:
+            cond_style = self.caption_encoder(
+                input_ids=caption_input_ids, attention_mask=caption_attention_mask
+            )
+        else:
+            cond_style = self.caption_encoder(None, None)
+
+        # cond_sigma: batch cond_dim, condition embedding from sigma
+        cond_sigma = F.silu(self.sigma_map(sigma))
+
+        c = cond_sigma + cond_style
 
         rotary_cos_sin = self.rotary_emb(x)
 
         with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
-            for i in range(len(self.blocks)):
-                x = self.blocks[i](x, rotary_cos_sin, c, seqlens=None)
+            seqlens = x_attention_mask.sum(dim=1).to(torch.int32)  # [B]
+            for blk in self.blocks:
+                x = blk(
+                    x,
+                    rotary_cos_sin,
+                    c,
+                    seqlens=seqlens,
+                    attention_mask=x_attention_mask,
+                )
 
             x = self.output_layer(x, c)
 
@@ -329,7 +362,7 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         # x: batch seq_len voval_size
         # indices: batch seq_len
         x = torch.scatter(
-            x, dim=-1, index=indices[..., None], src=torch.zeros_like(x[..., :1])
+            x, dim=-1, index=x_input_ids[..., None], src=torch.zeros_like(x[..., :1])
         )
 
         return x

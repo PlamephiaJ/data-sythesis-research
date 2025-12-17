@@ -7,3 +7,8 @@ n_blocks: 12
 n_heads: 12
 scale_by_sigma: True
 dropout: 0.1
+caption_encoder:
+  name: bert-base-uncased
+  pool: cls
+  dropout: 0.1
+  freeze: True

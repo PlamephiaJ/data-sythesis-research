@@ -4,6 +4,10 @@ defaults:
   - data: default
   - override hydra/launcher: submitit_slurm
 
+tokenizer:
+  text: gpt2
+  caption: bert-base-uncased
+
 ngpus: 2
 tokens: 50257
 
