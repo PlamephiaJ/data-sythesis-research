@@ -98,7 +98,7 @@ class Graph(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def score_entropy(self, score, sigma, x, x0):
+    def score_entropy(self, score, sigma, x, x0, x0_mask):
         """
         Computes the score entropy function (with requisite constant normalization)
         """
@@ -142,7 +142,7 @@ class Uniform(Graph):
     def transp_transition(self, i, sigma):
         return self.transition(i, sigma)
 
-    def sample_transition(self, i, sigma):
+    def sample_transition(self, i, i_mask, sigma):
         move_chance = 1 - (-sigma).exp()
         move_indices = torch.rand(*i.shape, device=i.device) < move_chance
         i_pert = torch.where(move_indices, torch.randint_like(i, self.dim), i)
@@ -158,7 +158,7 @@ class Uniform(Graph):
     def sample_limit(self, *batch_dims):
         return torch.randint(0, self.dim, batch_dims)
 
-    def score_entropy(self, score, sigma, x, x0):
+    def score_entropy(self, score, sigma, x, x0, x0_mask):
         esigm1 = torch.where(sigma < 0.5, torch.expm1(sigma), torch.exp(sigma) - 1)
         ratio = 1 - self.dim / (esigm1 + self.dim)
 
@@ -236,12 +236,17 @@ class Absorbing(Graph):
         # i_mask shape: batch, Length
         # 时间sigma内跳跃到吸收状态的概率是move_chance
         move_chance = 1 - (-sigma).exp()
+
+        if move_chance.dim() == 1:
+            move_chance = move_chance[:, None]
         # 生成(B, L)个0-1的随机数，如果小于move_chance则跳跃
         move_indices = torch.rand(*i.shape, device=i.device) < move_chance
         # 只对mask位置进行跳跃
         move_indices = move_indices & i_mask.bool()
         # 跳跃到吸收态(dim-1)
         i_pert = torch.where(move_indices, self.dim - 1, i)
+        # 保持非mask位置不变
+        i_pert = torch.where(i_mask.bool(), i_pert, i)
         return i_pert
 
     def staggered_score(self, score, dsigma):
@@ -254,7 +259,7 @@ class Absorbing(Graph):
     def sample_limit(self, *batch_dims):
         return (self.dim - 1) * torch.ones(*batch_dims, dtype=torch.int64)
 
-    def score_entropy(self, score, sigma, x, x0):
+    def score_entropy(self, score, sigma, x, x0, x0_mask):
         """
         Docstring for score_entropy
 
@@ -267,6 +272,7 @@ class Absorbing(Graph):
         # relative indices where x is in the absorbing state, because only these
         # contribute to the entropy (all other states have zero probability mass
         rel_ind = x == self.dim - 1
+        rel_ind = rel_ind & x0_mask.to(torch.bool)
         esigm1 = torch.where(sigma < 0.5, torch.expm1(sigma), torch.exp(sigma) - 1)
 
         ratio = 1 / esigm1.expand_as(x)[rel_ind]

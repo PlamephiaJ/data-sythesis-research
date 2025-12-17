@@ -94,7 +94,7 @@ class LossFn:
         )
 
         loss = self.graph.score_entropy(
-            log_score, sigma[:, None], perturbed_batch, text
+            log_score, sigma[:, None], perturbed_batch, text, text_mask
         )
 
         loss = (dsigma[:, None] * loss).sum(dim=-1)

@@ -163,7 +163,7 @@ class DDiTBlock(nn.Module):
         """
         from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
 
-        batch_size, seq_len = x.shape[0], x.shape[1]
+        batch_size, max_seq_len = x.shape[0], x.shape[1]
 
         bias_dropout_scale_fn = self._get_bias_dropout_scale()
 
@@ -190,15 +190,15 @@ class DDiTBlock(nn.Module):
             # cumulative sequence lengths. Required by flash attention for variable length sequences
             cu_seqlens = torch.arange(
                 0,
-                (batch_size + 1) * seq_len,
-                step=seq_len,
+                (batch_size + 1) * max_seq_len,
+                step=max_seq_len,
                 dtype=torch.int32,
                 device=qkv.device,
             )
         else:
             cu_seqlens = seqlens.cumsum(-1)  # cumulative sum of seqlens
         x = flash_attn_varlen_qkvpacked_func(
-            qkv, cu_seqlens, seq_len, 0.0, causal=False
+            qkv, cu_seqlens, max_seq_len, 0.0, causal=False
         )
 
         x = rearrange(x, "(b s) h d -> b s (h d)", b=batch_size)
