@@ -185,7 +185,7 @@ class DDiTBlock(nn.Module):
         with torch.amp.autocast(device_type="cuda", enabled=False):
             cos, sin = rotary_cos_sin
             qkv = rotary.apply_rotary_pos_emb(qkv, cos.to(qkv.dtype), sin.to(qkv.dtype))
-        qkv = rearrange(qkv, "b s ... -> (b s) ...")
+        # qkv = rearrange(qkv, "b s ... -> (b s) ...")
         if seqlens is None:
             # cumulative sequence lengths. Required by flash attention for variable length sequences
             cu_seqlens = torch.arange(
@@ -196,12 +196,37 @@ class DDiTBlock(nn.Module):
                 device=qkv.device,
             ).to(torch.int32)
         else:
-            cu_seqlens = seqlens.cumsum(-1).to(torch.int32)  # cumulative sum of seqlens
-        x = flash_attn_varlen_qkvpacked_func(
-            qkv, cu_seqlens, max_seq_len, 0.0, causal=False
-        )
+            seqlens_i32 = seqlens.to(torch.int32)
 
-        x = rearrange(x, "(b s) h d -> b s (h d)", b=batch_size)
+            cu_seqlens = torch.empty(
+                (batch_size + 1,),
+                device=seqlens.device,
+                dtype=torch.int32,
+            )
+
+            cu_seqlens[0] = 0
+            cu_seqlens[1:] = torch.cumsum(seqlens_i32, dim=0)
+
+        from flash_attn.bert_padding import pad_input, unpad_input
+
+        qkv_2d = rearrange(qkv, "b s three h d -> b s (three h d)")
+        qkv_unpad, indices, cu_seqlens, max_seqlen, _ = unpad_input(
+            qkv_2d, attention_mask
+        )
+        qkv_unpad = rearrange(
+            qkv_unpad, "t (three h d) -> t three h d", three=3, h=self.n_heads
+        )
+        out_unpad = flash_attn_varlen_qkvpacked_func(
+            qkv_unpad, cu_seqlens.to(torch.int32), max_seqlen, 0.0, causal=False
+        )
+        out_unpad = rearrange(out_unpad, "t h d -> t (h d)")
+        x = pad_input(out_unpad, indices, batch_size, max_seq_len)  # (b, s, h*d)
+
+        # x = flash_attn_varlen_qkvpacked_func(
+        #     qkv, cu_seqlens, max_seq_len, 0.0, causal=False
+        # )
+
+        # x = rearrange(x, "(b s) h d -> b s (h d)", b=batch_size)
 
         x = bias_dropout_scale_fn(
             self.attn_out(x), None, gate_msa, x_skip, self.dropout
