@@ -19,6 +19,12 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Dec. 19th, 2025 Update
+### Yuhao:
+1. Added caption and mask support in sampling code.
+1. Now the model can generate emails conditioned on style captions. The first 500k iterations of training's results seem promising.
+1. Solved a batch size mismatch bug in the sampling phase, the small model has the length 1024 while the evaluation dataloader config has length 2048. Solved by clamping the length to the model's max length.
+
 ## Dec. 18th, 2025 Update
 ### Yuhao:
 1. Bug fixes in flash attention implementation with masked input.

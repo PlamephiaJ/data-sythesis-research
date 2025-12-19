@@ -11,7 +11,7 @@ from losses import LossFn, OptimizationManager, StepFn
 from optimizers import OptimizerRegistry
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-from transformers import GPT2LMHeadModel, GPT2TokenizerFast
+from transformers import BertTokenizerFast, GPT2LMHeadModel, GPT2TokenizerFast
 
 import model.noise_lib as noise_lib
 from data_process import data
@@ -137,8 +137,8 @@ def _run(rank, world_size, cfg):
     initial_step = int(state["step"])
 
     # load in tokenizer
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-
+    tokenizer_text = GPT2TokenizerFast.from_pretrained("gpt2")
+    tokenizer_caption = BertTokenizerFast.from_pretrained("bert-base-uncased")
     # Build data iterators
     train_ds, eval_ds = data.get_dataloaders(cfg)
 
@@ -168,8 +168,15 @@ def _run(rank, world_size, cfg):
             cfg.training.batch_size // (cfg.ngpus * cfg.training.accum),
             cfg.model.length,
         )
-        sampling_fn = sampling.get_sampling_fn(
-            cfg, graph, noise, sampling_shape, sampling_eps, device
+        sampling_fn = sampling.PCSampler(
+            graph,
+            noise,
+            sampling_shape,
+            cfg.sampling.predictor,
+            cfg.sampling.steps,
+            cfg.sampling.noise_removal,
+            sampling_eps,
+            device,
         )
 
     num_train_steps = cfg.training.n_iters
@@ -269,20 +276,46 @@ def _run(rank, world_size, cfg):
                     this_sample_dir = os.path.join(sample_dir, "iter_{}".format(step))
                     utils.makedirs(this_sample_dir)
 
+                    if cfg.data.validset.name != "text8":
+                        # eval_batch = next(eval_iter)["text_input_ids"].to(device)
+                        eval_batch_data = next(eval_iter)
+                        eval_text = eval_batch_data["text_input_ids"][
+                            : sampling_shape[0]
+                        ].to(device)
+                        eval_text_mask = eval_batch_data["text_attention_mask"][
+                            : sampling_shape[0]
+                        ].to(device)
+                        eval_style_caption = eval_batch_data["style_caption_input_ids"][
+                            : sampling_shape[0]
+                        ].to(device)
+                        eval_style_caption_mask = eval_batch_data[
+                            "style_caption_attention_mask"
+                        ][: sampling_shape[0]].to(device)
+
                     ema.store(score_model.parameters())
                     ema.copy_to(score_model.parameters())
-                    sample = sampling_fn(score_model)
+                    sample = sampling_fn(
+                        score_model,
+                        eval_text_mask,
+                        eval_style_caption,
+                        eval_style_caption_mask,
+                    )
                     ema.restore(score_model.parameters())
 
-                    sentences = tokenizer.batch_decode(sample)
+                    sentences = tokenizer_text.batch_decode(sample)
+                    captions = tokenizer_caption.batch_decode(
+                        eval_style_caption, skip_special_tokens=True
+                    )
 
-                    file_name = os.path.join(this_sample_dir, f"sample_{rank}.txt")
-                    with open(file_name, "w") as file:
-                        for sentence in sentences:
-                            file.write(sentence + "\n")
-                            file.write(
-                                "============================================================================================\n"
-                            )
+                    file_name = os.path.join(this_sample_dir, f"sample_{rank}.json")
+                    import json
+
+                    results = [
+                        {"caption": cap, "text": txt}
+                        for cap, txt in zip(captions, sentences)
+                    ]
+                    with open(file_name, "w", encoding="utf-8") as file:
+                        json.dump(results, file, indent=2, ensure_ascii=False)
 
                     if cfg.eval.perplexity:
                         with torch.no_grad():

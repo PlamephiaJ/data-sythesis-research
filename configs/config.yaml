@@ -58,6 +58,7 @@ optim:
 hydra:
   run:
     dir: exp_local/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
+    # dir: exp_local/phish-email/2025.12.19/162857
   sweep:
     dir: exp/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
     subdir: ${hydra.job.num}
