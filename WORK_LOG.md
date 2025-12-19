@@ -24,9 +24,11 @@ Project for deep-learning-based email generator.
 1. Added caption and mask support in sampling code.
 1. Now the model can generate emails conditioned on style captions. The first 500k iterations of training's results seem promising.
 1. Solved a batch size mismatch bug in the sampling phase, the small model has the length 1024 while the evaluation dataloader config has length 2048. Solved by clamping the length to the model's max length.
+1. Thought for different ways to integrate guidance into the DDiT model. The current implementation is to concatenate the caption embedding with the time step embedding and feed it into the transformer blocks, which is quite straightforward but may lack of the fine control granularity (cannot control relative strength of time step embedding and caption embedding). The new idea is to add an additional cross-attention layer in each transformer block to attend to the caption embedding, which may provide better control over the generation process.
 1. Plan for the coming Christmas holidays:
     - Run the training and observe the sampling results.
     - Neaten the codebase to be more maintainable.
+    - If the first round training can be finished, put cross-attention based guidance into practice.
 
 ## Dec. 18th, 2025 Update
 ### Yuhao:
