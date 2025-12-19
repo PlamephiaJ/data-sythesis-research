@@ -19,6 +19,13 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Dec. 18th, 2025 Update
+### Yuhao:
+1. Bug fixes in flash attention implementation with masked input.
+1. Add classifer-free guidance support for training.
+1. The code is now able to run training with masked input and classifier-free guidance. First experiments will be conducted.
+1. Add `tensorboard` logging. Dependency added in `pyproject.toml`.
+
 ## Dec. 16th, 2025 Update
 ### Yuhao:
 1. Tested the data loading pipeline for the phishing email dataset.
