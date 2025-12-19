@@ -57,6 +57,7 @@ dependencies = [
     # Disable due to CI test support issues. Must be installed manually.
     # 'uv pip install flash-attn --no-build-isolation'
     # "flash-attn>=2.8.3",
+    "tensorboard>=2.20.0",
 ]
 
 # --- Project URLs (Optional) ---
