@@ -10,6 +10,7 @@ from ema import ExponentialMovingAverage
 from losses import LossFn, OptimizationManager, StepFn
 from optimizers import OptimizerRegistry
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.tensorboard import SummaryWriter
 from transformers import GPT2LMHeadModel, GPT2TokenizerFast
 
 import model.noise_lib as noise_lib
@@ -58,13 +59,18 @@ def _run(rank, world_size, cfg):
         utils.makedirs(checkpoint_dir)
         utils.makedirs(os.path.dirname(checkpoint_meta_dir))
 
-    # logging
-    if rank == 0:
-        logger = utils.get_logger(os.path.join(work_dir, "logs"))
-
     def mprint(msg):
         if rank == 0:
             logger.info(msg)
+
+    # logging
+    if rank == 0:
+        logger = utils.get_logger(os.path.join(work_dir, "logs"))
+        # Initialize TensorBoard writer
+        tb_dir = os.path.join(work_dir, "tensorboard")
+        utils.makedirs(tb_dir)
+        writer = SummaryWriter(log_dir=tb_dir)
+        mprint(f"TensorBoard logging to: {tb_dir}")
 
     mprint(work_dir)
     mprint(cfg)
@@ -93,6 +99,10 @@ def _run(rank, world_size, cfg):
 
     num_parameters = sum(p.numel() for p in score_model.parameters())
     mprint(f"Number of parameters in the model: {num_parameters}")
+
+    # Log model architecture to TensorBoard
+    if rank == 0:
+        writer.add_text("model/num_parameters", str(num_parameters), 0)
 
     ema = ExponentialMovingAverage(score_model.parameters(), decay=cfg.training.ema)
     mprint(score_model)
@@ -140,14 +150,14 @@ def _run(rank, world_size, cfg):
     # Build one-step training and evaluation functions
     optimize_fn = OptimizationManager(cfg)
     train_step_fn = StepFn(
-        loss_fn=LossFn(noise, graph, True),
+        loss_fn=LossFn(noise, graph, True, p_uncond=cfg.training.p_uncond),
         train=True,
         optimize_fn=optimize_fn,
         accum=cfg.training.accum,
     )
 
     eval_step_fn = StepFn(
-        loss_fn=LossFn(noise, graph, False),
+        loss_fn=LossFn(noise, graph, False, p_uncond=cfg.training.p_uncond),
         train=False,
         optimize_fn=optimize_fn,
         accum=cfg.training.accum,
@@ -189,6 +199,21 @@ def _run(rank, world_size, cfg):
 
                 mprint("step: %d, training_loss: %.5e" % (step, loss.item()))
 
+                # Log training loss to TensorBoard
+                if rank == 0:
+                    writer.add_scalar("loss/train", loss.item(), step)
+                    # Log learning rate
+                    current_lr = optimizer.param_groups[0]["lr"]
+                    writer.add_scalar("training/learning_rate", current_lr, step)
+                    # Log gradient norm if available
+                    total_norm = 0
+                    for p in score_model.parameters():
+                        if p.grad is not None:
+                            param_norm = p.grad.data.norm(2)
+                            total_norm += param_norm.item() ** 2
+                    total_norm = total_norm**0.5
+                    writer.add_scalar("training/gradient_norm", total_norm, step)
+
             if step % cfg.training.snapshot_freq_for_preemption == 0 and rank == 0:
                 utils.save_checkpoint(checkpoint_meta_dir, state)
 
@@ -219,6 +244,10 @@ def _run(rank, world_size, cfg):
                 eval_loss /= world_size
 
                 mprint("step: %d, evaluation_loss: %.5e" % (step, eval_loss.item()))
+
+                # Log evaluation loss to TensorBoard
+                if rank == 0:
+                    writer.add_scalar("loss/eval", eval_loss.item(), step)
 
             if (
                 step > 0
@@ -288,6 +317,17 @@ def _run(rank, world_size, cfg):
                                 f"Generative Perplexity at step: {step}. Perplexity: {total_perplexity:.3f}."
                             )
 
+                            # Log perplexity to TensorBoard
+                            if rank == 0:
+                                writer.add_scalar(
+                                    "eval/perplexity", total_perplexity.item(), step
+                                )
+
                             del eval_model, logits, loss
 
                     dist.barrier()
+
+    # Close TensorBoard writer
+    if rank == 0:
+        writer.close()
+        mprint("TensorBoard writer closed.")

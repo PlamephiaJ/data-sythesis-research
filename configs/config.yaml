@@ -22,6 +22,7 @@ training:
   weight: standard
   snapshot_sampling: True
   ema: 0.9999
+  p_uncond: 0.1
 
 graph:
   type: absorb
