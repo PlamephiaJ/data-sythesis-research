@@ -42,6 +42,7 @@ class LossFn:
         train: bool,
         sampling_eps: float = 1e-3,
         lv: bool = False,
+        p_uncond: float = 0.1,
     ):
         """
         Args:
@@ -56,6 +57,7 @@ class LossFn:
         self.train = train
         self.sampling_eps = sampling_eps
         self.lv = lv
+        self.p_uncond = p_uncond
 
     def __call__(
         self,
@@ -87,6 +89,17 @@ class LossFn:
             perturbed_batch = self.graph.sample_transition(
                 text, text_mask, sigma[:, None]
             )
+
+        # Classifier-free guidance dropout
+        if self.train:
+            b = text.shape[0]
+            drop_indices = torch.rand(b, device=text.device) < self.p_uncond
+
+            if drop_indices.any():
+                style_caption_mask = style_caption_mask.clone()
+                style_caption_mask[drop_indices] = 0
+                style_caption = style_caption.clone()
+                style_caption[drop_indices] = 0
 
         log_score_fn = ScoreFn(model, train=self.train, sampling=False)
         log_score = log_score_fn(

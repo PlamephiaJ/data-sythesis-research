@@ -98,21 +98,21 @@ class TimestepEmbedder(nn.Module):
         return t_emb
 
 
-class LabelEmbedder(nn.Module):
-    """
-    Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
-    """
+# class LabelEmbedder(nn.Module):
+#     """
+#     Embeds class labels into vector representations. Also handles label dropout for classifier-free guidance.
+#     """
 
-    def __init__(self, num_classes, cond_size):
-        super().__init__()
-        self.embedding_table = nn.Embedding(num_classes + 1, cond_size)
-        self.num_classes = num_classes
+#     def __init__(self, num_classes, cond_size):
+#         super().__init__()
+#         self.embedding_table = nn.Embedding(num_classes + 1, cond_size)
+#         self.num_classes = num_classes
 
-        # TODO think of initializing with 0.02 std deviation like in original DiT paper
+#         # TODO think of initializing with 0.02 std deviation like in original DiT paper
 
-    def forward(self, labels):
-        embeddings = self.embedding_table(labels)
-        return embeddings
+#     def forward(self, labels):
+#         embeddings = self.embedding_table(labels)
+#         return embeddings
 
 
 #################################################################################

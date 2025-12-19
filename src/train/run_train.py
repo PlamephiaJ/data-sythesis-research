@@ -181,7 +181,7 @@ def _run(rank, world_size, cfg):
             # batch = next(train_iter).to(device)
         loss = train_step_fn(state, text, text_mask, style_caption, style_caption_mask)
 
-        # flag to see if there was movement ie a full batch got computed
+        # flag to see if there was movement i.e. a full batch got computed
         if step != state["step"]:
             if step % cfg.training.log_freq == 0:
                 dist.all_reduce(loss)

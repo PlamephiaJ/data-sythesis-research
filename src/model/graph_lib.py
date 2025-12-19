@@ -245,7 +245,7 @@ class Absorbing(Graph):
         move_indices = move_indices & i_mask.bool()
         # 跳跃到吸收态(dim-1)
         i_pert = torch.where(move_indices, self.dim - 1, i)
-        # 保持非mask位置不变
+        # 保持padding部分不变，在有效位置上维持i_pert
         i_pert = torch.where(i_mask.bool(), i_pert, i)
         return i_pert
 
@@ -268,7 +268,7 @@ class Absorbing(Graph):
         :param x: Perturbed batch [B, L]
         :param x0: Original batch [B, L]
         """
-        # rel_ind: indices where x == dim - 1, (absorbing state)
+        # rel_ind (relative indices): indices where x == dim - 1, (absorbing state)
         # relative indices where x is in the absorbing state, because only these
         # contribute to the entropy (all other states have zero probability mass
         rel_ind = x == self.dim - 1
