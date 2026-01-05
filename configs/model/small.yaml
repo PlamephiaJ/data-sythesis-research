@@ -12,3 +12,9 @@ caption_encoder:
   pool: cls
   dropout: 0.1
   freeze: True
+
+conditioning:
+  mode: cross_attn_style          # sigma_only | sigma_plus_style | cross_attn_style
+blocks:
+  type: ddit_flash
+  enable_cross_attn: true   # 只有 cross_attn_style 才需要 true；其他模式可为 false

@@ -19,6 +19,16 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan. 5th, 2026 Update
+### Yuhao:
+1. The first attempt of training with simple addtion of caption embedding and time step embedding did yield some promising results. The model is able to generate emails that somewhat reflect the style indicated by the caption.
+1. The perplexity is at 1 thousand level after training. Considering whether this is because the lack of the data cleaning step. Currently, no symbols, special characters are removed from the email text. But the final results are somehow readable.
+1. Refactored the `transformer.py` to add cross-attention layer for caption embedding. The cross-attention layer is added after the self-attention layer in each transformer block. Now it can support 3 modulation methods:
+    - `sigma_only`: only use time step embedding for modulation.
+    - `sigma_plus_style`: add time step embedding and caption embedding together for modulation. (This is the previous implementation, quite straightforward but may lack of fine control granularity compared to cross-attention)
+    - `cross_attn_style`: use time step embedding for modulation and caption embedding as tokens for cross-attention. (Ongoing training)
+1. Need to consider more about the evaluation metrics for style-conditioned generation. Perplexity may not be the best choice here. Currently thinking about using a pre-trained classifier to evaluate whether the generated email matches the desired style. Borrowing ideas from image generation field, such as using CLIP score, FID or IS.
+
 ## Dec. 19th, 2025 Update
 ### Yuhao:
 1. Added caption and mask support in sampling code.
