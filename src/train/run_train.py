@@ -263,13 +263,11 @@ def _run(rank, world_size, cfg):
                 if rank == 0:
                     writer.add_scalar("loss/eval", eval_loss.item(), step)
 
-            # if (
-            #     step > 0
-            #     and step % cfg.training.snapshot_freq == 0
-            #     or step == num_train_steps
-            # ):
-
-            if True:
+            if (
+                step > 0
+                and step % cfg.training.snapshot_freq == 0
+                or step == num_train_steps
+            ):
                 # Save the checkpoint.
                 save_step = step // cfg.training.snapshot_freq
                 if rank == 0:
