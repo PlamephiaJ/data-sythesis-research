@@ -19,6 +19,11 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan. 6th, 2026 Update
+### Yuhao:
+1. Restart training of `cross_attn_style`. Added email data cleaning step to remove special characters and symbols from the email text.
+1. Added semantic alignment metric to evaluate the alignment between generated email and style caption. Using `metric` package with pre-trained `intfloat/e5-base-v2` model. More metric options are under design.
+
 ## Jan. 5th, 2026 Update
 ### Yuhao:
 1. The first attempt of training with simple addtion of caption embedding and time step embedding did yield some promising results. The model is able to generate emails that somewhat reflect the style indicated by the caption.

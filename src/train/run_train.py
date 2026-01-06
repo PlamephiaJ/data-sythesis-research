@@ -15,6 +15,7 @@ from transformers import BertTokenizerFast, GPT2LMHeadModel, GPT2TokenizerFast
 
 import model.noise_lib as noise_lib
 from data_process import data
+from metric import aliment
 from model import SEDD, graph_lib
 from sample import sampling
 from utils import utils
@@ -179,6 +180,12 @@ def _run(rank, world_size, cfg):
             device,
         )
 
+    metric = aliment.make_default_alignment_metric(
+        model_name="intfloat/e5-base-v2",
+        use_sentence_transformers=True,
+        policy=aliment.MaxSimPolicy(),
+    )
+
     num_train_steps = cfg.training.n_iters
     mprint(f"Starting training loop at step {initial_step}.")
 
@@ -256,11 +263,13 @@ def _run(rank, world_size, cfg):
                 if rank == 0:
                     writer.add_scalar("loss/eval", eval_loss.item(), step)
 
-            if (
-                step > 0
-                and step % cfg.training.snapshot_freq == 0
-                or step == num_train_steps
-            ):
+            # if (
+            #     step > 0
+            #     and step % cfg.training.snapshot_freq == 0
+            #     or step == num_train_steps
+            # ):
+
+            if True:
                 # Save the checkpoint.
                 save_step = step // cfg.training.snapshot_freq
                 if rank == 0:
@@ -316,6 +325,17 @@ def _run(rank, world_size, cfg):
                     ]
                     with open(file_name, "w", encoding="utf-8") as file:
                         json.dump(results, file, indent=2, ensure_ascii=False)
+
+                    similarity_scores = metric.score_batch(captions, sentences)
+                    avg_similarity = sum(similarity_scores) / len(similarity_scores)
+                    mprint(
+                        f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
+                    )
+                    # Log average similarity score to TensorBoard
+                    if rank == 0:
+                        writer.add_scalar(
+                            "eval/avg_similarity_score", avg_similarity, step
+                        )
 
                     if cfg.eval.perplexity:
                         with torch.no_grad():

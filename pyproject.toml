@@ -58,6 +58,7 @@ dependencies = [
     # 'uv pip install flash-attn --no-build-isolation'
     # "flash-attn>=2.8.3",
     "tensorboard>=2.20.0",
+    "sentence-transformers>=5.1.2",
 ]
 
 # --- Project URLs (Optional) ---
