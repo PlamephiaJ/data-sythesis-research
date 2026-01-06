@@ -334,7 +334,7 @@ if __name__ == "__main__":
     metric = make_default_alignment_metric(
         model_name="intfloat/e5-base-v2",
         use_sentence_transformers=True,
-        policy=MaxSimPolicy(),  # 或 TopKMeanPolicy(k=3)
+        policy=MaxSimPolicy(),  # or TopKMeanPolicy(k=3)
     )
 
     caption = "Follow up with the client about the revised quote and ask for approval by Friday."
