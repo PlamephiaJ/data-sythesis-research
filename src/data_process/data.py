@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, DistributedSampler
 from transformers import BertTokenizerFast, GPT2TokenizerFast
 
 import data_process.dataset_factory as dataset_factory
+from data_process.clean_factory import EmailCleanConfig, EmailCleaner
 
 from .detokenizer_factory import get_detokenizer
 
@@ -98,26 +99,37 @@ def get_entry_dataset(
     text_tokenizer_name="gpt2",
     caption_tokenizer_name="bert-base-uncased",
 ):
-    #   Example for phish-email:
-    #     Dataset({
-    #       features: ['id', 'text', 'labels', 'phish', 'style_caption'],
-    #       num_rows: 203793
-    #     })
-
     if name != "phish-email":
         raise NotImplementedError(f"Entry dataset {name} not implemented yet.")
 
     data = dataset_factory.get_dataset(name, mode=mode, cache_dir=cache_dir)
 
-    def is_valid_example(example):
-        return (
-            "text" in example
-            and example["text"] is not None
-            and len(example["text"].strip()) > 0
-            and "style_caption" in example
-            and example["style_caption"] is not None
-            and len(example["style_caption"].strip()) > 0
+    cleaner = EmailCleaner(
+        EmailCleanConfig(
+            render_clean_email=True,  # learn clean email format
+            mask_urls=True,
+            mask_emails=True,
+            mask_phones=True,
+            truncate_on_thread_markers=True,
+            truncate_on_long_quote_block=True,
+            strip_common_disclaimers=True,
+            drop_if_symbol_ratio_gt=0.60,  # lenient enough for older mailing-list content
+            max_body_chars=4000,
         )
+    )
+
+    def is_valid_example(example):
+        if (
+            "text" not in example
+            or example["text"] is None
+            or len(example["text"].strip()) == 0
+            or "style_caption" not in example
+            or example["style_caption"] is None
+            or len(example["style_caption"].strip()) == 0
+        ):
+            return False
+        cleaned, _ = cleaner.render(example["style_caption"], example["text"])
+        return cleaned is not None
 
     data = data.filter(is_valid_example, num_proc=num_proc)
 
@@ -130,8 +142,17 @@ def get_entry_dataset(
         texts = batch["text"]
         captions = batch["style_caption"]
 
+        clean_texts = []
+        for t, c in zip(texts, captions):
+            cleaned, _ = cleaner.render(c, t)
+            if cleaned is None:
+                cleaned = (
+                    f"Subject: {cleaner.cfg.default_subject}\n\n[INVALID SAMPLE]\n"
+                )
+            clean_texts.append(cleaned)
+
         enc_text = tokenizer_text(
-            texts,
+            clean_texts,
             return_attention_mask=True,
             add_special_tokens=True,
             max_length=text_max_length,
@@ -166,12 +187,6 @@ def get_entry_dataset(
     tokenized_dataset = tokenized_dataset.remove_columns("labels")
 
     tokenized_dataset = tokenized_dataset.with_format("torch")
-
-    # Example for phish-email after processing:
-    #   Dataset({
-    #     features: ['id', 'text_input_ids', 'style_caption_input_ids', 'phish'],
-    #     num_rows: 203793
-    #   })
     return tokenized_dataset
 
 
