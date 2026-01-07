@@ -3,6 +3,10 @@ import torch.nn as nn
 from transformers import AutoModel
 
 
+def l2_normalize(x, eps=1e-8) -> torch.Tensor:
+    return x / (x.norm(dim=-1, keepdim=True).clamp_min(eps))
+
+
 class CaptionEncoder(nn.Module):
     """
     Supports:
@@ -73,7 +77,12 @@ class CaptionEncoder(nn.Module):
         ).last_hidden_state
 
     def forward(
-        self, input_ids=None, attention_mask=None, *, return_tokens: bool = False
+        self,
+        input_ids=None,
+        attention_mask=None,
+        *,
+        return_tokens: bool = False,
+        return_align: bool = False,
     ):
         """
         Args:
@@ -92,10 +101,14 @@ class CaptionEncoder(nn.Module):
         if input_ids is None:
             pooled = self.null_cond.unsqueeze(0)  # (1, cond_dim)
             if not return_tokens:
+                if return_align:
+                    pooled = l2_normalize(pooled)
                 return pooled
             # Provide a single "null token" to keep shapes sane for cross-attn
             token_emb = self.null_token.view(1, 1, self.token_dim)  # (1,1,token_dim)
             token_mask = torch.ones((1, 1), device=token_emb.device, dtype=torch.int64)
+            if return_align:
+                pooled = l2_normalize(pooled)
             return pooled, token_emb, token_mask
 
         if attention_mask is None:
@@ -122,6 +135,9 @@ class CaptionEncoder(nn.Module):
             pooled_raw = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
 
         pooled_cond = self.proj(self.dropout(pooled_raw))  # (B, cond_dim)
+
+        if return_align:
+            pooled_cond = l2_normalize(pooled_cond)
 
         if not return_tokens:
             return pooled_cond

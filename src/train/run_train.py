@@ -7,7 +7,7 @@ import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 from ema import ExponentialMovingAverage
-from losses import LossFn, OptimizationManager, StepFn
+from losses import OptimizationManager, SEDDInfoNCELoss, StepFn
 from optimizers import OptimizerRegistry
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
@@ -151,14 +151,18 @@ def _run(rank, world_size, cfg):
     # Build one-step training and evaluation functions
     optimize_fn = OptimizationManager(cfg)
     train_step_fn = StepFn(
-        loss_fn=LossFn(cfg, noise, graph, True, p_uncond=cfg.training.p_uncond),
+        loss_fn=SEDDInfoNCELoss(
+            cfg, noise, graph, True, p_uncond=cfg.training.p_uncond
+        ),
         train=True,
         optimize_fn=optimize_fn,
         accum=cfg.training.accum,
     )
 
     eval_step_fn = StepFn(
-        loss_fn=LossFn(cfg, noise, graph, False, p_uncond=cfg.training.p_uncond),
+        loss_fn=SEDDInfoNCELoss(
+            cfg, noise, graph, False, p_uncond=cfg.training.p_uncond
+        ),
         train=False,
         optimize_fn=optimize_fn,
         accum=cfg.training.accum,

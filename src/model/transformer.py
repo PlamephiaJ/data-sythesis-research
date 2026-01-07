@@ -125,7 +125,7 @@ class ForwardContext:
 
 
 #################################################################################
-#                       Conditioning Strategy (Design Pattern)                  #
+#                       Conditioning Strategy                                   #
 #################################################################################
 
 _COND_REGISTRY: Dict[str, Any] = {}
