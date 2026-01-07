@@ -1,34 +1,8 @@
-# def get_loss_fn(noise, graph, train, sampling_eps=1e-3, lv=False):
-#     def loss_fn(model, text, style_caption, cond=None, t=None, perturbed_batch=None):
-#         """
-#         Batch shape: [B, L] int. D given from graph
-#         """
-#         if t is None:
-#             if lv:
-#                 raise NotImplementedError("Yeah I gotta do this later")
-#             else:
-#                 # t 是连续时间维度上的采样，均匀分布采样，范围是 [sampling_eps, 1]
-#                 # 加入 sampling_eps 是为了避免 sigma=0 的情况
-#                 # t shape: [B]
-#                 t = (1 - sampling_eps) * torch.rand(
-#                     text.shape[0], device=text.device
-#                 ) + sampling_eps
-#         # sigma: [B], dsigma: [B]
-#         sigma, dsigma = noise(t)
-#         if perturbed_batch is None:
-#             perturbed_batch = graph.sample_transition(text, sigma[:, None])
-#         log_score_fn = mutils.get_score_fn(model, train=train, sampling=False)
-#         # log_score: [B, seqlen, vocab_size], 即每个位置上每个token的log得分
-#         # 在score model输出最终将跳转到自己的score设置为了0，其他地方是模型预测的log score
-#         log_score = log_score_fn(perturbed_batch, style_caption, sigma)
-#         loss = graph.score_entropy(log_score, sigma[:, None], perturbed_batch, text)
-#         loss = (dsigma[:, None] * loss).sum(dim=-1)
-#         return loss
-#     return loss_fn
 from typing import Callable, Optional
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from model.utils import ScoreFn
 
@@ -37,6 +11,7 @@ class LossFn:
 
     def __init__(
         self,
+        config,
         noise: Callable,
         graph,
         train: bool,
@@ -44,20 +19,60 @@ class LossFn:
         lv: bool = False,
         p_uncond: float = 0.1,
     ):
-        """
-        Args:
-            noise: callable, input t -> (sigma, dsigma), both shape [B]
-            graph: object providing sample_transition(...) and score_entropy(...)
-            train: bool, passed to get_score_fn
-            sampling_eps: float, avoid sigma=0
-            lv: bool, whether to use lv branch
-        """
         self.noise = noise
         self.graph = graph
         self.train = train
         self.sampling_eps = sampling_eps
         self.lv = lv
         self.p_uncond = p_uncond
+
+        # ===== alignment & cycle hyperparameters =====
+        self.alpha_align = config.alpha_align  # e.g., 0.3
+        self.beta_cycle = config.beta_cycle  # e.g., 0.2
+        self.tau = config.temperature  # InfoNCE temperature, e.g., 0.07
+
+        # ===== encoders / decoder =====
+        # caption_encoder and email_encoder produce normalized embeddings
+        self.caption_encoder = config.caption_encoder
+        self.email_encoder = config.email_encoder
+
+        # caption_decoder: takes email tokens and predicts caption tokens
+        self.caption_decoder = config.caption_decoder
+
+    def _compute_info_nce_loss(self, emb_email, emb_caption):
+        """
+        emb_email: [B, D]
+        emb_caption: [B, D]
+        returns [B] InfoNCE loss per example
+        """
+        # normalize if not already normalized
+        emb_email = F.normalize(emb_email, dim=-1)
+        emb_caption = F.normalize(emb_caption, dim=-1)
+
+        # compute similarity matrix [B, B]
+        sim_matrix = emb_email @ emb_caption.T  # cosine logits
+        sim_matrix = sim_matrix / self.tau
+
+        # positive pairs sit on diagonal
+        batch_size = sim_matrix.size(0)
+        labels = torch.arange(batch_size, device=sim_matrix.device)
+
+        # cross entropy loss on softmax of similarities
+        loss = F.cross_entropy(sim_matrix, labels)
+        return loss
+
+    def _compute_cycle_loss(self, text, text_mask, style_caption):
+        """
+        caption reconstruction loss
+        """
+        # caption_pred: [B, cap_len, vocab_size]
+        caption_pred = self.caption_decoder(text, text_mask)
+        # flatten for CE
+        B, cap_len, V = caption_pred.shape
+        caption_pred = caption_pred.view(B * cap_len, V)
+        caption_gt = style_caption.view(B * cap_len)
+        loss = F.cross_entropy(caption_pred, caption_gt, ignore_index=0)
+        return loss
 
     def __call__(
         self,
@@ -70,19 +85,15 @@ class LossFn:
         t: Optional[torch.Tensor] = None,
         perturbed_batch: Optional[torch.Tensor] = None,
     ):
-        """
-        Batch shape: text [B, L] int. D given from graph
-        """
+
         if t is None:
             if self.lv:
-                raise NotImplementedError("Yeah I gotta do this later")
+                raise NotImplementedError("LV branch not done")
             else:
-                # t uniform in [sampling_eps, 1], shape [B]
                 t = (1 - self.sampling_eps) * torch.rand(
                     text.shape[0], device=text.device
                 ) + self.sampling_eps
 
-        # sigma: [B], dsigma: [B]
         sigma, dsigma = self.noise(t)
 
         if perturbed_batch is None:
@@ -90,28 +101,43 @@ class LossFn:
                 text, text_mask, sigma[:, None]
             )
 
-        # Classifier-free guidance dropout
+        # classifier-free guidance dropout
         if self.train:
             b = text.shape[0]
             drop_indices = torch.rand(b, device=text.device) < self.p_uncond
-
             if drop_indices.any():
                 style_caption_mask = style_caption_mask.clone()
                 style_caption_mask[drop_indices] = 0
                 style_caption = style_caption.clone()
                 style_caption[drop_indices] = 0
 
+        # ==== SEDD main loss ====
         log_score_fn = ScoreFn(model, train=self.train, sampling=False)
         log_score = log_score_fn(
             perturbed_batch, text_mask, style_caption, style_caption_mask, sigma
         )
-
-        loss = self.graph.score_entropy(
+        loss_sedd = self.graph.score_entropy(
             log_score, sigma[:, None], perturbed_batch, text, text_mask
         )
+        loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)
 
-        loss = (dsigma[:, None] * loss).sum(dim=-1)
-        return loss
+        # ==== alignment loss ====
+        # get emb vectors
+        emb_caption = self.caption_encoder(style_caption, style_caption_mask)
+        emb_email = self.email_encoder(text, text_mask)
+
+        # InfoNCE alignment
+        loss_align = self._compute_info_nce_loss(emb_email, emb_caption)
+
+        # ==== cycle consistency loss ====
+        loss_cycle = self._compute_cycle_loss(text, text_mask, style_caption)
+
+        # ==== total loss ====
+        total_loss = (
+            loss_sedd + self.alpha_align * loss_align + self.beta_cycle * loss_cycle
+        )
+
+        return total_loss
 
 
 # def optimization_manager(config):

@@ -151,14 +151,14 @@ def _run(rank, world_size, cfg):
     # Build one-step training and evaluation functions
     optimize_fn = OptimizationManager(cfg)
     train_step_fn = StepFn(
-        loss_fn=LossFn(noise, graph, True, p_uncond=cfg.training.p_uncond),
+        loss_fn=LossFn(cfg, noise, graph, True, p_uncond=cfg.training.p_uncond),
         train=True,
         optimize_fn=optimize_fn,
         accum=cfg.training.accum,
     )
 
     eval_step_fn = StepFn(
-        loss_fn=LossFn(noise, graph, False, p_uncond=cfg.training.p_uncond),
+        loss_fn=LossFn(cfg, noise, graph, False, p_uncond=cfg.training.p_uncond),
         train=False,
         optimize_fn=optimize_fn,
         accum=cfg.training.accum,
