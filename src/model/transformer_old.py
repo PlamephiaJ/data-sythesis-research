@@ -17,7 +17,7 @@ from kernel.fused_add_dropout_scale import (
 )
 
 from . import rotary
-from .caption_encoder import CaptionEncoder
+from .encoder import CaptionEncoder
 
 
 # def modulate(x, shift, scale):
