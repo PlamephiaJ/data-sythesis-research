@@ -2,13 +2,14 @@ from typing import Callable, Optional
 
 import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from model.encoder import CaptionEncoder
 from model.utils import ScoreFn
 
 
-class LossFnBase:
+class LossFnBase(nn.Module):
 
     def __init__(
         self,
@@ -20,9 +21,10 @@ class LossFnBase:
         lv: bool = False,
         p_uncond: float = 0.1,
     ):
+        super().__init__()
         self.noise = noise
         self.graph = graph
-        self.train = train
+        self.is_train = train
         self.sampling_eps = sampling_eps
         self.lv = lv
         self.p_uncond = p_uncond
@@ -41,7 +43,11 @@ class LossFnBase:
             freeze=config.model.caption_encoder.freeze,
             token_dim=config.model.hidden_size,
         )
-        self.email_encoder = config.email_encoder
+
+        self.email_proj = nn.Linear(
+            config.model.hidden_size, config.model.cond_dim, bias=False
+        )
+        nn.init.normal_(self.email_proj.weight, std=0.02)
 
         self.caption_decoder = None
 
@@ -62,8 +68,10 @@ class LossFnBase:
         style_caption_mask: torch.Tensor,
         device: torch.device,
     ):
-        if not self.train:
-            return style_caption, style_caption_mask
+        if not self.is_train:
+            b = style_caption.shape[0]
+            drop_indices = torch.zeros(b, device=device, dtype=torch.bool)
+            return style_caption, style_caption_mask, drop_indices
 
         b = style_caption.shape[0]
         drop_indices = torch.rand(b, device=device) < self.p_uncond
@@ -94,7 +102,7 @@ class LossFnBase:
                 text, text_mask, sigma[:, None]
             )
 
-        log_score_fn = ScoreFn(model, train=self.train, sampling=False)
+        log_score_fn = ScoreFn(model, train=self.is_train, sampling=False)
         log_score = log_score_fn(
             perturbed_batch, text_mask, style_caption, style_caption_mask, sigma
         )
@@ -105,45 +113,104 @@ class LossFnBase:
         loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)  # [B]
         return loss_sedd
 
-    def _compute_info_nce_loss(
-        self, emb_email: torch.Tensor, emb_caption: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        emb_email:   [B, D]
-        emb_caption: [B, D]
-        returns: scalar loss (cross_entropy reduction='mean')
-        """
-        emb_email = F.normalize(emb_email, dim=-1)
-        emb_caption = F.normalize(emb_caption, dim=-1)
-
-        sim_matrix = (emb_email @ emb_caption.T) / self.tau  # [B, B]
-        labels = torch.arange(sim_matrix.size(0), device=sim_matrix.device)
-        return F.cross_entropy(sim_matrix, labels, reduction="mean")
-
-    def _compute_align_loss(
+    def _compute_sedd_loss_and_pooled(
         self,
+        model,
         text,
         text_mask,
         style_caption,
         style_caption_mask,
-        drop_indices: torch.Tensor,
+        t=None,
+        perturbed_batch=None,
+        return_pooled: bool = False,
+    ):
+        if t is None:
+            t = self._sample_t(batch_size=text.shape[0], device=text.device)
+        sigma, dsigma = self.noise(t)
+
+        if perturbed_batch is None:
+            perturbed_batch = self.graph.sample_transition(
+                text, text_mask, sigma[:, None]
+            )
+
+        log_score_fn = ScoreFn(model, train=self.is_train, sampling=False)
+
+        if return_pooled:
+            log_score, pooled_h = log_score_fn(
+                perturbed_batch,
+                text_mask,
+                style_caption,
+                style_caption_mask,
+                sigma,
+                return_pooled=True,
+            )
+        else:
+            log_score = log_score_fn(
+                perturbed_batch,
+                text_mask,
+                style_caption,
+                style_caption_mask,
+                sigma,
+            )
+            pooled_h = None
+
+        loss_sedd = self.graph.score_entropy(
+            log_score, sigma[:, None], perturbed_batch, text, text_mask
+        )
+        loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)  # [B]
+        return loss_sedd, pooled_h
+
+    def _compute_info_nce_loss(
+        self,
+        emb_email: torch.Tensor,  # [B, D]
+        emb_caption: torch.Tensor,  # [B, D]
     ) -> torch.Tensor:
 
-        keep = ~drop_indices
-        if keep.sum() <= 1:
-            return torch.tensor(0.0, device=text.device)
+        emb_email = F.normalize(emb_email, dim=-1)
+        emb_caption = F.normalize(emb_caption, dim=-1)
 
-        text_k = text[keep]
-        text_mask_k = text_mask[keep]
+        # similarity matrix
+        sim = (emb_email @ emb_caption.T) / self.tau  # [B, B]
+
+        labels = torch.arange(sim.size(0), device=sim.device)
+
+        # email -> caption
+        loss_e2c = F.cross_entropy(sim, labels, reduction="mean")
+
+        # caption -> email
+        loss_c2e = F.cross_entropy(sim.T, labels, reduction="mean")
+
+        return 0.5 * (loss_e2c + loss_c2e)
+
+    def _compute_align_loss(
+        self,
+        pooled_h: torch.Tensor,  # [B, H] from diffusion (same forward as sedd loss)
+        style_caption: torch.Tensor,  # [B, Lc]
+        style_caption_mask: torch.Tensor,  # [B, Lc]
+        drop_indices: torch.Tensor,  # [B] True means caption dropped
+    ) -> torch.Tensor:
+
+        keep = (~drop_indices) & (style_caption_mask.sum(dim=1) > 0)
+
+        # InfoNCE needs at least 2 samples in-batch
+        if keep.sum().item() < 2:
+            return pooled_h.new_zeros(())  # scalar 0 on correct device/dtype
+
         cap_k = style_caption[keep]
         cap_mask_k = style_caption_mask[keep]
+        pooled_k = pooled_h[keep].float()  # [Bv, H]
 
-        emb_caption = self.caption_encoder(
-            input_ids=cap_k,
-            attention_mask=cap_mask_k,
-            return_align=True,
-        )
-        emb_email = self.email_encoder(text_k, text_mask_k)
+        # caption target (frozen)
+        with torch.no_grad():
+            emb_caption = self.caption_encoder(
+                input_ids=cap_k,
+                attention_mask=cap_mask_k,
+                return_align=True,
+            )  # [Bv, D]
+
+        # email embedding predicted by diffusion hidden (THIS is the key)
+        emb_email = F.normalize(self.email_proj(pooled_k), dim=-1)  # [Bv, D]
+
         return self._compute_info_nce_loss(emb_email, emb_caption)
 
     def _compute_cycle_loss(
@@ -190,7 +257,7 @@ class LossFnBase:
         perturbed_batch: Optional[torch.Tensor] = None,
     ):
         # CFG dropout (only affects conditions, not the text itself)
-        style_caption, style_caption_mask = self._apply_cfg_dropout(
+        style_caption, style_caption_mask, _ = self._apply_cfg_dropout(
             style_caption, style_caption_mask, device=text.device
         )
 
@@ -240,7 +307,7 @@ class SEDDInfoNCELoss(LossFnBase):
             style_caption, style_caption_mask, device=text.device
         )
 
-        loss_sedd = self._compute_sedd_loss(
+        loss_sedd, pooled_h = self._compute_sedd_loss_and_pooled(
             model=model,
             text=text,
             text_mask=text_mask,
@@ -248,11 +315,11 @@ class SEDDInfoNCELoss(LossFnBase):
             style_caption_mask=style_caption_mask,
             t=t,
             perturbed_batch=perturbed_batch,
+            return_pooled=True,
         )
 
         loss_align = self._compute_align_loss(
-            text=text,
-            text_mask=text_mask,
+            pooled_h=pooled_h,
             style_caption=style_caption,
             style_caption_mask=style_caption_mask,
             drop_indices=drop_indices,
@@ -461,7 +528,7 @@ class StepFn:
             raise ValueError(f"accum must be positive, got {accum}")
 
         self.loss_fn = loss_fn
-        self.train = train
+        self.is_train = train
         self.optimize_fn = optimize_fn
         self.accum = accum
 
@@ -473,7 +540,7 @@ class StepFn:
     ):
         model = state["model"]
 
-        if self.train:
+        if self.is_train:
             optimizer = state["optimizer"]
             scaler = state["scaler"]
 

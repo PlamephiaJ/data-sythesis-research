@@ -609,6 +609,9 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         caption_input_ids: Optional[torch.Tensor] = None,
         caption_attention_mask: Optional[torch.Tensor] = None,
         sigma: Optional[torch.Tensor] = None,
+        *,
+        return_pooled: bool = False,
+        return_hidden: bool = False,
     ) -> torch.Tensor:
         # embeddings
         x = self.vocab_embed(x_input_ids)
@@ -655,6 +658,12 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
                     style_attention_mask=ctx.style_attention_mask,
                 )
 
+            h = x
+
+            if return_pooled:
+                m = x_attention_mask.unsqueeze(-1).to(h.dtype)  # [B,S,1]
+                pooled_h = (h * m).sum(dim=1) / m.sum(dim=1).clamp(min=1.0)  # [B,H]
+
             x = self.output_layer(x, ctx.c)
 
         # optional scale-by-sigma logic (unchanged)
@@ -671,4 +680,11 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         x = torch.scatter(
             x, dim=-1, index=x_input_ids[..., None], src=torch.zeros_like(x[..., :1])
         )
+
+        if return_hidden and return_pooled:
+            return x, h, pooled_h
+        if return_hidden:
+            return x, h
+        if return_pooled:
+            return x, pooled_h
         return x
