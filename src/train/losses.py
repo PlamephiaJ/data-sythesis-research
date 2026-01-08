@@ -30,9 +30,9 @@ class LossFnBase(nn.Module):
         self.p_uncond = p_uncond
 
         # ===== hyperparameters =====
-        self.alpha_align = config.alpha_align
-        self.beta_cycle = config.beta_cycle
-        self.tau = config.tau
+        self.alpha_align = config.training.alpha_align
+        self.beta_cycle = None
+        self.tau = config.training.tau
 
         # ===== encoders / decoder =====
         self.caption_encoder = CaptionEncoder(

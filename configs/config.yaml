@@ -23,6 +23,8 @@ training:
   snapshot_sampling: True
   ema: 0.9999
   p_uncond: 0.1
+  alpha_align: 0.1
+  tau: 0.1
 
 graph:
   type: absorb
