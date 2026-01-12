@@ -290,4 +290,5 @@ class EmailCleaner:
         if not self.cfg.render_clean_email:
             return body, None
 
-        return f"{body}\n", None
+        subject = self.derive_subject(caption, body)
+        return f"{self.cfg.subject_prefix}{subject}\n\n{body}\n", None
