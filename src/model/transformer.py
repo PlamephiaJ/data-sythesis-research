@@ -576,6 +576,7 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
             dropout=config.model.caption_encoder.dropout,
             freeze=config.model.caption_encoder.freeze,
             token_dim=config.model.hidden_size,
+            device=next(self.parameters()).device,
         )
 
         # conditioning strategy (config-driven)

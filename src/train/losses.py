@@ -42,11 +42,12 @@ class LossFnBase(nn.Module):
             dropout=config.model.caption_encoder.dropout,
             freeze=config.model.caption_encoder.freeze,
             token_dim=config.model.hidden_size,
+            device=next(self.parameters()).device,
         )
 
         self.email_proj = nn.Linear(
             config.model.hidden_size, config.model.cond_dim, bias=False
-        )
+        ).to(device=next(self.parameters()).device)
         nn.init.normal_(self.email_proj.weight, std=0.02)
 
         self.caption_decoder = None

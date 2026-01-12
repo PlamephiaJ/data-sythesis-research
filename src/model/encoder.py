@@ -36,10 +36,11 @@ class CaptionEncoder(nn.Module):
         token_dim: (
             int | None
         ) = None,  # set to DDiT hidden_size for cross-attn; default = encoder hidden
+        device: torch.device | None = None,
     ):
         super().__init__()
 
-        self.encoder = AutoModel.from_pretrained(name)
+        self.encoder = AutoModel.from_pretrained(name).to(device=device)
         self.pool = pool
         self.dropout = nn.Dropout(dropout)
 
@@ -51,23 +52,22 @@ class CaptionEncoder(nn.Module):
         enc_hidden = self.encoder.config.hidden_size
 
         # pooled projection (to cond_dim)
-        self.proj = nn.Linear(enc_hidden, cond_dim)
+        self.proj = nn.Linear(enc_hidden, cond_dim).to(device=device)
 
         # token projection (to token_dim)
         if token_dim is None:
             token_dim = enc_hidden
         self.token_dim = int(token_dim)
         self.token_proj = (
-            nn.Identity()
+            nn.Identity().to(device=device)
             if self.token_dim == enc_hidden
-            else nn.Linear(enc_hidden, self.token_dim, bias=False)
+            else nn.Linear(enc_hidden, self.token_dim, bias=False).to(device=device)
         )
 
         # null conditioning (pooled)
-        self.null_cond = nn.Parameter(torch.zeros(cond_dim))
-
+        self.null_cond = nn.Parameter(torch.zeros(cond_dim)).to(device=device)
         # null token (token-level) for cross-attn when caption is missing
-        self.null_token = nn.Parameter(torch.zeros(self.token_dim))
+        self.null_token = nn.Parameter(torch.zeros(self.token_dim)).to(device=device)
 
     @torch.no_grad()
     def _encode_frozen(self, input_ids, attention_mask):
