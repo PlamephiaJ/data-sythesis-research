@@ -19,6 +19,21 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan 12th, 2026 Update
+### Yuhao:
+1. The first round of cross-attention based demo training has been completed. The model is able to generate emails that reflect the style indicated by the caption and the semantic alignment metric is going up, which is a good sign.
+1. New semantic-alignment-loss training is ongoing. The loss is added to the original SEDD loss to further improve the alignment between generated email and style caption.
+1. The very long feedback loop of training-testing-debugging is quite time-consuming. More powerful GPUs with larger VRAM would be very helpful to speed up the iteration cycle.
+
+![alt text](images/image.png)
+![alt text](images/image-1.png)
+
+## Jan. 7th, 2026 Update
+### Yuhao:
+1. Added semantic alignment loss to the training objective. The semantic alignment loss encourages the generated email to be semantically aligned with the style caption by minimizing the cosine distance between their embeddings. The caption embeddings are obtained from a pre-trained BERT model. The email embeddings are obtained by getting the pooled hidden states from the last layer of the SEDD model.
+1. The total loss is now a weighted sum of the original SEDD loss and the semantic alignment loss. The weight of the semantic alignment loss is controlled by a hyperparameter `alpha_align`.
+1. Many structural changes in the codebase to support the new loss function. See git changes for details.
+
 ## Jan. 6th, 2026 Update
 ### Yuhao:
 1. Restart training of `cross_attn_style`. Added email data cleaning step to remove special characters and symbols from the email text.

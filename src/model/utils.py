@@ -66,12 +66,12 @@ class ModelFn:
         self.model = model
         self.train = train
 
-    def __call__(self, x, x_mask, style_caption, style_caption_mask, sigma):
+    def __call__(self, x, x_mask, style_caption, style_caption_mask, sigma, **kwargs):
         if self.train:
             self.model.train()
         else:
             self.model.eval()
-        return self.model(x, x_mask, style_caption, style_caption_mask, sigma)
+        return self.model(x, x_mask, style_caption, style_caption_mask, sigma, **kwargs)
 
 
 class ScoreFn:
@@ -83,7 +83,7 @@ class ScoreFn:
         self.sampling = sampling
         self.model_fn = ModelFn(model, train=train)
 
-    def __call__(self, x, x_mask, style_caption, style_caption_mask, sigma):
+    def __call__(self, x, x_mask, style_caption, style_caption_mask, sigma, **kwargs):
         device = x.device
         with torch.amp.autocast(
             device_type=device.type,
@@ -91,7 +91,13 @@ class ScoreFn:
             enabled=(device.type == "cuda"),
         ):
             sigma = sigma.reshape(-1)
-            score = self.model_fn(x, x_mask, style_caption, style_caption_mask, sigma)
+            out = self.model_fn(
+                x, x_mask, style_caption, style_caption_mask, sigma, **kwargs
+            )
 
-        # sampling 时返回 true score（非 log）
-        return score.exp() if self.sampling else score
+        if isinstance(out, tuple):
+            score, *rest = out
+            score = score.exp() if self.sampling else score
+            return (score, *rest)
+        else:
+            return out.exp() if self.sampling else out

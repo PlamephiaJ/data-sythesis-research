@@ -16,6 +16,7 @@ class EmailCleanConfig:
     # Render mode
     render_clean_email: bool = True  # if True -> Subject + blank line + body
     subject_prefix: str = "Subject: "
+    body_prefix: str = "Body: "
     default_subject: str = "Message"
     max_subject_len: int = 90
 
@@ -291,4 +292,7 @@ class EmailCleaner:
             return body, None
 
         subject = self.derive_subject(caption, body)
-        return f"{self.cfg.subject_prefix}{subject}\n\n{body}\n", None
+        return (
+            f"{self.cfg.subject_prefix}{subject}\n\n{self.cfg.body_prefix}{body}\n",
+            None,
+        )

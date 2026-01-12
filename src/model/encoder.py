@@ -3,6 +3,10 @@ import torch.nn as nn
 from transformers import AutoModel
 
 
+def l2_normalize(x, eps=1e-8) -> torch.Tensor:
+    return x / (x.norm(dim=-1, keepdim=True).clamp_min(eps))
+
+
 class CaptionEncoder(nn.Module):
     """
     Supports:
@@ -32,10 +36,11 @@ class CaptionEncoder(nn.Module):
         token_dim: (
             int | None
         ) = None,  # set to DDiT hidden_size for cross-attn; default = encoder hidden
+        device: torch.device | None = None,
     ):
         super().__init__()
 
-        self.encoder = AutoModel.from_pretrained(name)
+        self.encoder = AutoModel.from_pretrained(name).to(device=device)
         self.pool = pool
         self.dropout = nn.Dropout(dropout)
 
@@ -47,23 +52,22 @@ class CaptionEncoder(nn.Module):
         enc_hidden = self.encoder.config.hidden_size
 
         # pooled projection (to cond_dim)
-        self.proj = nn.Linear(enc_hidden, cond_dim)
+        self.proj = nn.Linear(enc_hidden, cond_dim).to(device=device)
 
         # token projection (to token_dim)
         if token_dim is None:
             token_dim = enc_hidden
         self.token_dim = int(token_dim)
         self.token_proj = (
-            nn.Identity()
+            nn.Identity().to(device=device)
             if self.token_dim == enc_hidden
-            else nn.Linear(enc_hidden, self.token_dim, bias=False)
+            else nn.Linear(enc_hidden, self.token_dim, bias=False).to(device=device)
         )
 
         # null conditioning (pooled)
-        self.null_cond = nn.Parameter(torch.zeros(cond_dim))
-
+        self.null_cond = nn.Parameter(torch.zeros(cond_dim)).to(device=device)
         # null token (token-level) for cross-attn when caption is missing
-        self.null_token = nn.Parameter(torch.zeros(self.token_dim))
+        self.null_token = nn.Parameter(torch.zeros(self.token_dim)).to(device=device)
 
     @torch.no_grad()
     def _encode_frozen(self, input_ids, attention_mask):
@@ -73,7 +77,12 @@ class CaptionEncoder(nn.Module):
         ).last_hidden_state
 
     def forward(
-        self, input_ids=None, attention_mask=None, *, return_tokens: bool = False
+        self,
+        input_ids=None,
+        attention_mask=None,
+        *,
+        return_tokens: bool = False,
+        return_align: bool = False,
     ):
         """
         Args:
@@ -92,10 +101,14 @@ class CaptionEncoder(nn.Module):
         if input_ids is None:
             pooled = self.null_cond.unsqueeze(0)  # (1, cond_dim)
             if not return_tokens:
+                if return_align:
+                    pooled = l2_normalize(pooled)
                 return pooled
             # Provide a single "null token" to keep shapes sane for cross-attn
             token_emb = self.null_token.view(1, 1, self.token_dim)  # (1,1,token_dim)
             token_mask = torch.ones((1, 1), device=token_emb.device, dtype=torch.int64)
+            if return_align:
+                pooled = l2_normalize(pooled)
             return pooled, token_emb, token_mask
 
         if attention_mask is None:
@@ -122,6 +135,9 @@ class CaptionEncoder(nn.Module):
             pooled_raw = (hidden * mask).sum(dim=1) / mask.sum(dim=1).clamp(min=1)
 
         pooled_cond = self.proj(self.dropout(pooled_raw))  # (B, cond_dim)
+
+        if return_align:
+            pooled_cond = l2_normalize(pooled_cond)
 
         if not return_tokens:
             return pooled_cond
