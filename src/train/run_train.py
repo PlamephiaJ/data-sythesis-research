@@ -328,7 +328,18 @@ def _run(rank, world_size, cfg):
                     with open(file_name, "w", encoding="utf-8") as file:
                         json.dump(results, file, indent=2, ensure_ascii=False)
 
-                    similarity_scores = metric.score_batch(captions, sentences)
+                    def extract_body(sentences):
+                        result = []
+                        for s in sentences:
+                            if "Body:" in s:
+                                result.append(s.split("Body:", 1)[1].lstrip())
+                            else:
+                                result.append(s)
+                        return result
+
+                    similarity_scores = metric.score_batch(
+                        captions, extract_body(sentences)
+                    )
                     avg_similarity = sum(similarity_scores) / len(similarity_scores)
                     mprint(
                         f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
