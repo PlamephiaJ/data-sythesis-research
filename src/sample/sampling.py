@@ -65,6 +65,7 @@ class EulerPredictor(Predictor):
     ):
         sigma, dsigma = self.noise(t)
         score = score_fn(x, x_mask, style_caption, style_caption_mask, sigma)
+        score = score_fn(x, x_mask, style_caption, style_caption_mask, sigma)
 
         rev_rate = step_size * dsigma[..., None] * self.graph.reverse_rate(x, score)
         x = self.graph.sample_rate(x, rev_rate)
@@ -201,8 +202,20 @@ class PCSampler:
         self.dt = (1 - eps) / steps
 
     @torch.no_grad()
-    def __call__(self, model, x_mask, style_caption, style_caption_mask):
-        sampling_score_fn = mutils.ScoreFn(model, train=False, sampling=True)
+    def __call__(
+        self, model, x_mask, style_caption, style_caption_mask, cfg_scale: float = 0.0
+    ):
+        base_sampling_score_fn = mutils.ScoreFn(model, train=False, sampling=True)
+
+        def score_fn(x, x_mask, style_caption, style_caption_mask, sigma, **kwargs):
+            return base_sampling_score_fn(
+                x,
+                x_mask,
+                style_caption,
+                style_caption_mask,
+                sigma,
+                cfg_scale=cfg_scale,
+            )
 
         x = self.graph.sample_limit(*self.batch_dims).to(self.device)
 
@@ -212,7 +225,7 @@ class PCSampler:
 
             x = self.projector(x)
             x = self.predictor.update_fn(
-                sampling_score_fn,
+                score_fn,
                 x,
                 x_mask,
                 style_caption,
@@ -225,7 +238,7 @@ class PCSampler:
             x = self.projector(x)
             t = self.timesteps[-1] * torch.ones(x.shape[0], 1, device=self.device)
             x = self.denoiser.update_fn(
-                sampling_score_fn, x, x_mask, style_caption, style_caption_mask, t
+                score_fn, x, x_mask, style_caption, style_caption_mask, t
             )
 
         print("sample output dtype/shape:", x.dtype, tuple(x.shape))

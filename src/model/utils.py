@@ -84,17 +84,38 @@ class ScoreFn:
         self.model_fn = ModelFn(model, train=train)
 
     def __call__(self, x, x_mask, style_caption, style_caption_mask, sigma, **kwargs):
+        # Optional CFG parameters (only used during sampling)
+        cfg_scale = kwargs.pop("cfg_scale", 0.0)
+        use_cfg = self.sampling and (cfg_scale is not None) and (cfg_scale > 0)
+
         device = x.device
+        sigma = sigma.reshape(-1)
+
         with torch.amp.autocast(
             device_type=device.type,
             dtype=torch.bfloat16,
             enabled=(device.type == "cuda"),
         ):
-            sigma = sigma.reshape(-1)
-            out = self.model_fn(
+            # Conditional prediction (always computed)
+            out_cond = self.model_fn(
                 x, x_mask, style_caption, style_caption_mask, sigma, **kwargs
             )
 
+            if use_cfg:
+                # Construct unconditional condition (consistent with your training dropout)
+                style_caption_u = torch.zeros_like(style_caption)
+                style_caption_mask_u = torch.zeros_like(style_caption_mask)
+
+                out_uncond = self.model_fn(
+                    x, x_mask, style_caption_u, style_caption_mask_u, sigma, **kwargs
+                )
+
+                # Combine in log-space (before exp)
+                out = (1.0 + cfg_scale) * out_cond - cfg_scale * out_uncond
+            else:
+                out = out_cond
+
+        # Preserve your existing tuple-handling behavior
         if isinstance(out, tuple):
             score, *rest = out
             score = score.exp() if self.sampling else score
