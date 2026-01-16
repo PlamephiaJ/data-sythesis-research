@@ -19,6 +19,10 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan 16th, 2026 Update
+### Yuhao:
+1. Added CFG inference support in sampling code.
+
 ## Jan 12th, 2026 Update
 ### Yuhao:
 1. The first round of cross-attention based demo training has been completed. The model is able to generate emails that reflect the style indicated by the caption and the semantic alignment metric is going up, which is a good sign.
