@@ -19,6 +19,10 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan 19th, 2026 Update
+### Yuhao:
+1. Added truncation in the evaluation code to calculate perplexity only on the non-masked tokens.
+
 ## Jan 16th, 2026 Update
 ### Yuhao:
 1. Added CFG inference support in sampling code.
