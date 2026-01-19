@@ -313,7 +313,19 @@ def _run(rank, world_size, cfg):
                     )
                     ema.restore(score_model.parameters())
 
-                    sentences = tokenizer_text.batch_decode(sample)
+                    def truncate_at_eos(batch_ids, eos_id):
+                        # batch_ids: torch.Tensor [B, T]
+                        output = []
+                        for row in batch_ids.tolist():
+                            if eos_id in row:
+                                k = row.index(eos_id)
+                                output.append(row[:k])
+                            else:
+                                output.append(row)
+                        return output
+
+                    sample_trunc = truncate_at_eos(sample, tokenizer_text.eos_token_id)
+                    sentences = tokenizer_text.batch_decode(sample_trunc)
                     captions = tokenizer_caption.batch_decode(
                         eval_style_caption, skip_special_tokens=True
                     )
