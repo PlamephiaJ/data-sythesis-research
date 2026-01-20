@@ -1,13 +1,16 @@
 import argparse
+import logging
 
 import torch
-from transformers import GPT2TokenizerFast
 
 import sample.sampling as sampling
 from sample.load_model import load_model
+from utils.tokenizer_factory import get_text_tokenizer
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger(__name__)
     parser = argparse.ArgumentParser(description="Generate some samples")
     parser.add_argument("--model_path", default="louaaron/sedd-medium", type=str)
     parser.add_argument("--dataset", default="wikitext103", type=str)
@@ -17,7 +20,7 @@ def main():
     parser.add_argument("--suffix", type=str, default=" and that's why I'm late.")
     args = parser.parse_args()
 
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    tokenizer = get_text_tokenizer("gpt2")
 
     prefix_ids = tokenizer(args.prefix).input_ids
     suffix_ids = tokenizer(args.suffix).input_ids
@@ -53,8 +56,8 @@ def main():
 
     text_samples = tokenizer.batch_decode(samples)
     for i in text_samples:
-        print(i)
-        print("=================================================")
+        logger.info(i)
+        logger.info("=================================================")
 
 
 if __name__ == "__main__":

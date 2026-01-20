@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from src.metric import aliment
@@ -6,6 +7,9 @@ from src.metric import aliment
 sample_folder = Path("exp_local/phish-email/2025.12.19/105001/samples")
 
 # 初始化metric
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
+
 metric = aliment.make_default_alignment_metric(
     model_name="intfloat/e5-base-v2",
     use_sentence_transformers=True,
@@ -141,4 +145,9 @@ caption_email_pairs = [
 
 for pair in caption_email_pairs:
     score = metric.score(pair["caption"], pair["email"])
-    print(f"Alignment: {pair['alignment']}, Score: {score:.4f} -- {pair['note']}")
+    logger.info(
+        "Alignment: %s, Score: %.4f -- %s",
+        pair["alignment"],
+        score,
+        pair["note"],
+    )

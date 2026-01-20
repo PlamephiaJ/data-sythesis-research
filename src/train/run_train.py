@@ -11,14 +11,14 @@ from losses import OptimizationManager, SEDDInfoNCELoss, StepFn
 from optimizers import OptimizerRegistry
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-from transformers import BertTokenizerFast, GPT2LMHeadModel, GPT2TokenizerFast
 
 import model.noise_lib as noise_lib
 from data_process import data
-from metric import aliment
 from model import SEDD, graph_lib
 from sample import sampling
 from utils import utils
+from utils.eval_factory import get_alignment_metric, get_eval_lm
+from utils.tokenizer_factory import get_caption_tokenizer, get_text_tokenizer
 
 
 torch.backends.cudnn.benchmark = True
@@ -138,8 +138,8 @@ def _run(rank, world_size, cfg):
     initial_step = int(state["step"])
 
     # load in tokenizer
-    tokenizer_text = GPT2TokenizerFast.from_pretrained("gpt2")
-    tokenizer_caption = BertTokenizerFast.from_pretrained("bert-base-uncased")
+    tokenizer_text = get_text_tokenizer("gpt2")
+    tokenizer_caption = get_caption_tokenizer("bert-base-uncased")
     # Build data iterators
     train_ds, eval_ds = data.get_dataloaders(cfg)
 
@@ -184,10 +184,10 @@ def _run(rank, world_size, cfg):
             device,
         )
 
-    metric = aliment.make_default_alignment_metric(
+    metric = get_alignment_metric(
         model_name="intfloat/e5-base-v2",
         use_sentence_transformers=True,
-        policy=aliment.MaxSimPolicy(),
+        device=str(device),
     )
 
     num_train_steps = cfg.training.n_iters
@@ -364,11 +364,7 @@ def _run(rank, world_size, cfg):
 
                     if cfg.eval.perplexity:
                         with torch.no_grad():
-                            eval_model = (
-                                GPT2LMHeadModel.from_pretrained("gpt2-large")
-                                .to(device)
-                                .eval()
-                            )
+                            eval_model = get_eval_lm("gpt2-large", device=str(device))
                             batches = sample.shape[0] // cfg.eval.perplexity_batch_size
                             total_perplexity = 0
                             for i in range(batches):
@@ -377,16 +373,29 @@ def _run(rank, world_size, cfg):
                                     * cfg.eval.perplexity_batch_size : (i + 1)
                                     * cfg.eval.perplexity_batch_size
                                 ]
-                                loss, logits = eval_model(s, labels=s)[:2]
+                                # mask tokens after EOS for perplexity
+                                labels = s.clone()
+                                eos_id = tokenizer_text.eos_token_id
+                                for b in range(labels.size(0)):
+                                    row = labels[b]
+                                    eos_pos = (row == eos_id).nonzero(as_tuple=False)
+                                    if eos_pos.numel() > 0:
+                                        k = eos_pos[0].item()
+                                        if k + 1 < row.numel():
+                                            row[k + 1 :] = -100
+
+                                loss, logits = eval_model(s, labels=labels)[:2]
                                 logits = logits.transpose(-1, -2)
-                                perplexity = (
-                                    F.cross_entropy(
-                                        logits[..., :-1], s[..., 1:], reduction="none"
-                                    )
-                                    .mean(dim=-1)
-                                    .exp()
-                                    .mean()
+                                target = labels[..., 1:]
+                                pred = logits[..., :-1]
+                                token_loss = F.cross_entropy(
+                                    pred, target, reduction="none", ignore_index=-100
                                 )
+                                valid = (target != -100).float()
+                                ppl_per_seq = (token_loss * valid).sum(
+                                    dim=-1
+                                ) / valid.sum(dim=-1).clamp(min=1.0)
+                                perplexity = ppl_per_seq.exp().mean()
                                 total_perplexity += perplexity
                             total_perplexity /= batches
                             dist.all_reduce(total_perplexity)

@@ -19,6 +19,12 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan 20th, 2026 Update
+### Yuhao:
+1. It is found that during evaluation, the perplexity is calculated on all tokens including the masked tokens, which may lead to misleading results. Added truncation in the evaluation code to calculate perplexity only on the non-masked tokens.
+1. Added eos penalty during sampling to penalize model from not generating eos token. This is to avoid the situation where the model never generates eos token and keeps generating tokens until reaching max length.
+1. Made some code refactoring to improve efficiency like using singleton pattern for logger, tokenizers, evaluation models, etc.
+
 ## Jan 19th, 2026 Update
 ### Yuhao:
 1. Added truncation in the evaluation code to calculate perplexity only on the non-masked tokens.

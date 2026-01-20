@@ -1,13 +1,16 @@
 import argparse
+import logging
 
 import torch
-from transformers import GPT2TokenizerFast
 
 import sample.sampling as sampling
 from sample.load_model import load_model
+from utils.tokenizer_factory import get_text_tokenizer
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger(__name__)
     parser = argparse.ArgumentParser(description="Generate some samples")
     parser.add_argument("--model_path", default="louaaron/sedd-medium", type=str)
     parser.add_argument("--dataset", default="wikitext103", type=str)
@@ -17,7 +20,7 @@ def main():
 
     device = torch.device("cuda")
     model, graph, noise = load_model(args.model_path, device)
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    tokenizer = get_text_tokenizer("gpt2")
 
     sampling_fn = sampling.get_pc_sampler(
         graph, noise, (args.batch_size, 1024), "analytic", args.steps, device=device
@@ -27,8 +30,8 @@ def main():
 
     text_samples = tokenizer.batch_decode(samples)
     for i in text_samples:
-        print(i)
-        print("=================================================")
+        logger.info(i)
+        logger.info("=================================================")
 
 
 if __name__ == "__main__":

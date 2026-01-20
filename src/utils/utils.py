@@ -75,13 +75,20 @@ def save_checkpoint(ckpt_dir, state):
 def infinite_guard(name, tensor):
     if not torch.isfinite(tensor).all():
         n_bad = (~torch.isfinite(tensor)).sum().item()
-        print(
-            f"[NaN/Inf] {name}: dtype={tensor.dtype}, shape={tuple(tensor.shape)}, n_bad={n_bad}"
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            "[NaN/Inf] %s: dtype=%s, shape=%s, n_bad=%d",
+            name,
+            tensor.dtype,
+            tuple(tensor.shape),
+            n_bad,
         )
         # 可选：打印一些全局统计（不会爆显存）
         t = tensor.detach()
-        print(
-            f"  min={t.nan_to_num(posinf=0, neginf=0).min().item()} max={t.nan_to_num(posinf=0, neginf=0).max().item()}"
+        logger.warning(
+            "  min=%s max=%s",
+            t.nan_to_num(posinf=0, neginf=0).min().item(),
+            t.nan_to_num(posinf=0, neginf=0).max().item(),
         )
         return False
     return True

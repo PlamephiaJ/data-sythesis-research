@@ -69,11 +69,11 @@ def process_email_dataset(dataset_json: Path) -> List:
 
 if __name__ == "__main__":
     data_dir = RAW_DATA_DIRECTORY.absolute()
-    print(f"Using Ollama model: {MODEL}")
-    print(f"Raw data directory: {data_dir}")
+    logger.info("Using Ollama model: %s", MODEL)
+    logger.info("Raw data directory: %s", data_dir)
     failed_ids_dict = {}
     for dataset_file in data_dir.glob("*.json"):
-        print(f"Processing dataset file: {dataset_file}")
+        logger.info("Processing dataset file: %s", dataset_file)
         failed_ids = process_email_dataset(dataset_file)
         failed_ids_dict[dataset_file.name] = failed_ids
     if any(failed_ids_dict.values()):
