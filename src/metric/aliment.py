@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from typing import List, Optional, Protocol, Sequence
@@ -331,6 +332,8 @@ def make_default_alignment_metric(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger(__name__)
     metric = make_default_alignment_metric(
         model_name="intfloat/e5-base-v2",
         use_sentence_transformers=True,
@@ -346,4 +349,4 @@ if __name__ == "__main__":
     Sam
     """
 
-    print(metric.score(caption, email))
+    logger.info(metric.score(caption, email))

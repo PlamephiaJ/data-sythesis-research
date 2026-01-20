@@ -1,4 +1,5 @@
 import argparse
+import logging
 
 import torch
 
@@ -8,6 +9,8 @@ from utils.tokenizer_factory import get_text_tokenizer
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger(__name__)
     parser = argparse.ArgumentParser(description="Generate some samples")
     parser.add_argument("--model_path", default="louaaron/sedd-medium", type=str)
     parser.add_argument("--dataset", default="wikitext103", type=str)
@@ -53,8 +56,8 @@ def main():
 
     text_samples = tokenizer.batch_decode(samples)
     for i in text_samples:
-        print(i)
-        print("=================================================")
+        logger.info(i)
+        logger.info("=================================================")
 
 
 if __name__ == "__main__":

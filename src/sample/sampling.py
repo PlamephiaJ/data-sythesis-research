@@ -1,4 +1,5 @@
 import abc
+import logging
 
 import torch
 
@@ -241,5 +242,7 @@ class PCSampler:
                 score_fn, x, x_mask, style_caption, style_caption_mask, t
             )
 
-        print("sample output dtype/shape:", x.dtype, tuple(x.shape))
+        logging.getLogger(__name__).info(
+            "sample output dtype/shape: %s %s", x.dtype, tuple(x.shape)
+        )
         return x

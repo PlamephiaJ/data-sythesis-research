@@ -1,3 +1,4 @@
+import logging
 import os
 
 import torch
@@ -38,5 +39,7 @@ def load_model(root_dir, device):
     try:
         return load_model_hf(root_dir, device)
     except Exception as e:
-        print(f"Failed to load model from Hugging Face: {e}. Falling back to local.")
+        logging.getLogger(__name__).warning(
+            "Failed to load model from Hugging Face: %s. Falling back to local.", e
+        )
         return load_model_local(root_dir, device)
