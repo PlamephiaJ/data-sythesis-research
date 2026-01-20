@@ -1,10 +1,10 @@
 import argparse
 
 import torch
-from transformers import GPT2TokenizerFast
 
 import sample.sampling as sampling
 from sample.load_model import load_model
+from utils.tokenizer_factory import get_text_tokenizer
 
 
 def main():
@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--suffix", type=str, default=" and that's why I'm late.")
     args = parser.parse_args()
 
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    tokenizer = get_text_tokenizer("gpt2")
 
     prefix_ids = tokenizer(args.prefix).input_ids
     suffix_ids = tokenizer(args.suffix).input_ids

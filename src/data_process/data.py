@@ -2,10 +2,10 @@ from itertools import chain
 
 import numpy as np
 from torch.utils.data import DataLoader, DistributedSampler
-from transformers import BertTokenizerFast, GPT2TokenizerFast
 
 import data_process.dataset_factory as dataset_factory
 from data_process.clean_factory import EmailCleanConfig, EmailCleaner
+from utils.tokenizer_factory import get_caption_tokenizer, get_text_tokenizer
 
 from .detokenizer_factory import get_detokenizer
 
@@ -35,7 +35,7 @@ def get_chunk_dataset(name, mode, cache_dir=None, block_size=1024, num_proc=120)
 
         return detok
 
-    tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
+    tokenizer = get_text_tokenizer("gpt2")
     EOS = tokenizer.encode(tokenizer.eos_token)[0]
 
     def preprocess_and_tokenize(example):
@@ -133,11 +133,10 @@ def get_entry_dataset(
 
     data = data.filter(is_valid_example, num_proc=num_proc)
 
-    tokenizer_text = GPT2TokenizerFast.from_pretrained(text_tokenizer_name)
-    tokenizer_text.pad_token = tokenizer_text.eos_token
+    tokenizer_text = get_text_tokenizer(text_tokenizer_name)
     eos_id = tokenizer_text.eos_token_id
 
-    tokenizer_caption = BertTokenizerFast.from_pretrained(caption_tokenizer_name)
+    tokenizer_caption = get_caption_tokenizer(caption_tokenizer_name)
 
     def preprocess_and_tokenize(batch):
         texts = batch["text"]
