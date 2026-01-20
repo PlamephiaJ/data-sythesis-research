@@ -268,7 +268,8 @@ def _run(rank, world_size, cfg):
                     writer.add_scalar("loss/eval", eval_loss.item(), step)
 
             if (
-                step > 0
+                True  # TODO
+                or step > 0
                 and step % cfg.training.snapshot_freq == 0
                 or step == num_train_steps
             ):
@@ -321,6 +322,9 @@ def _run(rank, world_size, cfg):
                                 k = row.index(eos_id)
                                 output.append(row[:k])
                             else:
+                                raise ValueError(
+                                    "EOS token not found in the sequence."
+                                )  # TODO
                                 output.append(row)
                         return output
 
@@ -377,16 +381,28 @@ def _run(rank, world_size, cfg):
                                     * cfg.eval.perplexity_batch_size : (i + 1)
                                     * cfg.eval.perplexity_batch_size
                                 ]
-                                loss, logits = eval_model(s, labels=s)[:2]
+                                # mask tokens after EOS for perplexity
+                                labels = s.clone()
+                                eos_id = tokenizer_text.eos_token_id
+                                for row in labels.tolist():
+                                    if eos_id in row:
+                                        k = row.index(eos_id)
+                                        for j in range(k + 1, len(row)):
+                                            row[j] = -100
+                                labels = torch.tensor(labels, device=s.device)
+
+                                loss, logits = eval_model(s, labels=labels)[:2]
                                 logits = logits.transpose(-1, -2)
-                                perplexity = (
-                                    F.cross_entropy(
-                                        logits[..., :-1], s[..., 1:], reduction="none"
-                                    )
-                                    .mean(dim=-1)
-                                    .exp()
-                                    .mean()
+                                target = labels[..., 1:]
+                                pred = logits[..., :-1]
+                                token_loss = F.cross_entropy(
+                                    pred, target, reduction="none", ignore_index=-100
                                 )
+                                valid = (target != -100).float()
+                                ppl_per_seq = (token_loss * valid).sum(
+                                    dim=-1
+                                ) / valid.sum(dim=-1).clamp(min=1.0)
+                                perplexity = ppl_per_seq.exp().mean()
                                 total_perplexity += perplexity
                             total_perplexity /= batches
                             dist.all_reduce(total_perplexity)
