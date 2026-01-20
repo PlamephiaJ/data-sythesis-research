@@ -135,6 +135,7 @@ def get_entry_dataset(
 
     tokenizer_text = GPT2TokenizerFast.from_pretrained(text_tokenizer_name)
     tokenizer_text.pad_token = tokenizer_text.eos_token
+    eos_id = tokenizer_text.eos_token_id
 
     tokenizer_caption = BertTokenizerFast.from_pretrained(caption_tokenizer_name)
 
@@ -159,6 +160,27 @@ def get_entry_dataset(
             truncation=True,
             padding="max_length",
         )
+        # Ensure EOS is present in the visible (mask==1) portion.
+        # If there is padding, place EOS at the first pad position and mark it visible;
+        # otherwise overwrite the last token with EOS.
+        for ids, mask in zip(enc_text["input_ids"], enc_text["attention_mask"]):
+            try:
+                pad_idx = mask.index(0)
+            except ValueError:
+                pad_idx = None
+
+            if pad_idx is None:
+                ids[-1] = eos_id
+            else:
+                ids[pad_idx] = eos_id
+                mask[pad_idx] = 1
+        # lightweight validation on the first sample in batch
+        if enc_text["input_ids"]:
+            ids = enc_text["input_ids"][0]
+            mask = enc_text["attention_mask"][0]
+            visible_tokens = [t for t, m in zip(ids, mask) if m == 1]
+            if eos_id not in visible_tokens:
+                raise ValueError("EOS not found in visible tokens after preprocessing.")
         enc_cap = tokenizer_caption(
             captions,
             return_attention_mask=True,
