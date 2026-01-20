@@ -268,8 +268,7 @@ def _run(rank, world_size, cfg):
                     writer.add_scalar("loss/eval", eval_loss.item(), step)
 
             if (
-                True  # TODO
-                or step > 0
+                step > 0
                 and step % cfg.training.snapshot_freq == 0
                 or step == num_train_steps
             ):
@@ -322,9 +321,6 @@ def _run(rank, world_size, cfg):
                                 k = row.index(eos_id)
                                 output.append(row[:k])
                             else:
-                                raise ValueError(
-                                    "EOS token not found in the sequence."
-                                )  # TODO
                                 output.append(row)
                         return output
 
@@ -380,12 +376,13 @@ def _run(rank, world_size, cfg):
                                 # mask tokens after EOS for perplexity
                                 labels = s.clone()
                                 eos_id = tokenizer_text.eos_token_id
-                                for row in labels.tolist():
-                                    if eos_id in row:
-                                        k = row.index(eos_id)
-                                        for j in range(k + 1, len(row)):
-                                            row[j] = -100
-                                labels = torch.tensor(labels, device=s.device)
+                                for b in range(labels.size(0)):
+                                    row = labels[b]
+                                    eos_pos = (row == eos_id).nonzero(as_tuple=False)
+                                    if eos_pos.numel() > 0:
+                                        k = eos_pos[0].item()
+                                        if k + 1 < row.numel():
+                                            row[k + 1 :] = -100
 
                                 loss, logits = eval_model(s, labels=labels)[:2]
                                 logits = logits.transpose(-1, -2)

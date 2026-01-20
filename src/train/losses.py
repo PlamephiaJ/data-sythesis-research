@@ -1,4 +1,5 @@
-from typing import Callable, Optional
+from dataclasses import dataclass
+from typing import Callable, List, Optional, Sequence
 
 import numpy as np
 import torch
@@ -7,6 +8,73 @@ import torch.nn.functional as F
 
 from model.encoder import CaptionEncoder
 from model.utils import ScoreFn
+from utils.tokenizer_factory import get_text_tokenizer
+
+
+@dataclass
+class AuxLoss:
+    name: str
+    weight: float
+    requires: Sequence[str]
+
+    def __call__(self, **ctx) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class EosPenaltyLoss(AuxLoss):
+
+    def __init__(self, weight: float, eos_id: int):
+        super().__init__(
+            name="eos_penalty",
+            weight=weight,
+            requires=("log_score", "text", "text_mask"),
+        )
+        self.eos_id = int(eos_id)
+
+    def __call__(self, **ctx) -> torch.Tensor:
+        log_score = ctx["log_score"]
+        text = ctx["text"]
+        text_mask = ctx["text_mask"]
+
+        eos_mask = (text == self.eos_id) & text_mask.bool()
+        if not eos_mask.any():
+            return log_score.new_zeros((text.shape[0],))
+        log_probs = F.log_softmax(log_score, dim=-1)
+        eos_logp = log_probs[..., self.eos_id]
+        eos_loss = -(eos_logp * eos_mask).sum(dim=-1)
+        denom = eos_mask.sum(dim=-1).clamp(min=1)
+        return eos_loss / denom
+
+
+def _get_eos_id(config) -> int:
+    tokenizer_name = getattr(config.tokenizer, "text", "gpt2")
+    tokenizer = get_text_tokenizer(tokenizer_name)
+    return int(tokenizer.eos_token_id)
+
+
+def _build_aux_losses(config) -> List[AuxLoss]:
+    losses: List[AuxLoss] = []
+
+    aux_cfg = getattr(config.training, "aux_losses", None)
+    if aux_cfg:
+        for item in aux_cfg:
+            name = item.get("name")
+            weight = float(item.get("weight", 0.0))
+            if weight <= 0:
+                continue
+            if name == "eos_penalty":
+                eos_id = item.get("eos_id", _get_eos_id(config))
+                losses.append(EosPenaltyLoss(weight=weight, eos_id=eos_id))
+            else:
+                raise ValueError(f"Unknown auxiliary loss: {name}")
+    else:
+        eos_penalty = float(getattr(config.training, "eos_penalty", 0.0))
+        if eos_penalty > 0:
+            losses.append(
+                EosPenaltyLoss(weight=eos_penalty, eos_id=_get_eos_id(config))
+            )
+
+    return losses
 
 
 class LossFnBase(nn.Module):
@@ -31,8 +99,11 @@ class LossFnBase(nn.Module):
 
         # ===== hyperparameters =====
         self.alpha_align = config.training.alpha_align
-        self.beta_cycle = None
         self.tau = config.training.tau
+        self.aux_losses = _build_aux_losses(config)
+        self._aux_requires_log_score = any(
+            "log_score" in loss.requires for loss in self.aux_losses
+        )
 
         # ===== encoders / decoder =====
         self.caption_encoder = CaptionEncoder(
@@ -92,6 +163,7 @@ class LossFnBase(nn.Module):
         style_caption_mask,
         t: Optional[torch.Tensor] = None,
         perturbed_batch: Optional[torch.Tensor] = None,
+        return_log_score: bool = False,
     ) -> torch.Tensor:
         if t is None:
             t = self._sample_t(batch_size=text.shape[0], device=text.device)
@@ -112,6 +184,8 @@ class LossFnBase(nn.Module):
             log_score, sigma[:, None], perturbed_batch, text, text_mask
         )
         loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)  # [B]
+        if return_log_score:
+            return loss_sedd, log_score
         return loss_sedd
 
     def _compute_sedd_loss_and_pooled(
@@ -124,6 +198,7 @@ class LossFnBase(nn.Module):
         t=None,
         perturbed_batch=None,
         return_pooled: bool = False,
+        return_log_score: bool = False,
     ):
         if t is None:
             t = self._sample_t(batch_size=text.shape[0], device=text.device)
@@ -159,7 +234,17 @@ class LossFnBase(nn.Module):
             log_score, sigma[:, None], perturbed_batch, text, text_mask
         )
         loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)  # [B]
+        if return_log_score:
+            return loss_sedd, pooled_h, log_score
         return loss_sedd, pooled_h
+
+    def _compute_aux_total(self, **ctx) -> Optional[torch.Tensor]:
+        if not self.aux_losses:
+            return None
+        losses: List[torch.Tensor] = []
+        for loss in self.aux_losses:
+            losses.append(loss(**ctx) * loss.weight)
+        return sum(losses)
 
     def _compute_info_nce_loss(
         self,
@@ -214,32 +299,11 @@ class LossFnBase(nn.Module):
 
         return self._compute_info_nce_loss(emb_email, emb_caption)
 
-    def _compute_cycle_loss(
-        self,
-        text,
-        text_mask,
-        style_caption,
-    ) -> torch.Tensor:
-        """
-        caption reconstruction loss
-        """
-        if self.caption_decoder is None:
-            raise NotImplementedError(
-                "caption_decoder is None; cannot compute cycle loss."
-            )
-        # caption_pred: [B, cap_len, vocab_size]
-        caption_pred = self.caption_decoder(text, text_mask)
-        B, cap_len, V = caption_pred.shape
-        caption_pred = caption_pred.view(B * cap_len, V)
-        caption_gt = style_caption.view(B * cap_len)
-        loss = F.cross_entropy(caption_pred, caption_gt, ignore_index=0)
-        return loss
-
     def combine_losses(
         self,
         loss_sedd: torch.Tensor,
         loss_align: Optional[torch.Tensor] = None,
-        loss_cycle: Optional[torch.Tensor] = None,
+        aux_loss: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Rewrite in subclass to combine losses as needed.
@@ -262,20 +326,45 @@ class LossFnBase(nn.Module):
             style_caption, style_caption_mask, device=text.device
         )
 
-        loss_sedd = self._compute_sedd_loss(
-            model=model,
-            text=text,
-            text_mask=text_mask,
-            style_caption=style_caption,
-            style_caption_mask=style_caption_mask,
-            t=t,
-            perturbed_batch=perturbed_batch,
-        )
+        if self._aux_requires_log_score:
+            loss_sedd, log_score = self._compute_sedd_loss(
+                model=model,
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+                t=t,
+                perturbed_batch=perturbed_batch,
+                return_log_score=True,
+            )
+            aux_loss = self._compute_aux_total(
+                log_score=log_score,
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+            )
+        else:
+            loss_sedd = self._compute_sedd_loss(
+                model=model,
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+                t=t,
+                perturbed_batch=perturbed_batch,
+            )
+            aux_loss = self._compute_aux_total(
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+            )
 
         return self.combine_losses(
             loss_sedd=loss_sedd,
             loss_align=None,
-            loss_cycle=None,
+            aux_loss=aux_loss,
         )
 
 
@@ -284,8 +373,10 @@ class SEDDLoss(LossFnBase):
     total = loss_sedd
     """
 
-    def combine_losses(self, loss_sedd, loss_align=None, loss_cycle=None):
-        return loss_sedd
+    def combine_losses(self, loss_sedd, loss_align=None, aux_loss=None):
+        if aux_loss is None:
+            return loss_sedd
+        return loss_sedd + aux_loss
 
 
 class SEDDInfoNCELoss(LossFnBase):
@@ -308,16 +399,42 @@ class SEDDInfoNCELoss(LossFnBase):
             style_caption, style_caption_mask, device=text.device
         )
 
-        loss_sedd, pooled_h = self._compute_sedd_loss_and_pooled(
-            model=model,
-            text=text,
-            text_mask=text_mask,
-            style_caption=style_caption,
-            style_caption_mask=style_caption_mask,
-            t=t,
-            perturbed_batch=perturbed_batch,
-            return_pooled=True,
-        )
+        if self._aux_requires_log_score:
+            loss_sedd, pooled_h, log_score = self._compute_sedd_loss_and_pooled(
+                model=model,
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+                t=t,
+                perturbed_batch=perturbed_batch,
+                return_pooled=True,
+                return_log_score=True,
+            )
+            aux_loss = self._compute_aux_total(
+                log_score=log_score,
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+            )
+        else:
+            loss_sedd, pooled_h = self._compute_sedd_loss_and_pooled(
+                model=model,
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+                t=t,
+                perturbed_batch=perturbed_batch,
+                return_pooled=True,
+            )
+            aux_loss = self._compute_aux_total(
+                text=text,
+                text_mask=text_mask,
+                style_caption=style_caption,
+                style_caption_mask=style_caption_mask,
+            )
 
         loss_align = self._compute_align_loss(
             pooled_h=pooled_h,
@@ -326,70 +443,17 @@ class SEDDInfoNCELoss(LossFnBase):
             drop_indices=drop_indices,
         )
 
-        return self.combine_losses(loss_sedd=loss_sedd, loss_align=loss_align)
+        return self.combine_losses(
+            loss_sedd=loss_sedd, loss_align=loss_align, aux_loss=aux_loss
+        )
 
-    def combine_losses(self, loss_sedd, loss_align=None, loss_cycle=None):
+    def combine_losses(self, loss_sedd, loss_align=None, aux_loss=None):
         if loss_align is None:
             raise ValueError("loss_align is required for SEDDInfoNCELoss")
-        return loss_sedd + self.alpha_align * loss_align
-
-
-class SEDDInfoNCECycleLoss(LossFnBase):
-    """
-    total = loss_sedd + alpha_align * loss_align + beta_cycle * loss_cycle
-    """
-
-    def __call__(
-        self,
-        model,
-        text,
-        text_mask,
-        style_caption,
-        style_caption_mask,
-        cond=None,
-        t: Optional[torch.Tensor] = None,
-        perturbed_batch: Optional[torch.Tensor] = None,
-    ):
-        raise NotImplementedError(
-            "SEDDInfoNCECycleLoss call not be used until caption_decoder is implemented."
-        )
-        style_caption, style_caption_mask = self._apply_cfg_dropout(
-            style_caption, style_caption_mask, device=text.device
-        )
-
-        loss_sedd = self._compute_sedd_loss(
-            model=model,
-            text=text,
-            text_mask=text_mask,
-            style_caption=style_caption,
-            style_caption_mask=style_caption_mask,
-            t=t,
-            perturbed_batch=perturbed_batch,
-        )
-
-        loss_align = self._compute_align_loss(
-            text=text,
-            text_mask=text_mask,
-            style_caption=style_caption,
-            style_caption_mask=style_caption_mask,
-        )
-
-        loss_cycle = self._compute_cycle_loss(
-            text=text,
-            text_mask=text_mask,
-            style_caption=style_caption,
-        )
-
-        return self.combine_losses(
-            loss_sedd=loss_sedd, loss_align=loss_align, loss_cycle=loss_cycle
-        )
-
-    def combine_losses(self, loss_sedd, loss_align=None, loss_cycle=None):
-        if loss_align is None or loss_cycle is None:
-            raise ValueError(
-                "loss_align and loss_cycle are required for SEDDInfoNCECycleLoss"
-            )
-        return loss_sedd + self.alpha_align * loss_align + self.beta_cycle * loss_cycle
+        total = loss_sedd + self.alpha_align * loss_align
+        if aux_loss is not None:
+            total = total + aux_loss
+        return total
 
 
 # def optimization_manager(config):
