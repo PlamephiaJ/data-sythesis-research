@@ -363,54 +363,73 @@ def _run(rank, world_size, cfg):
                         )
 
                     if cfg.eval.perplexity:
-                        with torch.no_grad():
-                            eval_model = get_eval_lm("gpt2-large", device=str(device))
-                            batches = sample.shape[0] // cfg.eval.perplexity_batch_size
-                            total_perplexity = 0
-                            for i in range(batches):
-                                s = sample[
-                                    i
-                                    * cfg.eval.perplexity_batch_size : (i + 1)
-                                    * cfg.eval.perplexity_batch_size
-                                ]
-                                # mask tokens after EOS for perplexity
-                                labels = s.clone()
-                                eos_id = tokenizer_text.eos_token_id
-                                for b in range(labels.size(0)):
-                                    row = labels[b]
-                                    eos_pos = (row == eos_id).nonzero(as_tuple=False)
-                                    if eos_pos.numel() > 0:
-                                        k = eos_pos[0].item()
-                                        if k + 1 < row.numel():
-                                            row[k + 1 :] = -100
+                        with torch.inference_mode():
+                            eval_model = get_eval_lm("gpt2-large", device)
 
-                                loss, logits = eval_model(s, labels=labels)[:2]
-                                logits = logits.transpose(-1, -2)
-                                target = labels[..., 1:]
-                                pred = logits[..., :-1]
-                                token_loss = F.cross_entropy(
-                                    pred, target, reduction="none", ignore_index=-100
-                                )
-                                valid = (target != -100).float()
-                                ppl_per_seq = (token_loss * valid).sum(
-                                    dim=-1
-                                ) / valid.sum(dim=-1).clamp(min=1.0)
-                                perplexity = ppl_per_seq.exp().mean()
-                                total_perplexity += perplexity
-                            total_perplexity /= batches
-                            dist.all_reduce(total_perplexity)
-                            total_perplexity /= world_size
+                            batch_size = cfg.eval.perplexity_batch_size
+                            num_samples = sample.size(0)
+
+                            total_loss = torch.zeros(1, device=device)
+                            total_tokens = torch.zeros(1, device=device)
+
+                            eos_token_id = tokenizer_text.eos_token_id
+
+                            for start in range(0, num_samples, batch_size):
+                                end = min(start + batch_size, num_samples)
+                                s = sample[start:end]  # (b, T)
+
+                                if s.size(0) == 0:
+                                    continue
+
+                                outputs = eval_model(s)
+                                logits = outputs.logits  # (b, T, V)
+
+                                logits = logits[:, :-1, :].contiguous()  # (b, T-1, V)
+                                targets = s[:, 1:]  # (b, T-1)
+
+                                vocab_size = logits.size(-1)
+                                logits_flat = logits.view(-1, vocab_size)
+                                targets_flat = targets.reshape(-1)
+
+                                token_losses = F.cross_entropy(
+                                    logits_flat,
+                                    targets_flat,
+                                    reduction="none",
+                                ).view_as(
+                                    targets
+                                )  # (b, T-1)
+
+                                eos_mask = (targets == eos_token_id).int()  # (b, T-1)
+                                cumsum = eos_mask.cumsum(dim=-1)
+                                valid_mask = (cumsum == 0).to(token_losses.dtype)
+
+                                masked_losses = token_losses * valid_mask
+
+                                batch_loss_sum = masked_losses.sum()
+                                batch_token_sum = valid_mask.sum()
+
+                                total_loss += batch_loss_sum
+                                total_tokens += batch_token_sum
+
+                            total_tokens = total_tokens.clamp_min(1)
+
+                            if dist.is_available() and dist.is_initialized():
+                                dist.all_reduce(total_loss, op=dist.ReduceOp.SUM)
+                                dist.all_reduce(total_tokens, op=dist.ReduceOp.SUM)
+
+                            mean_loss = total_loss / total_tokens
+                            total_perplexity = mean_loss.exp()
+
                             mprint(
-                                f"Generative Perplexity at step: {step}. Perplexity: {total_perplexity:.3f}."
+                                f"Generative Perplexity at step: {step}. Perplexity: {total_perplexity.item():.3f}."
                             )
 
-                            # Log perplexity to TensorBoard
                             if rank == 0:
                                 writer.add_scalar(
                                     "eval/perplexity", total_perplexity.item(), step
                                 )
 
-                            del eval_model, logits, loss
+                            del logits, token_losses, masked_losses, outputs
 
                     dist.barrier()
 
