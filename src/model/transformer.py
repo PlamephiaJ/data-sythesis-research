@@ -12,11 +12,11 @@ You will need ONE small change in CaptionEncoder:
     this code will still run but cross-attn mode will raise a clear error.
 """
 
+import logging
 import math
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -33,6 +33,8 @@ from kernel.fused_add_dropout_scale import (
 from . import rotary
 from .encoder import CaptionEncoder
 
+
+logger = logging.getLogger(__name__)
 
 #################################################################################
 #                                  Layers                                       #
@@ -670,12 +672,9 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         # optional scale-by-sigma logic (unchanged)
         if self.scale_by_sigma:
             assert self.absorb, "Haven't configured this to work."
-            esigm1_log = (
-                torch.where(sigma < 0.5, torch.expm1(sigma), sigma.exp() - 1)
-                .log()
-                .to(x.dtype)[:, None, None]
-            )
-            x = x - esigm1_log - np.log(x.shape[-1] - 1)
+            esigm1 = torch.where(sigma < 0.5, torch.expm1(sigma), torch.exp(sigma) - 1)
+            esigm1_log = torch.log(esigm1).to(x.dtype)[:, None, None]
+            x = x - esigm1_log - math.log(x.shape[-1] - 1)
 
         # scatter zero at input ids (unchanged)
         x = torch.scatter(

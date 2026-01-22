@@ -19,6 +19,11 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan 21st, 2026 Update
+### Yuhao:
+1. The PPL has significantly dropped after adding eos penalty during sampling.
+1. Fixed the bug of OOM triggered by long sequences during evaluation. The evaluation dataloader now clamps the length to the model's max length.
+
 ## Jan 20th, 2026 Update
 ### Yuhao:
 1. It is found that during evaluation, the perplexity is calculated on all tokens including the masked tokens, which may lead to misleading results. Added truncation in the evaluation code to calculate perplexity only on the non-masked tokens.
