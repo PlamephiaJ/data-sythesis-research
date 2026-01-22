@@ -1,4 +1,6 @@
 #!/bin/bash
 
 source .venv/bin/activate
-python src/train/train.py model.scale_by_sigma=False
+# Scale by sigma is only used in absorb settings
+python src/train/train.py model.scale_by_sigma=True graph.type=absorb
+# python src/train/train.py model.scale_by_sigma=False graph.type=uniform

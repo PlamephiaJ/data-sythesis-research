@@ -7,4 +7,4 @@ defaults:
 
 num_proc: 120
 format: entry # chunk or entry
-max_length: 2048 # 1024 for openwebtext-modern, 1024 for wikitext103, 2048 for phish-email
+max_length: 1024
