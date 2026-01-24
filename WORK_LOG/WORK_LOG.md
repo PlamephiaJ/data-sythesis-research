@@ -19,6 +19,16 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Jan 23rd, 2026 Update
+### Yuhao:
+1. Update dataset statistics after data cleaning. The result are as follows:
+- [dataset] split=train, dataset_len=172233, examples=172233, batches=1346
+- [train] text: total_tokens=50359881, mean=292.39±278.22, min=19, q25=89, median=183, q75=406, p90=813, p95=1000, p99=1024, max=1024, max_len=1024, pad_rate=71.45%, sample_n=50000
+- [train] caption: total_tokens=5789547, mean=33.61±13.33, min=6, q25=25, median=31, q75=40, p90=50, p95=58, p99=79, max=251, max_len=256, pad_rate=86.87%, sample_n=50000
+- [dataset] split=validation, dataset_len=19115, examples=19115, batches=38
+- [validation] text: total_tokens=5602756, mean=293.11±278.76, min=22, q25=92, median=180, q75=396, p90=765, p95=983, p99=1024, max=1024, max_len=1024, pad_rate=71.38%, sample_n=19115
+- [validation] caption: total_tokens=644832, mean=33.73±13.48, min=7, q25=25, median=31, q75=40, p90=50, p95=59, p99=81, max=182, max_len=256, pad_rate=86.82%, sample_n=19115
+
 ## Jan 21st, 2026 Update
 ### Yuhao:
 1. The PPL has significantly dropped after adding eos penalty during sampling.
