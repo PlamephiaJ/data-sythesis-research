@@ -19,6 +19,11 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 2nd, 2026 Update
+### Yuhao:
+1. Added phish mark in the description for future email generation sampling.
+1. Added training script for detection model using Huggingface transformers. The detection model is a fine-tuned BERT model for binary classification of phishing emails.
+
 ## Jan 23rd, 2026 Update
 ### Yuhao:
 1. Update dataset statistics after data cleaning. The result are as follows:
