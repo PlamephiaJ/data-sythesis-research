@@ -141,15 +141,23 @@ def get_entry_dataset(
     def preprocess_and_tokenize(batch):
         texts = batch["text"]
         captions = batch["style_caption"]
+        labels = batch.get("phish", [0] * len(texts))
 
         clean_texts = []
-        for t, c in zip(texts, captions):
-            cleaned, _ = cleaner.render(c, t)
+        prefixed_captions = []
+        for t, c, p in zip(texts, captions, labels):
+            label = int(p) if p is not None else 0
+            prefix = (
+                "This is a phish email. " if label == 1 else "This is a benign email. "
+            )
+            caption = f"{prefix}{c or ''}".strip()
+            cleaned, _ = cleaner.render(caption, t)
             if cleaned is None:
                 cleaned = (
                     f"Subject: {cleaner.cfg.default_subject}\n\n[INVALID SAMPLE]\n"
                 )
             clean_texts.append(cleaned)
+            prefixed_captions.append(caption)
 
         enc_text = tokenizer_text(
             clean_texts,
@@ -181,7 +189,7 @@ def get_entry_dataset(
             if eos_id not in visible_tokens:
                 raise ValueError("EOS not found in visible tokens after preprocessing.")
         enc_cap = tokenizer_caption(
-            captions,
+            prefixed_captions,
             return_attention_mask=True,
             add_special_tokens=True,
             max_length=caption_max_length,
