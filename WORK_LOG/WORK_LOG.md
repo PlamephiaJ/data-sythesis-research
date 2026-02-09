@@ -19,6 +19,11 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 9th, 2026 Update
+### Yuhao:
+1. Updated sampling code to support conditioned generation.
+1. Added raw implementation to be used for contrast experiments.
+
 ## Feb 2nd, 2026 Update
 ### Yuhao:
 1. Added phish mark in the description for future email generation sampling.
