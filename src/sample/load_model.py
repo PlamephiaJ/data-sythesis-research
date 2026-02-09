@@ -25,7 +25,7 @@ def load_model_local(root_dir, device):
     ema = ExponentialMovingAverage(score_model.parameters(), decay=cfg.training.ema)
 
     ckpt_dir = os.path.join(root_dir, "checkpoints-meta", "checkpoint.pth")
-    loaded_state = torch.load(ckpt_dir, map_location=device)
+    loaded_state = torch.load(ckpt_dir, map_location=device, weights_only=False)
 
     score_model.load_state_dict(loaded_state["model"])
     ema.load_state_dict(loaded_state["ema"])
