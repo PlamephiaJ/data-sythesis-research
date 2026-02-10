@@ -14,7 +14,7 @@ data:
   num_proc: 32
 
 training:
-  output_dir: ${hydra.run.dir}/training_output
+  output_dir: null
   ngpus: 1
   master_addr: "127.0.0.1"
   master_port: 29500
