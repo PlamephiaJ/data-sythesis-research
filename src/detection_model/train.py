@@ -257,12 +257,19 @@ def _make_absolute(path: str) -> str:
 
 
 def _build_output_dir(cfg: DictConfig) -> str:
-    if cfg.training.output_dir:
-        return _make_absolute(cfg.training.output_dir)
-    hydra_cfg = HydraConfig.get()
+    if getattr(cfg, "training", None) and getattr(cfg.training, "output_dir", None):
+        return _make_absolute(str(cfg.training.output_dir))
+    try:
+        hydra_cfg = HydraConfig.get()
+    except Exception:
+        return _make_absolute("training_output")
+
     if hydra_cfg.mode == RunMode.RUN:
-        return _make_absolute(hydra_cfg.run.dir)
-    return _make_absolute(os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir))
+        base_dir = hydra_cfg.run.dir
+    else:
+        base_dir = os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir)
+
+    return _make_absolute(base_dir)
 
 
 def _resolve_data_path(path: Optional[str]) -> Optional[str]:
