@@ -278,6 +278,16 @@ def _resolve_data_path(path: Optional[str]) -> Optional[str]:
     return _make_absolute(path)
 
 
+def _apply_train_ratio(ds: Dataset, ratio: float, seed: int) -> Dataset:
+    if ratio >= 1.0:
+        return ds
+    if ratio <= 0.0:
+        raise ValueError(f"train_ratio must be > 0. Got {ratio}")
+    total = len(ds)
+    keep = max(1, int(total * ratio))
+    return ds.shuffle(seed=seed).select(range(keep))
+
+
 def _run_training(cfg: DictConfig):
     set_seed(cfg.training.seed)
 
@@ -301,6 +311,8 @@ def _run_training(cfg: DictConfig):
     if extra_train_dir:
         extra_ds = _load_json_dir(extra_train_dir)
         train_ds = concatenate_datasets([train_ds, extra_ds])
+
+    train_ds = _apply_train_ratio(train_ds, cfg.data.train_ratio, cfg.training.seed)
 
     train_tok = _prepare_dataset(
         train_ds,

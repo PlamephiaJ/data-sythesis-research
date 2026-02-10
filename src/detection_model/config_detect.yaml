@@ -10,6 +10,7 @@ data:
   cache_dir: data_phish/cleaned
   extra_train_dir: null
   generated_eval_dir: null
+  train_ratio: 1.0
   max_length: 512
   num_proc: 8
 
