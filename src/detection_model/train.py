@@ -343,6 +343,9 @@ def _run_training(cfg: DictConfig):
         cfg.model.name, num_labels=cfg.model.num_labels
     )
 
+    max_steps = getattr(cfg.training, "max_steps", None)
+    max_steps = int(max_steps) if max_steps is not None else -1
+
     training_args = TrainingArguments(
         output_dir=output_dir,
         eval_strategy=cfg.training.eval_strategy,
@@ -351,11 +354,14 @@ def _run_training(cfg: DictConfig):
         per_device_train_batch_size=cfg.training.train_batch_size,
         per_device_eval_batch_size=cfg.training.eval_batch_size,
         num_train_epochs=cfg.training.num_train_epochs,
+        max_steps=max_steps,
         weight_decay=cfg.training.weight_decay,
         load_best_model_at_end=cfg.training.save_best_model,
         metric_for_best_model=cfg.training.metric_for_best_model,
         greater_is_better=True,
         logging_steps=cfg.training.logging_steps,
+        eval_steps=getattr(cfg.training, "eval_steps", None),
+        save_steps=getattr(cfg.training, "save_steps", None),
         save_total_limit=cfg.training.save_total_limit,
         fp16=torch.cuda.is_available(),
         report_to=list(cfg.training.report_to),
