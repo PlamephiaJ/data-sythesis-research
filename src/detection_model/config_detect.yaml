@@ -11,7 +11,7 @@ data:
   extra_train_dir: null
   generated_eval_dir: null
   max_length: 512
-  num_proc: 32
+  num_proc: 8
 
 training:
   output_dir: null
