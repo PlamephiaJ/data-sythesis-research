@@ -222,7 +222,14 @@ class WeightedTrainer(Trainer):
         super().__init__(**kwargs)
         self.class_weights = class_weights
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(
+        self,
+        model,
+        inputs,
+        return_outputs=False,
+        num_items_in_batch: Optional[int] = None,
+        **kwargs,
+    ):
         labels = inputs.get("labels")
         outputs = model(
             input_ids=inputs.get("input_ids"),
