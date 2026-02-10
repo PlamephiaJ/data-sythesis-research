@@ -27,13 +27,13 @@ training:
   max_steps: 4100
   seed: 42
   save_best_model: true
-  eval_strategy: epoch
-  save_strategy: epoch
+  eval_strategy: steps
+  save_strategy: steps
   metric_for_best_model: f1
   logging_steps: 50
-  eval_steps: null
-  save_steps: null
-  save_total_limit: 2
+  eval_steps: 250
+  save_steps: 250
+  save_total_limit: 10
   report_to:
     - tensorboard
 
