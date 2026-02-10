@@ -15,7 +15,7 @@ data:
 
 training:
   output_dir: null
-  ngpus: 1
+  ngpus: 3
   master_addr: "127.0.0.1"
   master_port: 29500
   train_batch_size: 64
