@@ -319,7 +319,7 @@ def _run_training(cfg: DictConfig):
 
     training_args = TrainingArguments(
         output_dir=output_dir,
-        evaluation_strategy=cfg.training.evaluation_strategy,
+        eval_strategy=cfg.training.eval_strategy,
         save_strategy=cfg.training.save_strategy,
         learning_rate=cfg.training.learning_rate,
         per_device_train_batch_size=cfg.training.train_batch_size,

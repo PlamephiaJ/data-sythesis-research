@@ -25,7 +25,7 @@ training:
   num_train_epochs: 3
   seed: 42
   save_best_model: true
-  evaluation_strategy: epoch
+  eval_strategy: epoch
   save_strategy: epoch
   metric_for_best_model: f1
   logging_steps: 50
