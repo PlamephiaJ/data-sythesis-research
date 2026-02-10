@@ -19,6 +19,10 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 10th, 2026 Update
+### Yuhao:
+1. Updated detection model training code. Supported compute canada's cluster environment and added some code refactoring for better maintainability.
+
 ## Feb 9th, 2026 Update
 ### Yuhao:
 1. Updated sampling code to support conditioned generation.
