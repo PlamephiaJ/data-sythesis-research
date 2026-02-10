@@ -1,14 +1,18 @@
-import argparse
 import json
 import os
 from dataclasses import asdict
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Tuple
 
+import hydra
 import numpy as np
 import torch
+import torch.multiprocessing as mp
 from datasets import Dataset, concatenate_datasets, load_dataset
+from hydra.core.hydra_config import HydraConfig
+from hydra.types import RunMode
+from hydra.utils import get_original_cwd
+from omegaconf import DictConfig, OmegaConf
 from sklearn.metrics import (
     accuracy_score,
     f1_score,
@@ -29,20 +33,9 @@ from data_process import dataset_factory
 from data_process.clean_factory import EmailCleanConfig, EmailCleaner
 
 
-def build_cleaner() -> EmailCleaner:
-    return EmailCleaner(
-        EmailCleanConfig(
-            render_clean_email=True,
-            mask_urls=True,
-            mask_emails=True,
-            mask_phones=True,
-            truncate_on_thread_markers=True,
-            truncate_on_long_quote_block=True,
-            strip_common_disclaimers=True,
-            drop_if_symbol_ratio_gt=0.60,
-            max_body_chars=4000,
-        )
-    )
+def build_cleaner(cfg: DictConfig) -> EmailCleaner:
+    cfg_dict = OmegaConf.to_container(cfg, resolve=True)
+    return EmailCleaner(EmailCleanConfig(**cfg_dict))
 
 
 def _extract_label(example: Dict) -> Optional[int]:
@@ -190,9 +183,9 @@ def _prepare_infer_dataset(
     return tokenized, labels
 
 
-def _compute_metrics(eval_pred):
-    logits = eval_pred.predictions
-    labels = eval_pred.label_ids
+def _compute_metrics_from_arrays(
+    logits: np.ndarray, labels: np.ndarray
+) -> Dict[str, float]:
     preds = np.argmax(logits, axis=-1)
     labels = labels.astype(int)
     metrics = {
@@ -207,6 +200,11 @@ def _compute_metrics(eval_pred):
     except Exception:
         metrics["roc_auc"] = float("nan")
     return metrics
+
+
+def _compute_metrics(eval_pred):
+    # for HF Trainer
+    return _compute_metrics_from_arrays(eval_pred.predictions, eval_pred.label_ids)
 
 
 def _prediction_summary(logits: np.ndarray) -> Dict[str, float]:
@@ -241,55 +239,68 @@ class WeightedTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def _build_output_dir(output_dir: Optional[str]) -> str:
-    if output_dir:
-        return output_dir
-    timestamp = datetime.now().strftime("%Y.%m.%d/%H%M%S")
-    return str(Path("exp_local") / "detection_model" / timestamp)
+def _make_absolute(path: str) -> str:
+    if os.path.isabs(path):
+        return path
+    try:
+        base_dir = get_original_cwd()
+    except Exception:
+        base_dir = os.getcwd()
+    return os.path.abspath(os.path.join(base_dir, path))
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model_name", type=str, default="bert-base-uncased")
-    parser.add_argument("--cache_dir", type=str, default="data_phish/json")
-    parser.add_argument("--max_length", type=int, default=1024)
-    parser.add_argument("--num_proc", type=int, default=120)
-    parser.add_argument("--output_dir", type=str, default=None)
-    parser.add_argument("--train_batch_size", type=int, default=128)
-    parser.add_argument("--eval_batch_size", type=int, default=32)
-    parser.add_argument("--learning_rate", type=float, default=2e-5)
-    parser.add_argument("--weight_decay", type=float, default=0.01)
-    parser.add_argument("--num_train_epochs", type=int, default=3)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--extra_train_dir", type=str, default=None)
-    parser.add_argument("--generated_eval_dir", type=str, default=None)
-    parser.add_argument("--save_best_model", action="store_true", default=True)
-    args = parser.parse_args()
+def _build_output_dir(cfg: DictConfig) -> str:
+    if cfg.training.output_dir:
+        return _make_absolute(cfg.training.output_dir)
+    hydra_cfg = HydraConfig.get()
+    if hydra_cfg.mode == RunMode.RUN:
+        return _make_absolute(hydra_cfg.run.dir)
+    return _make_absolute(os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir))
 
-    set_seed(args.seed)
 
-    output_dir = _build_output_dir(args.output_dir)
+def _resolve_data_path(path: Optional[str]) -> Optional[str]:
+    if not path:
+        return None
+    return _make_absolute(path)
+
+
+def _run_training(cfg: DictConfig):
+    set_seed(cfg.training.seed)
+
+    output_dir = _build_output_dir(cfg)
     os.makedirs(output_dir, exist_ok=True)
 
-    cleaner = build_cleaner()
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    cleaner = build_cleaner(cfg.cleaner)
+    tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
+
+    cache_dir = _resolve_data_path(cfg.data.cache_dir)
+    extra_train_dir = _resolve_data_path(cfg.data.extra_train_dir)
+    generated_eval_dir = _resolve_data_path(cfg.data.generated_eval_dir)
 
     train_ds = dataset_factory.get_dataset(
-        "phish-email", mode="train", cache_dir=args.cache_dir
+        cfg.data.dataset_name, mode="train", cache_dir=cache_dir
     )
     eval_ds = dataset_factory.get_dataset(
-        "phish-email", mode="validation", cache_dir=args.cache_dir
+        cfg.data.dataset_name, mode="validation", cache_dir=cache_dir
     )
 
-    if args.extra_train_dir:
-        extra_ds = _load_json_dir(args.extra_train_dir)
+    if extra_train_dir:
+        extra_ds = _load_json_dir(extra_train_dir)
         train_ds = concatenate_datasets([train_ds, extra_ds])
 
     train_tok = _prepare_dataset(
-        train_ds, tokenizer, cleaner, args.max_length, args.num_proc
+        train_ds,
+        tokenizer,
+        cleaner,
+        cfg.data.max_length,
+        cfg.data.num_proc,
     )
     eval_tok = _prepare_dataset(
-        eval_ds, tokenizer, cleaner, args.max_length, args.num_proc
+        eval_ds,
+        tokenizer,
+        cleaner,
+        cfg.data.max_length,
+        cfg.data.num_proc,
     )
 
     labels = np.array(train_tok["labels"])
@@ -303,26 +314,26 @@ def main():
         class_weights = torch.tensor([weight_neg, weight_pos], dtype=torch.float)
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name, num_labels=2
+        cfg.model.name, num_labels=cfg.model.num_labels
     )
 
     training_args = TrainingArguments(
         output_dir=output_dir,
-        evaluation_strategy="epoch",
-        save_strategy="epoch",
-        learning_rate=args.learning_rate,
-        per_device_train_batch_size=args.train_batch_size,
-        per_device_eval_batch_size=args.eval_batch_size,
-        num_train_epochs=args.num_train_epochs,
-        weight_decay=args.weight_decay,
-        load_best_model_at_end=args.save_best_model,
-        metric_for_best_model="f1",
+        evaluation_strategy=cfg.training.evaluation_strategy,
+        save_strategy=cfg.training.save_strategy,
+        learning_rate=cfg.training.learning_rate,
+        per_device_train_batch_size=cfg.training.train_batch_size,
+        per_device_eval_batch_size=cfg.training.eval_batch_size,
+        num_train_epochs=cfg.training.num_train_epochs,
+        weight_decay=cfg.training.weight_decay,
+        load_best_model_at_end=cfg.training.save_best_model,
+        metric_for_best_model=cfg.training.metric_for_best_model,
         greater_is_better=True,
-        logging_steps=50,
-        save_total_limit=2,
+        logging_steps=cfg.training.logging_steps,
+        save_total_limit=cfg.training.save_total_limit,
         fp16=torch.cuda.is_available(),
-        report_to=["tensorboard"],
-        seed=args.seed,
+        report_to=list(cfg.training.report_to),
+        seed=cfg.training.seed,
     )
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -344,15 +355,19 @@ def main():
     summary = {
         "train_size": len(train_tok),
         "eval_size": len(eval_tok),
-        "model_name": args.model_name,
+        "model_name": cfg.model.name,
         "cleaner_config": asdict(cleaner.cfg),
         "eval_metrics": {k: float(v) for k, v in eval_metrics.items()},
     }
 
-    if args.generated_eval_dir:
-        gen_ds = _load_json_dir(args.generated_eval_dir)
+    if generated_eval_dir:
+        gen_ds = _load_json_dir(generated_eval_dir)
         gen_tok, labels = _prepare_infer_dataset(
-            gen_ds, tokenizer, cleaner, args.max_length, args.num_proc
+            gen_ds,
+            tokenizer,
+            cleaner,
+            cfg.data.max_length,
+            cfg.data.num_proc,
         )
         pred = trainer.predict(gen_tok)
         pred_summary = _prediction_summary(pred.predictions)
@@ -364,15 +379,61 @@ def main():
             valid_mask = labels >= 0
             logits = pred.predictions[valid_mask]
             valid_labels = labels[valid_mask]
-            summary["generated_eval"]["label_metrics"] = _compute_metrics(
-                (logits, valid_labels)
+            summary["generated_eval"]["label_metrics"] = _compute_metrics_from_arrays(
+                logits, valid_labels
             )
 
-    with open(Path(output_dir) / "summary.json", "w", encoding="utf-8") as f:
-        json.dump(summary, f, ensure_ascii=False, indent=2)
+    if trainer.is_world_process_zero():
+        with open(Path(output_dir) / "summary.json", "w", encoding="utf-8") as f:
+            json.dump(summary, f, ensure_ascii=False, indent=2)
 
-    trainer.save_model(output_dir)
-    tokenizer.save_pretrained(output_dir)
+        trainer.save_model(output_dir)
+        tokenizer.save_pretrained(output_dir)
+
+
+def _distributed_worker(
+    rank: int,
+    world_size: int,
+    master_addr: str,
+    master_port: int,
+    cfg_container: Dict,
+):
+    os.environ["LOCAL_RANK"] = str(rank)
+    os.environ["RANK"] = str(rank)
+    os.environ["WORLD_SIZE"] = str(world_size)
+    os.environ["MASTER_ADDR"] = master_addr
+    os.environ["MASTER_PORT"] = str(master_port)
+    if torch.cuda.is_available():
+        torch.cuda.set_device(rank)
+    cfg = OmegaConf.create(cfg_container)
+    _run_training(cfg)
+
+
+@hydra.main(version_base=None, config_path=".", config_name="config_detect")
+def main(cfg: DictConfig):
+    if cfg.training.ngpus > 1 and "LOCAL_RANK" not in os.environ:
+        cfg_container = OmegaConf.to_container(cfg, resolve=True)
+        training_cfg = cfg_container.get("training", {})
+        if training_cfg.get("output_dir"):
+            training_cfg["output_dir"] = _make_absolute(training_cfg["output_dir"])
+        data_cfg = cfg_container.get("data", {})
+        for key in ("cache_dir", "extra_train_dir", "generated_eval_dir"):
+            if data_cfg.get(key):
+                data_cfg[key] = _make_absolute(data_cfg[key])
+        mp.spawn(
+            _distributed_worker,
+            args=(
+                cfg.training.ngpus,
+                cfg.training.master_addr,
+                cfg.training.master_port,
+                cfg_container,
+            ),
+            nprocs=cfg.training.ngpus,
+            join=True,
+        )
+        return
+
+    _run_training(cfg)
 
 
 if __name__ == "__main__":

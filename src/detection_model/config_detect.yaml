@@ -1,0 +1,68 @@
+defaults:
+  - _self_
+
+model:
+  name: bert-base-uncased
+  num_labels: 2
+
+data:
+  dataset_name: phish-email
+  cache_dir: data_phish/cleaned
+  extra_train_dir: null
+  generated_eval_dir: null
+  max_length: 512
+  num_proc: 32
+
+training:
+  output_dir: ${hydra.run.dir}/training_output
+  ngpus: 1
+  master_addr: "127.0.0.1"
+  master_port: 29500
+  train_batch_size: 64
+  eval_batch_size: 32
+  learning_rate: 2e-5
+  weight_decay: 0.01
+  num_train_epochs: 3
+  seed: 42
+  save_best_model: true
+  evaluation_strategy: epoch
+  save_strategy: epoch
+  metric_for_best_model: f1
+  logging_steps: 50
+  save_total_limit: 2
+  report_to:
+    - tensorboard
+
+cleaner:
+  render_clean_email: true
+  subject_prefix: "Subject: "
+  body_prefix: "Body: "
+  default_subject: Message
+  max_subject_len: 90
+  max_body_chars: 4000
+  min_body_chars: 20
+  truncate_on_thread_markers: true
+  truncate_on_long_quote_block: true
+  long_quote_line_threshold: 6
+  strip_common_disclaimers: true
+  disclaimer_tail_scan_chars: 1200
+  mask_urls: true
+  mask_emails: true
+  mask_phones: true
+  url_token: "<URL>"
+  email_token: "<EMAIL>"
+  phone_token: "<PHONE>"
+  replace_tabs: true
+  collapse_alignment_spaces: true
+  normalize_separators: true
+  max_blank_lines: 2
+  drop_if_contains_replacement_char: true
+  drop_if_symbol_ratio_gt: 0.60
+  drop_if_too_short: true
+
+hydra:
+  run:
+    dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
+  sweep:
+    dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
+    subdir: ${hydra.job.num}
