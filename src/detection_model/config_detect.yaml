@@ -23,7 +23,7 @@ training:
   eval_batch_size: 32
   learning_rate: 2e-5
   weight_decay: 0.01
-  num_train_epochs: null # Do not set a fixed number of epochs, instead use max_steps or early stopping
+  num_train_epochs: 3
   max_steps: 4100
   seed: 42
   save_best_model: true
