@@ -18,7 +18,7 @@ training:
   ngpus: 3
   master_addr: "127.0.0.1"
   master_port: 29500
-  train_batch_size: 64
+  train_batch_size: 128
   eval_batch_size: 32
   learning_rate: 2e-5
   weight_decay: 0.01
