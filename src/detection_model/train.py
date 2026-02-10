@@ -343,7 +343,7 @@ def _run_training(cfg: DictConfig):
         args=training_args,
         train_dataset=train_tok,
         eval_dataset=eval_tok,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=_compute_metrics,
         class_weights=class_weights,
