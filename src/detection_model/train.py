@@ -20,6 +20,7 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
+from torch.utils.tensorboard import SummaryWriter
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
@@ -278,6 +279,26 @@ def _resolve_data_path(path: Optional[str]) -> Optional[str]:
     return _make_absolute(path)
 
 
+def _resolve_logging_dir(cfg: DictConfig, output_dir: str) -> str:
+    logging_dir = getattr(cfg.training, "logging_dir", None)
+    if logging_dir:
+        return _make_absolute(str(logging_dir))
+    return output_dir
+
+
+def _log_hydra_config(cfg: DictConfig, log_dir: Optional[str]) -> None:
+    if not log_dir:
+        return
+    rank = os.environ.get("RANK", "0")
+    if str(rank) != "0":
+        return
+    cfg_text = OmegaConf.to_yaml(cfg, resolve=True)
+    writer = SummaryWriter(log_dir=log_dir)
+    writer.add_text("hydra_cfg", f"```yaml\n{cfg_text}\n```", 0)
+    writer.flush()
+    writer.close()
+
+
 def _apply_train_ratio(ds: Dataset, ratio: float, seed: int) -> Dataset:
     if ratio >= 1.0:
         return ds
@@ -360,6 +381,7 @@ def _run_training(cfg: DictConfig):
         metric_for_best_model=cfg.training.metric_for_best_model,
         greater_is_better=True,
         logging_steps=cfg.training.logging_steps,
+        logging_dir=_resolve_logging_dir(cfg, output_dir),
         eval_steps=getattr(cfg.training, "eval_steps", None),
         save_steps=getattr(cfg.training, "save_steps", None),
         save_total_limit=cfg.training.save_total_limit,
@@ -367,6 +389,9 @@ def _run_training(cfg: DictConfig):
         report_to=list(cfg.training.report_to),
         seed=cfg.training.seed,
     )
+
+    if "tensorboard" in list(cfg.training.report_to):
+        _log_hydra_config(cfg, training_args.logging_dir)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
