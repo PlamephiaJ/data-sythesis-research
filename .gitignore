@@ -72,7 +72,10 @@ data_phish
 
 # Logs
 exp_local/
+exp_local
 outputs/
+training_output/
+training_output
 
 # Custom files
 draft.py
