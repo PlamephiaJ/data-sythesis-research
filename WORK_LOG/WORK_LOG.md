@@ -19,6 +19,10 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 13th, 2026 Update
+### Yuhao:
+1. Our model training is finished. Added raw SEDD implementation for contrast experiments. All raw source code has the suffix `_raw` to distinguish from the main implementation. Neither style controlled generation nor `EOS` prediction support in the raw implementation.
+
 ## Feb 10th, 2026 Update
 ### Yuhao:
 1. Updated detection model training code. Supported compute canada's cluster environment and added some code refactoring for better maintainability.
