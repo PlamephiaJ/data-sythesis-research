@@ -619,13 +619,13 @@ def _run_raw(rank, world_size, cfg):
                     # eval_batch = next(eval_iter)["text_input_ids"].to(device)
                     eval_batch_data = next(eval_iter)
                     eval_text = eval_batch_data["text_input_ids"].to(device)
-                    eval_text_mask = eval_batch_data["text_attention_mask"].to(device)
+                    # eval_text_mask = eval_batch_data["text_attention_mask"].to(device)
                     eval_style_caption = eval_batch_data["style_caption_input_ids"].to(
                         device
                     )
-                    eval_style_caption_mask = eval_batch_data[
-                        "style_caption_attention_mask"
-                    ].to(device)
+                    # eval_style_caption_mask = eval_batch_data[
+                    #     "style_caption_attention_mask"
+                    # ].to(device)
                 else:
                     pass
                     # eval_batch = next(train_iter).to(device)
@@ -666,24 +666,19 @@ def _run_raw(rank, world_size, cfg):
                         eval_text = eval_batch_data["text_input_ids"][
                             : sampling_shape[0]
                         ].to(device)
-                        eval_text_mask = eval_batch_data["text_attention_mask"][
-                            : sampling_shape[0]
-                        ].to(device)
+                        # eval_text_mask = eval_batch_data["text_attention_mask"][
+                        #     : sampling_shape[0]
+                        # ].to(device)
                         eval_style_caption = eval_batch_data["style_caption_input_ids"][
                             : sampling_shape[0]
                         ].to(device)
-                        eval_style_caption_mask = eval_batch_data[
-                            "style_caption_attention_mask"
-                        ][: sampling_shape[0]].to(device)
+                        # eval_style_caption_mask = eval_batch_data[
+                        #     "style_caption_attention_mask"
+                        # ][: sampling_shape[0]].to(device)
 
                     ema.store(score_model.parameters())
                     ema.copy_to(score_model.parameters())
-                    sample = sampling_fn(
-                        score_model,
-                        eval_text_mask,
-                        eval_style_caption,
-                        eval_style_caption_mask,
-                    )
+                    sample = sampling_fn(score_model)
                     ema.restore(score_model.parameters())
 
                     def truncate_at_eos(batch_ids, eos_id):

@@ -1,6 +1,6 @@
 defaults:
   - _self_
-  - model: small
+  - model: small-raw
   - data: default
   - override hydra/launcher: submitit_slurm
 

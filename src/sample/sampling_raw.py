@@ -2,7 +2,7 @@ import abc
 
 import torch
 
-from model import utils as mutils
+from model import utils_raw as mutils
 
 from .catsample import sample_categorical
 
