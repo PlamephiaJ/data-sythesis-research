@@ -230,6 +230,9 @@ def get_dataloaders(config, distributed=True):
         )
 
     if config.data.format == "chunk":
+        raise NotImplementedError(
+            "Chunk dataset loading not implemented yet, please use entry format for now."
+        )
         train_set = get_chunk_dataset(
             config.data.trainset.name,
             "train",
