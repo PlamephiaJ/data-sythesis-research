@@ -19,6 +19,10 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 19th, 2026 Update
+### Yuhao:
+1. Force data preprocessing to only keep one EOS token at the end of the email text.
+
 ## Feb 13th, 2026 Update
 ### Yuhao:
 1. Our model training is finished. Added raw SEDD implementation for contrast experiments. All raw source code has the suffix `_raw` to distinguish from the main implementation. Neither style controlled generation nor `EOS` prediction support in the raw implementation.
