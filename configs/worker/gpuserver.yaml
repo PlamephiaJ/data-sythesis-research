@@ -1,0 +1,23 @@
+worker:
+  name: gpuserver
+
+  ngpus: 2
+
+  training:
+    batch_size: 128
+    accum: 2
+
+  eval:
+    batch_size: 512
+    perplexity_batch_size: 32
+
+hydra:
+  launcher:
+    max_num_timeout: 100000
+    # timeout_min: 10079
+    partition: g40x
+    account: stanford
+    mem_gb: 96
+    cpus_per_task: 40
+    gpus_per_node: ${worker.ngpus}
+    constraint: null

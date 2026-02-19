@@ -36,6 +36,7 @@ def main():
 
     model_cfg = getattr(model, "config", None)
     cfg = cfg or model_cfg
+    worker_cfg = getattr(cfg, "worker", cfg) if cfg is not None else None
 
     length = args.length
     if length is None and cfg is not None:
@@ -54,7 +55,8 @@ def main():
         denoise = getattr(getattr(cfg, "sampling", None), "noise_removal", denoise)
 
         sampling_shape = (
-            cfg.training.batch_size // (cfg.ngpus * cfg.training.accum),
+            worker_cfg.training.batch_size
+            // (worker_cfg.ngpus * worker_cfg.training.accum),
             cfg.model.length,
         )
 
@@ -171,7 +173,9 @@ def main():
     with torch.inference_mode():
         eval_model = get_eval_lm("gpt2-large", device)
 
-        batch_size = cfg.eval.perplexity_batch_size
+        batch_size = int(
+            getattr(getattr(worker_cfg, "eval", None), "perplexity_batch_size", 32)
+        )
         num_samples = sample.size(0)
 
         total_loss = torch.zeros(1, device=device)

@@ -229,13 +229,22 @@ def get_entry_dataset(
 
 
 def get_dataloaders(config, distributed=True):
-    if config.training.batch_size % (config.ngpus * config.training.accum) != 0:
+    worker_cfg = config.worker if "worker" in config else config
+
+    if (
+        worker_cfg.training.batch_size
+        % (worker_cfg.ngpus * worker_cfg.training.accum)
+        != 0
+    ):
         raise ValueError(
-            f"Train Batch Size {config.training.batch_size} is not divisible by {config.ngpus} gpus with accumulation {config.training.accum}."
+            f"Train Batch Size {worker_cfg.training.batch_size} is not divisible by {worker_cfg.ngpus} gpus with accumulation {worker_cfg.training.accum}."
         )
-    if config.eval.batch_size % (config.ngpus * config.training.accum) != 0:
+    if (
+        worker_cfg.eval.batch_size % (worker_cfg.ngpus * worker_cfg.training.accum)
+        != 0
+    ):
         raise ValueError(
-            f"Eval Batch Size for {config.eval.batch_size} is not divisible by {config.ngpus} gpus with accumulation {config.training.accum}."
+            f"Eval Batch Size for {worker_cfg.eval.batch_size} is not divisible by {worker_cfg.ngpus} gpus with accumulation {worker_cfg.training.accum}."
         )
 
     if config.data.format == "chunk":
@@ -290,8 +299,8 @@ def get_dataloaders(config, distributed=True):
     train_loader = cycle_loader(
         DataLoader(
             train_set,
-            batch_size=config.training.batch_size
-            // (config.ngpus * config.training.accum),
+            batch_size=worker_cfg.training.batch_size
+            // (worker_cfg.ngpus * worker_cfg.training.accum),
             sampler=train_sampler,
             num_workers=4,
             pin_memory=True,
@@ -302,7 +311,8 @@ def get_dataloaders(config, distributed=True):
     valid_loader = cycle_loader(
         DataLoader(
             valid_set,
-            batch_size=config.eval.batch_size // (config.ngpus * config.training.accum),
+            batch_size=worker_cfg.eval.batch_size
+            // (worker_cfg.ngpus * worker_cfg.training.accum),
             sampler=test_sampler,
             num_workers=4,
             pin_memory=True,

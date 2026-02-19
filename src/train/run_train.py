@@ -54,6 +54,7 @@ def run_multiprocess(rank, world_size, cfg, port):
 def _run_style_control(rank, world_size, cfg):
     torch.cuda.set_device(rank)
     work_dir = cfg.work_dir
+    worker_cfg = cfg.worker if "worker" in cfg else cfg
 
     # Create directories for experimental logs
     sample_dir = os.path.join(work_dir, "samples")
@@ -160,7 +161,7 @@ def _run_style_control(rank, world_size, cfg):
         ),
         train=True,
         optimize_fn=optimize_fn,
-        accum=cfg.training.accum,
+        accum=worker_cfg.training.accum,
     )
 
     eval_step_fn = StepFn(
@@ -169,12 +170,13 @@ def _run_style_control(rank, world_size, cfg):
         ),
         train=False,
         optimize_fn=optimize_fn,
-        accum=cfg.training.accum,
+        accum=worker_cfg.training.accum,
     )
 
     if cfg.training.snapshot_sampling:
         sampling_shape = (
-            cfg.training.batch_size // (cfg.ngpus * cfg.training.accum),
+            worker_cfg.training.batch_size
+            // (worker_cfg.ngpus * worker_cfg.training.accum),
             cfg.model.length,
         )
         sampling_fn = sampling.PCSampler(
@@ -370,7 +372,7 @@ def _run_style_control(rank, world_size, cfg):
                         with torch.inference_mode():
                             eval_model = get_eval_lm("gpt2-large", device)
 
-                            batch_size = cfg.eval.perplexity_batch_size
+                            batch_size = worker_cfg.eval.perplexity_batch_size
                             num_samples = sample.size(0)
 
                             total_loss = torch.zeros(1, device=device)
@@ -446,6 +448,7 @@ def _run_style_control(rank, world_size, cfg):
 def _run_raw(rank, world_size, cfg):
     torch.cuda.set_device(rank)
     work_dir = cfg.work_dir
+    worker_cfg = cfg.worker if "worker" in cfg else cfg
 
     # Create directories for experimental logs
     sample_dir = os.path.join(work_dir, "samples")
@@ -548,15 +551,16 @@ def _run_raw(rank, world_size, cfg):
     optimize_fn = losses_raw.optimization_manager(cfg)
 
     train_step_fn = losses_raw.get_step_fn(
-        noise, graph, True, optimize_fn, cfg.training.accum
+        noise, graph, True, optimize_fn, worker_cfg.training.accum
     )
     eval_step_fn = losses_raw.get_step_fn(
-        noise, graph, False, optimize_fn, cfg.training.accum
+        noise, graph, False, optimize_fn, worker_cfg.training.accum
     )
 
     if cfg.training.snapshot_sampling:
         sampling_shape = (
-            cfg.training.batch_size // (cfg.ngpus * cfg.training.accum),
+            worker_cfg.training.batch_size
+            // (worker_cfg.ngpus * worker_cfg.training.accum),
             cfg.model.length,
         )
         sampling_fn = sampling_raw.get_sampling_fn(
@@ -734,7 +738,7 @@ def _run_raw(rank, world_size, cfg):
                         with torch.inference_mode():
                             eval_model = get_eval_lm("gpt2-large", device)
 
-                            batch_size = cfg.eval.perplexity_batch_size
+                            batch_size = worker_cfg.eval.perplexity_batch_size
                             num_samples = sample.size(0)
 
                             total_loss = torch.zeros(1, device=device)

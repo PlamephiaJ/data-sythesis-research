@@ -99,6 +99,10 @@ def build_dataset(cfg, split: str):
     raise ValueError(f"Unknown data.format: {cfg.data.format}")
 
 
+def _worker_cfg(cfg):
+    return cfg.worker if "worker" in cfg else cfg
+
+
 def _extract_text_fields(
     batch: Dict[str, torch.Tensor],
 ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
@@ -225,7 +229,7 @@ def main():
         "--batch-size",
         type=int,
         default=-1,
-        help="Override batch size (default: cfg.eval.perplexity_batch_size).",
+        help="Override batch size (default: cfg.worker.eval.perplexity_batch_size).",
     )
     parser.add_argument(
         "--num-workers",
@@ -271,9 +275,10 @@ def main():
     args = parser.parse_args()
 
     cfg = _load_cfg(args.config)
+    worker_cfg = _worker_cfg(cfg)
     dataset = build_dataset(cfg, args.split)
 
-    default_bs = int(getattr(cfg.eval, "perplexity_batch_size", 32))
+    default_bs = int(getattr(worker_cfg.eval, "perplexity_batch_size", 32))
     batch_size = int(args.batch_size) if int(args.batch_size) > 0 else default_bs
 
     if args.device == "auto":

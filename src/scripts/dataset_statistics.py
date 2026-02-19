@@ -278,6 +278,10 @@ def _load_cfg(config_path: str):
         return compose(config_name=cfg_name)
 
 
+def _worker_cfg(cfg):
+    return cfg.worker if "worker" in cfg else cfg
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -307,12 +311,15 @@ def main():
     args = parser.parse_args()
 
     cfg = _load_cfg(args.config)
+    worker_cfg = _worker_cfg(cfg)
     splits = ["train", "validation"]
 
     for split in splits:
         dataset = build_dataset(cfg, split)
         batch_size = (
-            cfg.training.batch_size if split == "train" else cfg.eval.batch_size
+            worker_cfg.training.batch_size
+            if split == "train"
+            else worker_cfg.eval.batch_size
         )
 
         loader = DataLoader(

@@ -20,7 +20,8 @@ def main(cfg):
         raise NotImplementedError(
             f"Only absorb graph is supported now! Currently using {cfg.graph.type}"
         )
-    ngpus = cfg.ngpus
+    worker_cfg = cfg.worker if "worker" in cfg else cfg
+    ngpus = worker_cfg.ngpus
     if "load_dir" in cfg:
         hydra_cfg_path = os.path.join(cfg.load_dir, ".hydra/hydra.yaml")
         hydra_cfg = OmegaConf.load(hydra_cfg_path).hydra
@@ -39,7 +40,10 @@ def main(cfg):
         utils.makedirs(work_dir)
 
     with open_dict(cfg):
-        cfg.ngpus = ngpus
+        if "worker" in cfg:
+            cfg.worker.ngpus = ngpus
+        else:
+            cfg.ngpus = ngpus
         cfg.work_dir = work_dir
         cfg.wandb_name = os.path.basename(os.path.normpath(work_dir))
 
