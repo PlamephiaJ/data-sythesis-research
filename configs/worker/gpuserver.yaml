@@ -1,15 +1,14 @@
-worker:
-  name: gpuserver
+name: gpuserver
 
-  ngpus: 2
+ngpus: 2
 
-  training:
-    batch_size: 128
-    accum: 2
+training:
+  batch_size: 128
+  accum: 2
 
-  eval:
-    batch_size: 512
-    perplexity_batch_size: 32
+eval:
+  batch_size: 512
+  perplexity_batch_size: 32
 
 hydra:
   launcher:

@@ -174,14 +174,16 @@ def get_entry_dataset(
             visible_len = sum(mask)
             visible_ids = ids[:visible_len]
 
-            content_wo_eos = [
-                token_id for token_id in visible_ids if token_id != eos_id
-            ]
-            content_wo_eos.append(eos_id)
-            content_wo_eos = content_wo_eos[:seq_len]
+            content_wo_eos = [t for t in visible_ids if t != eos_id]
 
-            new_visible_len = len(content_wo_eos)
-            new_ids = content_wo_eos + [pad_id] * (seq_len - new_visible_len)
+            if len(content_wo_eos) >= seq_len:
+                new_visible_ids = content_wo_eos[:seq_len]
+                new_visible_ids[-1] = eos_id
+            else:
+                new_visible_ids = content_wo_eos + [eos_id]
+
+            new_visible_len = len(new_visible_ids)
+            new_ids = new_visible_ids + [pad_id] * (seq_len - new_visible_len)
             new_mask = [1] * new_visible_len + [0] * (seq_len - new_visible_len)
 
             ids[:] = new_ids
