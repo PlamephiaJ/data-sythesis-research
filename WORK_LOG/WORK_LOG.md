@@ -19,6 +19,12 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 20th, 2026 Update
+### Yuhao:
+1. Added MAUVE metric for evaluating the quality of generated emails. The MAUVE score is calculated between the generated emails and the real emails in the validation set. The MAUVE score is a measure of how well the distribution of generated emails matches the distribution of real emails, with higher scores indicating better quality.
+1. Bug fix.
+1. Do more low data ratio experiments, cuurently considering to augment dataset based on low data ratio results to further improve the model performance.
+
 ## Feb 19th, 2026 Update
 ### Yuhao:
 1. Force data preprocessing to only keep one EOS token at the end of the email text.
