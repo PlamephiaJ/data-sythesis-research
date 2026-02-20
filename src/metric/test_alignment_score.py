@@ -80,7 +80,9 @@ caption_email_pairs = [
             "Best regards,\n"
             "Marketing Team"
         ),
-        "note": "Caption is emotional and generic; email is formal and transactional with no shared message.",
+        "note": (
+            "Caption is emotional and generic; email is formal and transactional with no shared message."
+        ),
     },
     {
         "alignment": "low",
@@ -94,7 +96,9 @@ caption_email_pairs = [
             "Regards,\n"
             "Product Team"
         ),
-        "note": "Both imply change, but caption is vague and does not clearly lead into the email content.",
+        "note": (
+            "Both imply change, but caption is vague and does not clearly lead into the email content."
+        ),
     },
     {
         "alignment": "medium",
@@ -109,7 +113,9 @@ caption_email_pairs = [
             "Sincerely,\n"
             "Customer Success Team"
         ),
-        "note": "Caption and email share a general theme, but the connection is still indirect.",
+        "note": (
+            "Caption and email share a general theme, but the connection is still indirect."
+        ),
     },
     {
         "alignment": "high",
@@ -128,7 +134,9 @@ caption_email_pairs = [
     },
     {
         "alignment": "very_high",
-        "caption": "Introducing our latest upgrade—built for faster, smarter workflows.",
+        "caption": (
+            "Introducing our latest upgrade—built for faster, smarter workflows."
+        ),
         "email": (
             "Subject: Introducing Our Latest Upgrade\n\n"
             "Dear Valued Customer,\n\n"
@@ -139,7 +147,9 @@ caption_email_pairs = [
             "Kind regards,\n"
             "The Product Team"
         ),
-        "note": "Caption and email are tightly aligned in language, intent, and value proposition.",
+        "note": (
+            "Caption and email are tightly aligned in language, intent, and value proposition."
+        ),
     },
 ]
 

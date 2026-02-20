@@ -226,14 +226,20 @@ def _collect_hard_cases(
             "pred_label": int(pred_labels[idx]),
             "pred_confidence": float(pred_conf[idx]),
             "phish_probability": float(probs[idx, 1]) if probs.shape[1] > 1 else None,
-            "true_label": int(labels[idx]) if labels is not None and labels[idx] >= 0 else None,
+            "true_label": (
+                int(labels[idx]) if labels is not None and labels[idx] >= 0 else None
+            ),
             "sample": sample,
         }
 
         if pred_conf[idx] < low_conf_threshold:
             low_conf_cases.append(record)
 
-        if labels is not None and labels[idx] >= 0 and int(pred_labels[idx]) != int(labels[idx]):
+        if (
+            labels is not None
+            and labels[idx] >= 0
+            and int(pred_labels[idx]) != int(labels[idx])
+        ):
             misclassified_cases.append(record)
 
     return low_conf_cases, misclassified_cases

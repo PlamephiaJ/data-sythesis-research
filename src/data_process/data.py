@@ -232,17 +232,13 @@ def get_dataloaders(config, distributed=True):
     worker_cfg = config.worker if "worker" in config else config
 
     if (
-        worker_cfg.training.batch_size
-        % (worker_cfg.ngpus * worker_cfg.training.accum)
+        worker_cfg.training.batch_size % (worker_cfg.ngpus * worker_cfg.training.accum)
         != 0
     ):
         raise ValueError(
             f"Train Batch Size {worker_cfg.training.batch_size} is not divisible by {worker_cfg.ngpus} gpus with accumulation {worker_cfg.training.accum}."
         )
-    if (
-        worker_cfg.eval.batch_size % (worker_cfg.ngpus * worker_cfg.training.accum)
-        != 0
-    ):
+    if worker_cfg.eval.batch_size % (worker_cfg.ngpus * worker_cfg.training.accum) != 0:
         raise ValueError(
             f"Eval Batch Size for {worker_cfg.eval.batch_size} is not divisible by {worker_cfg.ngpus} gpus with accumulation {worker_cfg.training.accum}."
         )
