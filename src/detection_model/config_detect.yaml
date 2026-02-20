@@ -15,7 +15,7 @@ data:
   num_proc: 8
 
 training:
-  output_dir: ${hydra:run.dir}/training_output
+  output_dir: ${hydra:run.dir}
   ngpus: 3
   master_addr: "127.0.0.1"
   master_port: 29500
@@ -31,6 +31,7 @@ training:
   save_strategy: steps
   metric_for_best_model: f1
   logging_steps: 50
+  logging_dir: ${hydra:run.dir}/tensorboard
   eval_steps: 100
   save_steps: 100
   save_total_limit: 10
@@ -63,6 +64,9 @@ cleaner:
   drop_if_contains_replacement_char: true
   drop_if_symbol_ratio_gt: 0.60
   drop_if_too_short: true
+
+hard_case:
+  low_conf_threshold: 0.60
 
 hydra:
   run:

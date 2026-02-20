@@ -2,7 +2,7 @@ import json
 import os
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import hydra
 import numpy as np
@@ -26,6 +26,9 @@ from transformers import (
     AutoTokenizer,
     DataCollatorWithPadding,
     Trainer,
+    TrainerCallback,
+    TrainerControl,
+    TrainerState,
     TrainingArguments,
     set_seed,
 )
@@ -136,7 +139,7 @@ def _prepare_infer_dataset(
     cleaner: EmailCleaner,
     max_length: int,
     num_proc: int,
-) -> Tuple[Dataset, Optional[np.ndarray]]:
+) -> Tuple[Dataset, Optional[np.ndarray], Dataset]:
     def is_valid(example):
         text = example.get("text")
         return text is not None and str(text).strip()
@@ -181,7 +184,59 @@ def _prepare_infer_dataset(
     labels = (
         np.array(tokenized["labels"]) if "labels" in tokenized.column_names else None
     )
-    return tokenized, labels
+    return tokenized, labels, ds
+
+
+def _resolve_run_dir(output_dir: str) -> str:
+    output_path = Path(output_dir)
+    if output_path.name == "training_output":
+        return str(output_path.parent)
+    try:
+        hydra_cfg = HydraConfig.get()
+        if hydra_cfg.mode == RunMode.RUN:
+            return _make_absolute(hydra_cfg.run.dir)
+        return _make_absolute(os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir))
+    except Exception:
+        return str(output_path)
+
+
+def _save_jsonl(path: Path, records: List[Dict]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        for record in records:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def _collect_hard_cases(
+    source_ds: Dataset,
+    logits: np.ndarray,
+    labels: Optional[np.ndarray],
+    low_conf_threshold: float,
+) -> Tuple[List[Dict], List[Dict]]:
+    probs = torch.softmax(torch.tensor(logits), dim=-1).numpy()
+    pred_labels = np.argmax(probs, axis=-1)
+    pred_conf = np.max(probs, axis=-1)
+
+    low_conf_cases: List[Dict] = []
+    misclassified_cases: List[Dict] = []
+
+    source_data = source_ds.to_list()
+    for idx, sample in enumerate(source_data):
+        record = {
+            "index": idx,
+            "pred_label": int(pred_labels[idx]),
+            "pred_confidence": float(pred_conf[idx]),
+            "phish_probability": float(probs[idx, 1]) if probs.shape[1] > 1 else None,
+            "true_label": int(labels[idx]) if labels is not None and labels[idx] >= 0 else None,
+            "sample": sample,
+        }
+
+        if pred_conf[idx] < low_conf_threshold:
+            low_conf_cases.append(record)
+
+        if labels is not None and labels[idx] >= 0 and int(pred_labels[idx]) != int(labels[idx]):
+            misclassified_cases.append(record)
+
+    return low_conf_cases, misclassified_cases
 
 
 def _compute_metrics_from_arrays(
@@ -247,6 +302,66 @@ class WeightedTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
+def _to_jsonable(value):
+    if isinstance(value, (np.integer, np.floating)):
+        return value.item()
+    if isinstance(value, torch.Tensor):
+        if value.numel() == 1:
+            return value.item()
+        return value.detach().cpu().tolist()
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+class FileMetricsCallback(TrainerCallback):
+
+    def __init__(self, run_dir: str, tensorboard_dir: Optional[str] = None):
+        self.run_dir = Path(run_dir)
+        self.run_dir.mkdir(parents=True, exist_ok=True)
+        self.log_jsonl_path = self.run_dir / "intermediate_logs.jsonl"
+        self.latest_metrics_path = self.run_dir / "latest_metrics.json"
+        self.tensorboard_dir = tensorboard_dir
+        self.tb_writer = None
+
+    def on_log(
+        self,
+        args: TrainingArguments,
+        state: TrainerState,
+        control: TrainerControl,
+        logs: Optional[Dict[str, float]] = None,
+        **kwargs,
+    ):
+        if not state.is_world_process_zero or not logs:
+            return
+
+        record: Dict = {
+            "global_step": int(state.global_step),
+            "epoch": float(state.epoch) if state.epoch is not None else None,
+        }
+        record.update({k: _to_jsonable(v) for k, v in logs.items()})
+
+        with open(self.log_jsonl_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+        with open(self.latest_metrics_path, "w", encoding="utf-8") as f:
+            json.dump(record, f, ensure_ascii=False, indent=2)
+
+        if self.tensorboard_dir is not None and self.tb_writer is None:
+            self.tb_writer = SummaryWriter(log_dir=self.tensorboard_dir)
+
+        if self.tb_writer is not None:
+            step = int(state.global_step)
+            for key, value in logs.items():
+                if isinstance(value, (int, float, np.integer, np.floating)):
+                    self.tb_writer.add_scalar(key, float(value), step)
+            self.tb_writer.flush()
+
+    def on_train_end(self, args, state, control, **kwargs):
+        if self.tb_writer is not None:
+            self.tb_writer.close()
+
+
 def _make_absolute(path: str) -> str:
     if os.path.isabs(path):
         return path
@@ -279,11 +394,8 @@ def _resolve_data_path(path: Optional[str]) -> Optional[str]:
     return _make_absolute(path)
 
 
-def _resolve_logging_dir(cfg: DictConfig, output_dir: str) -> str:
-    logging_dir = getattr(cfg.training, "logging_dir", None)
-    if logging_dir:
-        return _make_absolute(str(logging_dir))
-    return output_dir
+def _resolve_logging_dir(run_dir: str) -> str:
+    return str(Path(run_dir) / "tensorboard")
 
 
 def _log_hydra_config(cfg: DictConfig, log_dir: Optional[str]) -> None:
@@ -293,10 +405,9 @@ def _log_hydra_config(cfg: DictConfig, log_dir: Optional[str]) -> None:
     if str(rank) != "0":
         return
     cfg_text = OmegaConf.to_yaml(cfg, resolve=True)
-    writer = SummaryWriter(log_dir=log_dir)
-    writer.add_text("hydra_cfg", f"```yaml\n{cfg_text}\n```", 0)
-    writer.flush()
-    writer.close()
+    cfg_path = Path(log_dir).parent / "hydra_config.yaml"
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        f.write(cfg_text)
 
 
 def _apply_train_ratio(ds: Dataset, ratio: float, seed: int) -> Dataset:
@@ -312,8 +423,14 @@ def _apply_train_ratio(ds: Dataset, ratio: float, seed: int) -> Dataset:
 def _run_training(cfg: DictConfig):
     set_seed(cfg.training.seed)
 
-    output_dir = _build_output_dir(cfg)
+    run_dir = _resolve_run_dir(_build_output_dir(cfg))
+    os.makedirs(run_dir, exist_ok=True)
+
+    output_dir = str(Path(run_dir) / "artifacts")
     os.makedirs(output_dir, exist_ok=True)
+
+    final_model_dir = Path(run_dir) / "model"
+    final_model_dir.mkdir(parents=True, exist_ok=True)
 
     cleaner = build_cleaner(cfg.cleaner)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
@@ -367,6 +484,8 @@ def _run_training(cfg: DictConfig):
     max_steps = getattr(cfg.training, "max_steps", None)
     max_steps = int(max_steps) if max_steps is not None else -1
 
+    report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
+
     training_args = TrainingArguments(
         output_dir=output_dir,
         eval_strategy=cfg.training.eval_strategy,
@@ -381,16 +500,17 @@ def _run_training(cfg: DictConfig):
         metric_for_best_model=cfg.training.metric_for_best_model,
         greater_is_better=True,
         logging_steps=cfg.training.logging_steps,
-        logging_dir=_resolve_logging_dir(cfg, output_dir),
+        logging_dir=_resolve_logging_dir(run_dir),
         eval_steps=getattr(cfg.training, "eval_steps", None),
         save_steps=getattr(cfg.training, "save_steps", None),
         save_total_limit=cfg.training.save_total_limit,
         fp16=torch.cuda.is_available(),
-        report_to=list(cfg.training.report_to),
+        report_to=report_to,
         seed=cfg.training.seed,
     )
 
-    if "tensorboard" in list(cfg.training.report_to):
+    tb_enabled = "tensorboard" in list(cfg.training.report_to)
+    if tb_enabled:
         _log_hydra_config(cfg, training_args.logging_dir)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -405,6 +525,12 @@ def _run_training(cfg: DictConfig):
         compute_metrics=_compute_metrics,
         class_weights=class_weights,
     )
+    trainer.add_callback(
+        FileMetricsCallback(
+            run_dir=run_dir,
+            tensorboard_dir=training_args.logging_dir if tb_enabled else None,
+        )
+    )
 
     trainer.train()
     eval_metrics = trainer.evaluate()
@@ -417,35 +543,80 @@ def _run_training(cfg: DictConfig):
         "eval_metrics": {k: float(v) for k, v in eval_metrics.items()},
     }
 
+    hard_case_source_name = "generated_eval" if generated_eval_dir else "validation"
     if generated_eval_dir:
-        gen_ds = _load_json_dir(generated_eval_dir)
-        gen_tok, labels = _prepare_infer_dataset(
-            gen_ds,
-            tokenizer,
-            cleaner,
-            cfg.data.max_length,
-            cfg.data.num_proc,
-        )
-        pred = trainer.predict(gen_tok)
-        pred_summary = _prediction_summary(pred.predictions)
+        hard_case_ds = _load_json_dir(generated_eval_dir)
+    else:
+        hard_case_ds = eval_ds
+
+    hard_case_tok, hard_case_labels, hard_case_source_ds = _prepare_infer_dataset(
+        hard_case_ds,
+        tokenizer,
+        cleaner,
+        cfg.data.max_length,
+        cfg.data.num_proc,
+    )
+    hard_case_pred = trainer.predict(hard_case_tok)
+
+    if generated_eval_dir:
+        pred_summary = _prediction_summary(hard_case_pred.predictions)
         summary["generated_eval"] = {
-            "num_samples": len(gen_tok),
+            "num_samples": len(hard_case_tok),
             "prediction_summary": pred_summary,
         }
-        if labels is not None and np.any(labels >= 0):
-            valid_mask = labels >= 0
-            logits = pred.predictions[valid_mask]
-            valid_labels = labels[valid_mask]
+        if hard_case_labels is not None and np.any(hard_case_labels >= 0):
+            valid_mask = hard_case_labels >= 0
+            logits = hard_case_pred.predictions[valid_mask]
+            valid_labels = hard_case_labels[valid_mask]
             summary["generated_eval"]["label_metrics"] = _compute_metrics_from_arrays(
                 logits, valid_labels
             )
 
+    low_conf_threshold = float(
+        getattr(getattr(cfg, "hard_case", {}), "low_conf_threshold", 0.60)
+    )
+    low_conf_cases, misclassified_cases = _collect_hard_cases(
+        hard_case_source_ds,
+        hard_case_pred.predictions,
+        hard_case_labels,
+        low_conf_threshold,
+    )
+
     if trainer.is_world_process_zero():
-        with open(Path(output_dir) / "summary.json", "w", encoding="utf-8") as f:
+        hard_case_dir = Path(_resolve_run_dir(output_dir)) / "hard_case"
+        hard_case_dir.mkdir(parents=True, exist_ok=True)
+
+        low_conf_path = hard_case_dir / "low_confidence.jsonl"
+        misclassified_path = hard_case_dir / "misclassified.jsonl"
+
+        _save_jsonl(low_conf_path, low_conf_cases)
+        _save_jsonl(misclassified_path, misclassified_cases)
+
+        summary["hard_case"] = {
+            "source": hard_case_source_name,
+            "dir": str(hard_case_dir),
+            "low_conf_threshold": low_conf_threshold,
+            "num_samples": len(hard_case_tok),
+            "low_confidence_count": len(low_conf_cases),
+            "misclassified_count": len(misclassified_cases),
+            "low_confidence_file": str(low_conf_path),
+            "misclassified_file": str(misclassified_path),
+        }
+
+        if generated_eval_dir and "generated_eval" in summary:
+            summary["generated_eval"]["hard_case"] = dict(summary["hard_case"])
+
+    summary["intermediate_log_files"] = {
+        "jsonl": str(Path(run_dir) / "intermediate_logs.jsonl"),
+        "latest": str(Path(run_dir) / "latest_metrics.json"),
+    }
+
+    if trainer.is_world_process_zero():
+        with open(Path(run_dir) / "summary.json", "w", encoding="utf-8") as f:
             json.dump(summary, f, ensure_ascii=False, indent=2)
 
-        trainer.save_model(output_dir)
-        tokenizer.save_pretrained(output_dir)
+        trainer.save_model(str(final_model_dir))
+        tokenizer.save_pretrained(str(final_model_dir))
 
 
 def _distributed_worker(
