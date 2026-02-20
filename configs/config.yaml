@@ -42,6 +42,8 @@ sampling:
 
 eval:
   perplexity: True
+  mauve: True
+  mauve_max_text_length: 1024
 
 optim:
   weight_decay: 0

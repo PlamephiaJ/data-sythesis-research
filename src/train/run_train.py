@@ -18,7 +18,11 @@ from data_process import data
 from model import SEDD, SEDD_Raw, graph_lib, graph_lib_raw
 from sample import sampling, sampling_raw
 from utils import utils
-from utils.eval_factory import get_alignment_metric, get_eval_lm
+from utils.eval_factory import (
+    get_alignment_metric,
+    get_eval_lm,
+    get_mauve_score,
+)
 from utils.tokenizer_factory import get_caption_tokenizer, get_text_tokenizer
 
 
@@ -367,6 +371,22 @@ def _run_style_control(rank, world_size, cfg):
                         writer.add_scalar(
                             "eval/avg_similarity_score", avg_similarity, step
                         )
+
+                    if cfg.eval.mauve:
+                        generated_texts = extract_body(sentences)
+                        reference_texts = tokenizer_text.batch_decode(
+                            eval_text, skip_special_tokens=True
+                        )
+                        mauve_score = get_mauve_score(
+                            p_texts=reference_texts,
+                            q_texts=generated_texts,
+                            device_id=rank if device.type == "cuda" else -1,
+                            max_text_length=int(cfg.eval.mauve_max_text_length),
+                            verbose=False,
+                        )
+                        mprint(f"Step {step}: MAUVE score: {mauve_score:.4f}")
+                        if rank == 0:
+                            writer.add_scalar("eval/mauve", mauve_score, step)
 
                     if cfg.eval.perplexity:
                         with torch.inference_mode():
@@ -733,6 +753,22 @@ def _run_raw(rank, world_size, cfg):
                         writer.add_scalar(
                             "eval/avg_similarity_score", avg_similarity, step
                         )
+
+                    if cfg.eval.mauve:
+                        generated_texts = extract_body(sentences)
+                        reference_texts = tokenizer_text.batch_decode(
+                            eval_text, skip_special_tokens=True
+                        )
+                        mauve_score = get_mauve_score(
+                            p_texts=reference_texts,
+                            q_texts=generated_texts,
+                            device_id=rank if device.type == "cuda" else -1,
+                            max_text_length=int(cfg.eval.mauve_max_text_length),
+                            verbose=False,
+                        )
+                        mprint(f"Step {step}: MAUVE score: {mauve_score:.4f}")
+                        if rank == 0:
+                            writer.add_scalar("eval/mauve", mauve_score, step)
 
                     if cfg.eval.perplexity:
                         with torch.inference_mode():
