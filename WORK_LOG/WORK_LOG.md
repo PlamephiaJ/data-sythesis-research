@@ -19,6 +19,18 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 23rd, 2026 Update
+### Yuhao:
+1. Added evaluation script for the detection model. New Nazario dataset is used for evaluation. The evaluation process is:
+    - Train the detection model with training set.
+    - Evaluate the detection model on the Nazario dataset and calculate metrics such as accuracy, precision, recall, F1 score, and AUC-ROC.
+    - Get all wrongly classified samples and generate their corresponding captions.
+    - Select 1%, 5%, 10%, 20% of the wrongly classified samples to feed into the email generator.
+    - Use generated emails to augment the training set and retrain the detection model.
+    - Evaluate the retrained detection model on the Nazario dataset and compare the results with the original detection model.
+    - If original detection model's performance is improved after augmentation, then the generated emails are considered to be helpful for improving the detection model.
+    - If the original model is too strong, use limited training data to train a weaker detection model for better observation of the improvement brought by the generated emails.
+
 ## Feb 20th, 2026 Update
 ### Yuhao:
 1. Added MAUVE metric for evaluating the quality of generated emails. The MAUVE score is calculated between the generated emails and the real emails in the validation set. The MAUVE score is a measure of how well the distribution of generated emails matches the distribution of real emails, with higher scores indicating better quality.
