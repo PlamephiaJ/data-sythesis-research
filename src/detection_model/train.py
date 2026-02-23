@@ -400,18 +400,34 @@ def _resolve_data_path(path: Optional[str]) -> Optional[str]:
     return _make_absolute(path)
 
 
-def _resolve_logging_dir(run_dir: str) -> str:
-    return str(Path(run_dir) / "tensorboard")
+def _resolve_logging_dir(
+    run_dir: str, configured_logging_dir: Optional[str] = None
+) -> str:
+    if configured_logging_dir:
+        return _make_absolute(str(configured_logging_dir))
+
+    try:
+        hydra_cfg = HydraConfig.get()
+        if hydra_cfg.mode == RunMode.RUN:
+            return str(Path(_make_absolute(hydra_cfg.run.dir)) / "tensorboard")
+        return str(
+            Path(_make_absolute(hydra_cfg.sweep.dir))
+            / "tensorboard"
+            / str(hydra_cfg.sweep.subdir)
+        )
+    except Exception:
+        run_path = Path(run_dir)
+        return str(run_path / "tensorboard")
 
 
-def _log_hydra_config(cfg: DictConfig, log_dir: Optional[str]) -> None:
-    if not log_dir:
+def _log_hydra_config(cfg: DictConfig, run_dir: Optional[str]) -> None:
+    if not run_dir:
         return
     rank = os.environ.get("RANK", "0")
     if str(rank) != "0":
         return
     cfg_text = OmegaConf.to_yaml(cfg, resolve=True)
-    cfg_path = Path(log_dir).parent / "hydra_config.yaml"
+    cfg_path = Path(run_dir) / "hydra_config.yaml"
     with open(cfg_path, "w", encoding="utf-8") as f:
         f.write(cfg_text)
 
@@ -506,7 +522,9 @@ def _run_training(cfg: DictConfig):
         metric_for_best_model=cfg.training.metric_for_best_model,
         greater_is_better=True,
         logging_steps=cfg.training.logging_steps,
-        logging_dir=_resolve_logging_dir(run_dir),
+        logging_dir=_resolve_logging_dir(
+            run_dir, getattr(cfg.training, "logging_dir", None)
+        ),
         eval_steps=getattr(cfg.training, "eval_steps", None),
         save_steps=getattr(cfg.training, "save_steps", None),
         save_total_limit=cfg.training.save_total_limit,
@@ -517,7 +535,7 @@ def _run_training(cfg: DictConfig):
 
     tb_enabled = "tensorboard" in list(cfg.training.report_to)
     if tb_enabled:
-        _log_hydra_config(cfg, training_args.logging_dir)
+        _log_hydra_config(cfg, run_dir)
 
     data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
 
@@ -648,7 +666,28 @@ def main(cfg: DictConfig):
     if cfg.training.ngpus > 1 and "LOCAL_RANK" not in os.environ:
         cfg_container = OmegaConf.to_container(cfg, resolve=True)
         training_cfg = cfg_container.get("training", {})
-        if training_cfg.get("output_dir"):
+        try:
+            hydra_cfg = HydraConfig.get()
+            if hydra_cfg.mode == RunMode.RUN:
+                runtime_output_dir = _make_absolute(hydra_cfg.run.dir)
+                runtime_logging_dir = str(Path(runtime_output_dir) / "tensorboard")
+            else:
+                runtime_output_dir = _make_absolute(
+                    os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir)
+                )
+                runtime_logging_dir = str(
+                    Path(_make_absolute(hydra_cfg.sweep.dir))
+                    / "tensorboard"
+                    / str(hydra_cfg.sweep.subdir)
+                )
+        except Exception:
+            runtime_output_dir = None
+            runtime_logging_dir = None
+
+        if runtime_output_dir is not None:
+            training_cfg["output_dir"] = runtime_output_dir
+            training_cfg["logging_dir"] = runtime_logging_dir
+        elif training_cfg.get("output_dir"):
             training_cfg["output_dir"] = _make_absolute(training_cfg["output_dir"])
         data_cfg = cfg_container.get("data", {})
         for key in ("cache_dir", "extra_train_dir", "generated_eval_dir"):

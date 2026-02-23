@@ -31,7 +31,7 @@ training:
   save_strategy: steps
   metric_for_best_model: f1
   logging_steps: 50
-  logging_dir: ${hydra:run.dir}/tensorboard
+  logging_dir: null
   eval_steps: 100
   save_steps: 100
   save_total_limit: 10
@@ -73,4 +73,4 @@ hydra:
     dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
   sweep:
     dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
-    subdir: ${hydra.job.num}
+    subdir: ${data.train_ratio}
