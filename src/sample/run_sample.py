@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import math
 import os
 
 import torch
@@ -50,6 +51,9 @@ def main():
     metrics_log_dir = os.path.join(args.model_path, "eval_logs")
     os.makedirs(metrics_log_dir, exist_ok=True)
     rank_metrics_file = os.path.join(metrics_log_dir, f"run_sample_rank{rank}.jsonl")
+    rank_samples_file = os.path.join(
+        metrics_log_dir, f"run_sample_samples_rank{rank}.jsonl"
+    )
 
     device = torch.device("cuda", local_rank)
     model, graph, noise = load_model(args.model_path, device)
@@ -147,6 +151,7 @@ def main():
 
     with (
         open(rank_metrics_file, "w", encoding="utf-8", buffering=1) as rank_log_fp,
+        open(rank_samples_file, "w", encoding="utf-8", buffering=1) as sample_log_fp,
         torch.inference_mode(),
     ):
         eval_model = get_eval_lm("gpt2-large", device)
@@ -155,13 +160,13 @@ def main():
             getattr(getattr(worker_cfg, "eval", None), "perplexity_batch_size", 32)
         )
 
-        similarity_sum = torch.zeros(1, device=device)
-        similarity_count = torch.zeros(1, device=device)
+        similarity_sum = 0.0
+        similarity_count = 0
         all_generated_texts = []
         all_reference_texts = []
 
-        total_loss = torch.zeros(1, device=device)
-        total_tokens = torch.zeros(1, device=device)
+        total_loss = 0.0
+        total_tokens = 0.0
 
         eos_token_id = tokenizer_text.eos_token_id
 
@@ -204,25 +209,46 @@ def main():
 
             sample_trunc = truncate_at_eos(samples, tokenizer_text.eos_token_id)
             sentences = tokenizer_text.batch_decode(sample_trunc)
+            generated_bodies = extract_body(sentences)
             captions = tokenizer_caption.batch_decode(
                 eval_style_caption, skip_special_tokens=True
             )
+            decoded_references = None
+            if eval_text is not None:
+                decoded_references = tokenizer_text.batch_decode(
+                    eval_text, skip_special_tokens=True
+                )
+
+            for local_idx, (caption, generated_text) in enumerate(
+                zip(captions, generated_bodies)
+            ):
+                sample_record = {
+                    "batch_idx": int(batch_idx),
+                    "rank": int(rank),
+                    "sample_idx_in_batch": int(local_idx),
+                    "caption": caption,
+                    "generated_text": generated_text,
+                }
+                if decoded_references is not None and local_idx < len(
+                    decoded_references
+                ):
+                    sample_record["reference_text"] = decoded_references[local_idx]
+                sample_log_fp.write(
+                    json.dumps(sample_record, ensure_ascii=False) + "\n"
+                )
+            sample_log_fp.flush()
 
             if len(sentences) > 0:
-                similarity_scores = metric.score_batch(
-                    captions, extract_body(sentences)
-                )
-                similarity_sum += torch.tensor(sum(similarity_scores), device=device)
+                similarity_scores = metric.score_batch(captions, generated_bodies)
+                similarity_sum += float(sum(similarity_scores))
                 similarity_count += len(similarity_scores)
                 batch_avg_similarity = sum(similarity_scores) / len(similarity_scores)
             else:
                 batch_avg_similarity = float("nan")
 
             if enable_mauve and eval_text is not None and len(sentences) > 0:
-                all_generated_texts.extend(extract_body(sentences))
-                all_reference_texts.extend(
-                    tokenizer_text.batch_decode(eval_text, skip_special_tokens=True)
-                )
+                all_generated_texts.extend(generated_bodies)
+                all_reference_texts.extend(decoded_references)
 
             num_samples = samples.size(0)
             batch_loss_total = torch.zeros(1, device=device)
@@ -264,8 +290,8 @@ def main():
                 batch_loss_total += batch_loss_sum
                 batch_tokens_total += batch_token_sum
 
-            total_loss += batch_loss_total
-            total_tokens += batch_tokens_total
+            total_loss += float(batch_loss_total.item())
+            total_tokens += float(batch_tokens_total.item())
 
             batch_tokens_for_ppl = batch_tokens_total.clamp_min(1)
             batch_ppl = torch.exp(batch_loss_total / batch_tokens_for_ppl).item()
@@ -296,12 +322,21 @@ def main():
             )
 
         if distributed:
-            dist.all_reduce(similarity_sum, op=dist.ReduceOp.SUM)
-            dist.all_reduce(similarity_count, op=dist.ReduceOp.SUM)
-            dist.all_reduce(total_loss, op=dist.ReduceOp.SUM)
-            dist.all_reduce(total_tokens, op=dist.ReduceOp.SUM)
+            local_stats = {
+                "similarity_sum": similarity_sum,
+                "similarity_count": similarity_count,
+                "total_loss": total_loss,
+                "total_tokens": total_tokens,
+            }
+            gathered_stats = [None for _ in range(world_size)]
+            dist.all_gather_object(gathered_stats, local_stats)
 
-        avg_similarity = similarity_sum / similarity_count.clamp_min(1)
+            similarity_sum = sum(s["similarity_sum"] for s in gathered_stats)
+            similarity_count = sum(s["similarity_count"] for s in gathered_stats)
+            total_loss = sum(s["total_loss"] for s in gathered_stats)
+            total_tokens = sum(s["total_tokens"] for s in gathered_stats)
+
+        avg_similarity = similarity_sum / max(similarity_count, 1)
         avg_mauve = float("nan")
 
         if enable_mauve:
@@ -329,21 +364,21 @@ def main():
                     verbose=False,
                 )
 
-        total_tokens = total_tokens.clamp_min(1)
+        total_tokens = max(total_tokens, 1.0)
 
         mean_loss = total_loss / total_tokens
-        perplexity = torch.exp(mean_loss)
+        perplexity = math.exp(mean_loss)
 
     if rank == 0:
         print(
             "Average similarity score between captions and generated text: "
-            f"{avg_similarity.item():.4f}"
+            f"{avg_similarity:.4f}"
         )
         if enable_mauve and avg_mauve == avg_mauve:
             print(f"Average MAUVE score: {avg_mauve:.4f}")
         else:
             print("Average MAUVE score: nan (mauve disabled or no valid batches)")
-        print(f"Perplexity of generated text: {perplexity.item():.4f}")
+        print(f"Perplexity of generated text: {perplexity:.4f}")
 
     with open(rank_metrics_file, "a", encoding="utf-8", buffering=1) as rank_log_fp:
         rank_log_fp.write(
@@ -351,13 +386,13 @@ def main():
                 {
                     "record_type": "summary",
                     "rank": int(rank),
-                    "avg_similarity": float(avg_similarity.item()),
+                    "avg_similarity": float(avg_similarity),
                     "avg_mauve": (
                         float(avg_mauve)
                         if (enable_mauve and avg_mauve == avg_mauve)
                         else None
                     ),
-                    "perplexity": float(perplexity.item()),
+                    "perplexity": float(perplexity),
                 },
                 ensure_ascii=False,
             )
