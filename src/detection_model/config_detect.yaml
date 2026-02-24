@@ -9,6 +9,7 @@ data:
   dataset_name: phish-email
   cache_dir: data_phish/cleaned
   extra_train_dir: null
+  augment_data: data_phish/eval/0.001/augmented_0.01.jsonl
   generated_eval_dir: null
   train_ratio: 1.0
   max_length: 512

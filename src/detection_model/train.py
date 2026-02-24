@@ -65,14 +65,22 @@ def _extract_caption(example: Dict) -> Optional[str]:
     return None
 
 
-def _load_json_dir(json_dir: str) -> Dataset:
-    data_root = Path(json_dir)
-    if not data_root.exists():
-        raise FileNotFoundError(f"Data directory not found: {data_root}")
-    json_files = sorted(data_root.glob("*.json"))
-    if not json_files:
-        raise FileNotFoundError(f"No JSON files found in {data_root}")
-    ds = load_dataset("json", data_files=[str(p) for p in json_files])["train"]
+def _load_json_data(data_path: str) -> Dataset:
+    path = Path(data_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Data path not found: {path}")
+
+    if path.is_file():
+        if path.suffix.lower() not in {".json", ".jsonl"}:
+            raise ValueError(f"Unsupported data file type: {path}")
+        data_files = [str(path)]
+    else:
+        json_files = sorted(path.glob("*.json")) + sorted(path.glob("*.jsonl"))
+        if not json_files:
+            raise FileNotFoundError(f"No JSON/JSONL files found in {path}")
+        data_files = [str(p) for p in json_files]
+
+    ds = load_dataset("json", data_files=data_files)["train"]
     return ds
 
 
@@ -459,6 +467,7 @@ def _run_training(cfg: DictConfig):
 
     cache_dir = _resolve_data_path(cfg.data.cache_dir)
     extra_train_dir = _resolve_data_path(cfg.data.extra_train_dir)
+    augment_data = _resolve_data_path(cfg.data.augment_data)
     generated_eval_dir = _resolve_data_path(cfg.data.generated_eval_dir)
 
     train_ds = dataset_factory.get_dataset(
@@ -469,8 +478,12 @@ def _run_training(cfg: DictConfig):
     )
 
     if extra_train_dir:
-        extra_ds = _load_json_dir(extra_train_dir)
+        extra_ds = _load_json_data(extra_train_dir)
         train_ds = concatenate_datasets([train_ds, extra_ds])
+
+    if augment_data:
+        augment_ds = _load_json_data(augment_data)
+        train_ds = concatenate_datasets([train_ds, augment_ds])
 
     train_ds = _apply_train_ratio(train_ds, cfg.data.train_ratio, cfg.training.seed)
 
@@ -569,7 +582,7 @@ def _run_training(cfg: DictConfig):
 
     hard_case_source_name = "generated_eval" if generated_eval_dir else "validation"
     if generated_eval_dir:
-        hard_case_ds = _load_json_dir(generated_eval_dir)
+        hard_case_ds = _load_json_data(generated_eval_dir)
     else:
         hard_case_ds = eval_ds
 
@@ -690,7 +703,12 @@ def main(cfg: DictConfig):
         elif training_cfg.get("output_dir"):
             training_cfg["output_dir"] = _make_absolute(training_cfg["output_dir"])
         data_cfg = cfg_container.get("data", {})
-        for key in ("cache_dir", "extra_train_dir", "generated_eval_dir"):
+        for key in (
+            "cache_dir",
+            "extra_train_dir",
+            "augment_data",
+            "generated_eval_dir",
+        ):
             if data_cfg.get(key):
                 data_cfg[key] = _make_absolute(data_cfg[key])
         mp.spawn(

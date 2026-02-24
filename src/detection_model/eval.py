@@ -5,14 +5,27 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import matplotlib
 import numpy as np
 import torch
 from omegaconf import OmegaConf
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    accuracy_score,
+    confusion_matrix,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
 from tqdm.auto import tqdm
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 from data_process.clean_factory import EmailCleanConfig, EmailCleaner
+
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 
 DEFAULT_MODEL_PATH = "exp_local/detection_model/2026.02.23/214447/1"
@@ -291,6 +304,27 @@ def _save_jsonl(path: Path, records: List[Dict]) -> None:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
 
+def _save_confusion_matrix_figure(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    save_path: Path,
+) -> np.ndarray:
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+
+    fig, ax = plt.subplots(figsize=(5, 4), dpi=150)
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=["ham(0)", "phish(1)"],
+    )
+    disp.plot(ax=ax, cmap="Blues", values_format="d", colorbar=False)
+    ax.set_title("Confusion Matrix")
+    fig.tight_layout()
+    fig.savefig(save_path)
+    plt.close(fig)
+    return cm
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default=DEFAULT_MODEL_PATH)
@@ -311,6 +345,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--output_file", type=str, default=None)
     parser.add_argument("--summary_file", type=str, default=None)
+    parser.add_argument("--confusion_matrix_file", type=str, default=None)
     return parser.parse_args()
 
 
@@ -416,6 +451,25 @@ def main() -> None:
         model_dir=model_dir,
         run_dir=run_dir,
     )
+
+    valid_idx = [i for i, y in enumerate(labels) if y is not None]
+    if valid_idx:
+        y_true = np.array([int(labels[i]) for i in valid_idx], dtype=int)
+        y_pred = pred_labels[valid_idx].astype(int)
+        cm_path = (
+            Path(args.confusion_matrix_file)
+            if args.confusion_matrix_file
+            else summary_path.parent / "confusion_matrix.png"
+        )
+        cm = _save_confusion_matrix_figure(
+            y_true=y_true, y_pred=y_pred, save_path=cm_path
+        )
+        summary.setdefault("label_metrics", {})
+        summary["label_metrics"]["confusion_matrix"] = {
+            "labels": [0, 1],
+            "matrix": cm.tolist(),
+            "figure_file": str(cm_path),
+        }
 
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

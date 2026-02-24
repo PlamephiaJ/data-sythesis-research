@@ -8,7 +8,7 @@ if [[ -f ".venv/bin/activate" ]]; then
 	source .venv/bin/activate
 fi
 
-SWEEP_DIR="exp_local/detection_model/2026.02.23/180306"
+SWEEP_DIR="exp_local/detection_model/2026.02.24/180336"
 INPUT_FILE="data_phish/eval/Nazario_cleaned_raw.json"
 
 if [[ ! -d "$SWEEP_DIR" ]]; then
