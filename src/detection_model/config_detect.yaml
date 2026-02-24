@@ -10,6 +10,7 @@ data:
   cache_dir: data_phish/cleaned
   extra_train_dir: null
   augment_data: data_phish/eval/0.001/augmented_0.01.jsonl
+  augment_ratio: "1%"
   generated_eval_dir: null
   train_ratio: 1.0
   max_length: 512
@@ -74,4 +75,4 @@ hydra:
     dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
   sweep:
     dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
-    subdir: ${data.train_ratio}
+    subdir: ${data.train_ratio}_${data.augment_ratio}
