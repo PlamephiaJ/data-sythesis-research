@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -41,6 +42,28 @@ from data_process.clean_factory import EmailCleanConfig, EmailCleaner
 
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_augment_ratio_from_path(path_value: Optional[str]) -> str:
+    if not path_value:
+        return "noaug"
+
+    filename = Path(str(path_value)).name
+    match = re.search(r"augmented_([0-9]*\.?[0-9]+)", filename)
+    if not match:
+        return Path(filename).stem
+
+    raw_ratio = float(match.group(1))
+    ratio_percent = raw_ratio * 100.0 if raw_ratio <= 1.0 else raw_ratio
+    ratio_str = f"{ratio_percent:.6f}".rstrip("0").rstrip(".")
+    return f"{ratio_str}%"
+
+
+OmegaConf.register_new_resolver(
+    "augment_ratio_from_data",
+    _extract_augment_ratio_from_path,
+    replace=True,
+)
 
 
 def _effective_max_length(
@@ -87,7 +110,7 @@ def _setup_logging(run_dir: str, level: int = logging.INFO) -> str:
     """Setup python logging to both console and a file under run_dir.
 
     Hydra/Transformers sometimes configure logging implicitly; we force a predictable
-    configuration so `logger.info(...)` is visible and persisted.
+    configuration so script logs are visible and persisted.
     """
 
     Path(run_dir).mkdir(parents=True, exist_ok=True)
@@ -130,7 +153,7 @@ def _setup_logging(run_dir: str, level: int = logging.INFO) -> str:
         from transformers.utils import logging as hf_logging
 
         hf_logging.enable_propagation()
-        hf_logging.set_verbosity_info()
+        hf_logging.set_verbosity_warning()
     except Exception:
         pass
 
