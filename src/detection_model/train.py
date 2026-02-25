@@ -1,5 +1,7 @@
 import json
+import logging
 import os
+import sys
 from dataclasses import asdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -22,6 +24,7 @@ from sklearn.metrics import (
 )
 from torch.utils.tensorboard import SummaryWriter
 from transformers import (
+    AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
     DataCollatorWithPadding,
@@ -35,6 +38,104 @@ from transformers import (
 
 from data_process import dataset_factory
 from data_process.clean_factory import EmailCleanConfig, EmailCleaner
+
+
+logger = logging.getLogger(__name__)
+
+
+def _effective_max_length(
+    requested_max_length: int,
+    tokenizer,
+    model_name_or_config,
+) -> int:
+    """Pick a safe max_length for tokenization.
+
+    Many encoder models (e.g. BERT/RoBERTa) are limited to 512 positions.
+    If the config asks for a larger max_length, training will crash at the
+    embedding layer. We clamp to the model's supported maximum.
+    """
+
+    req = int(requested_max_length)
+    candidates: List[int] = []
+
+    # tokenizer.model_max_length is sometimes a sentinel (very large int)
+    tok_max = getattr(tokenizer, "model_max_length", None)
+    if isinstance(tok_max, int) and 0 < tok_max < 1_000_000:
+        candidates.append(tok_max)
+
+    cfg = model_name_or_config
+    if isinstance(model_name_or_config, str):
+        try:
+            cfg = AutoConfig.from_pretrained(model_name_or_config)
+        except Exception:
+            cfg = None
+
+    model_max_pos = (
+        getattr(cfg, "max_position_embeddings", None) if cfg is not None else None
+    )
+    if isinstance(model_max_pos, int) and model_max_pos > 0:
+        candidates.append(model_max_pos)
+
+    if not candidates:
+        return req
+
+    safe = min([req] + candidates)
+    return int(safe)
+
+
+def _setup_logging(run_dir: str, level: int = logging.INFO) -> str:
+    """Setup python logging to both console and a file under run_dir.
+
+    Hydra/Transformers sometimes configure logging implicitly; we force a predictable
+    configuration so `logger.info(...)` is visible and persisted.
+    """
+
+    Path(run_dir).mkdir(parents=True, exist_ok=True)
+    rank_str = os.environ.get("RANK", os.environ.get("LOCAL_RANK", "0"))
+    try:
+        rank = int(rank_str)
+    except ValueError:
+        rank = 0
+
+    log_path = Path(run_dir) / ("train.log" if rank == 0 else f"train_rank{rank}.log")
+
+    fmt = "%(asctime)s | %(levelname)s | rank=%(rank)s | %(name)s | %(message)s"
+    datefmt = "%Y-%m-%d %H:%M:%S"
+
+    class _RankFilter(logging.Filter):
+
+        def filter(self, record: logging.LogRecord) -> bool:  # type: ignore[override]
+            setattr(record, "rank", rank)
+            return True
+
+    stream_handler = logging.StreamHandler(stream=sys.stdout)
+    stream_handler.setLevel(level)
+    stream_handler.setFormatter(logging.Formatter(fmt=fmt, datefmt=datefmt))
+    stream_handler.addFilter(_RankFilter())
+
+    file_handler = logging.FileHandler(log_path, mode="a", encoding="utf-8")
+    file_handler.setLevel(level)
+    file_handler.setFormatter(logging.Formatter(fmt=fmt, datefmt=datefmt))
+    file_handler.addFilter(_RankFilter())
+
+    logging.basicConfig(
+        level=level, handlers=[stream_handler, file_handler], force=True
+    )
+    logging.captureWarnings(True)
+
+    for noisy in ("matplotlib", "PIL", "urllib3"):
+        logging.getLogger(noisy).setLevel(logging.WARNING)
+
+    try:
+        from transformers.utils import logging as hf_logging
+
+        hf_logging.enable_propagation()
+        hf_logging.set_verbosity_info()
+    except Exception:
+        pass
+
+    logger.info("Logging initialized. run_dir=%s log_file=%s", run_dir, str(log_path))
+    return str(log_path)
 
 
 def build_cleaner(cfg: DictConfig) -> EmailCleaner:
@@ -206,51 +307,6 @@ def _resolve_run_dir(output_dir: str) -> str:
         return _make_absolute(os.path.join(hydra_cfg.sweep.dir, hydra_cfg.sweep.subdir))
     except Exception:
         return str(output_path)
-
-
-def _save_jsonl(path: Path, records: List[Dict]) -> None:
-    with open(path, "w", encoding="utf-8") as f:
-        for record in records:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-
-def _collect_hard_cases(
-    source_ds: Dataset,
-    logits: np.ndarray,
-    labels: Optional[np.ndarray],
-    low_conf_threshold: float,
-) -> Tuple[List[Dict], List[Dict]]:
-    probs = torch.softmax(torch.tensor(logits), dim=-1).numpy()
-    pred_labels = np.argmax(probs, axis=-1)
-    pred_conf = np.max(probs, axis=-1)
-
-    low_conf_cases: List[Dict] = []
-    misclassified_cases: List[Dict] = []
-
-    source_data = source_ds.to_list()
-    for idx, sample in enumerate(source_data):
-        record = {
-            "index": idx,
-            "pred_label": int(pred_labels[idx]),
-            "pred_confidence": float(pred_conf[idx]),
-            "phish_probability": float(probs[idx, 1]) if probs.shape[1] > 1 else None,
-            "true_label": (
-                int(labels[idx]) if labels is not None and labels[idx] >= 0 else None
-            ),
-            "sample": sample,
-        }
-
-        if pred_conf[idx] < low_conf_threshold:
-            low_conf_cases.append(record)
-
-        if (
-            labels is not None
-            and labels[idx] >= 0
-            and int(pred_labels[idx]) != int(labels[idx])
-        ):
-            misclassified_cases.append(record)
-
-    return low_conf_cases, misclassified_cases
 
 
 def _compute_metrics_from_arrays(
@@ -455,205 +511,195 @@ def _run_training(cfg: DictConfig):
 
     run_dir = _resolve_run_dir(_build_output_dir(cfg))
     os.makedirs(run_dir, exist_ok=True)
+    log_file = _setup_logging(run_dir)
 
-    output_dir = str(Path(run_dir) / "artifacts")
-    os.makedirs(output_dir, exist_ok=True)
+    try:
+        logger.info("Starting training. run_dir=%s", run_dir)
 
-    final_model_dir = Path(run_dir) / "model"
-    final_model_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = str(Path(run_dir) / "artifacts")
+        os.makedirs(output_dir, exist_ok=True)
 
-    cleaner = build_cleaner(cfg.cleaner)
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
+        final_model_dir = Path(run_dir) / "model"
+        final_model_dir.mkdir(parents=True, exist_ok=True)
 
-    cache_dir = _resolve_data_path(cfg.data.cache_dir)
-    extra_train_dir = _resolve_data_path(cfg.data.extra_train_dir)
-    augment_data = _resolve_data_path(cfg.data.augment_data)
-    generated_eval_dir = _resolve_data_path(cfg.data.generated_eval_dir)
+        cleaner = build_cleaner(cfg.cleaner)
+        tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
 
-    train_ds = dataset_factory.get_dataset(
-        cfg.data.dataset_name, mode="train", cache_dir=cache_dir
-    )
-    eval_ds = dataset_factory.get_dataset(
-        cfg.data.dataset_name, mode="validation", cache_dir=cache_dir
-    )
-
-    if extra_train_dir:
-        extra_ds = _load_json_data(extra_train_dir)
-        train_ds = concatenate_datasets([train_ds, extra_ds])
-
-    if augment_data:
-        augment_ds = _load_json_data(augment_data)
-        train_ds = concatenate_datasets([train_ds, augment_ds])
-
-    train_ds = _apply_train_ratio(train_ds, cfg.data.train_ratio, cfg.training.seed)
-
-    train_tok = _prepare_dataset(
-        train_ds,
-        tokenizer,
-        cleaner,
-        cfg.data.max_length,
-        cfg.data.num_proc,
-    )
-    eval_tok = _prepare_dataset(
-        eval_ds,
-        tokenizer,
-        cleaner,
-        cfg.data.max_length,
-        cfg.data.num_proc,
-    )
-
-    labels = np.array(train_tok["labels"])
-    pos = float(np.sum(labels == 1))
-    neg = float(np.sum(labels == 0))
-    if pos + neg == 0:
-        class_weights = None
-    else:
-        weight_pos = neg / (pos + 1e-6)
-        weight_neg = pos / (neg + 1e-6)
-        class_weights = torch.tensor([weight_neg, weight_pos], dtype=torch.float)
-
-    model = AutoModelForSequenceClassification.from_pretrained(
-        cfg.model.name, num_labels=cfg.model.num_labels
-    )
-
-    max_steps = getattr(cfg.training, "max_steps", None)
-    max_steps = int(max_steps) if max_steps is not None else -1
-
-    report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
-
-    training_args = TrainingArguments(
-        output_dir=output_dir,
-        eval_strategy=cfg.training.eval_strategy,
-        save_strategy=cfg.training.save_strategy,
-        learning_rate=cfg.training.learning_rate,
-        per_device_train_batch_size=cfg.training.train_batch_size,
-        per_device_eval_batch_size=cfg.training.eval_batch_size,
-        num_train_epochs=cfg.training.num_train_epochs,
-        max_steps=max_steps,
-        weight_decay=cfg.training.weight_decay,
-        load_best_model_at_end=cfg.training.save_best_model,
-        metric_for_best_model=cfg.training.metric_for_best_model,
-        greater_is_better=True,
-        logging_steps=cfg.training.logging_steps,
-        logging_dir=_resolve_logging_dir(
-            run_dir, getattr(cfg.training, "logging_dir", None)
-        ),
-        eval_steps=getattr(cfg.training, "eval_steps", None),
-        save_steps=getattr(cfg.training, "save_steps", None),
-        save_total_limit=cfg.training.save_total_limit,
-        fp16=torch.cuda.is_available(),
-        report_to=report_to,
-        seed=cfg.training.seed,
-    )
-
-    tb_enabled = "tensorboard" in list(cfg.training.report_to)
-    if tb_enabled:
-        _log_hydra_config(cfg, run_dir)
-
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
-    trainer = WeightedTrainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_tok,
-        eval_dataset=eval_tok,
-        processing_class=tokenizer,
-        data_collator=data_collator,
-        compute_metrics=_compute_metrics,
-        class_weights=class_weights,
-    )
-    trainer.add_callback(
-        FileMetricsCallback(
-            run_dir=run_dir,
-            tensorboard_dir=training_args.logging_dir if tb_enabled else None,
+        used_max_length = _effective_max_length(
+            cfg.data.max_length, tokenizer, cfg.model.name
         )
-    )
-
-    trainer.train()
-    eval_metrics = trainer.evaluate()
-
-    summary = {
-        "train_size": len(train_tok),
-        "eval_size": len(eval_tok),
-        "model_name": cfg.model.name,
-        "cleaner_config": asdict(cleaner.cfg),
-        "eval_metrics": {k: float(v) for k, v in eval_metrics.items()},
-    }
-
-    hard_case_source_name = "generated_eval" if generated_eval_dir else "validation"
-    if generated_eval_dir:
-        hard_case_ds = _load_json_data(generated_eval_dir)
-    else:
-        hard_case_ds = eval_ds
-
-    hard_case_tok, hard_case_labels, hard_case_source_ds = _prepare_infer_dataset(
-        hard_case_ds,
-        tokenizer,
-        cleaner,
-        cfg.data.max_length,
-        cfg.data.num_proc,
-    )
-    hard_case_pred = trainer.predict(hard_case_tok)
-
-    if generated_eval_dir:
-        pred_summary = _prediction_summary(hard_case_pred.predictions)
-        summary["generated_eval"] = {
-            "num_samples": len(hard_case_tok),
-            "prediction_summary": pred_summary,
-        }
-        if hard_case_labels is not None and np.any(hard_case_labels >= 0):
-            valid_mask = hard_case_labels >= 0
-            logits = hard_case_pred.predictions[valid_mask]
-            valid_labels = hard_case_labels[valid_mask]
-            summary["generated_eval"]["label_metrics"] = _compute_metrics_from_arrays(
-                logits, valid_labels
+        if int(cfg.data.max_length) != int(used_max_length):
+            logger.warning(
+                "Requested data.max_length=%s but model/tokenizer supports at most %s; clamping.",
+                int(cfg.data.max_length),
+                int(used_max_length),
             )
 
-    low_conf_threshold = float(
-        getattr(getattr(cfg, "hard_case", {}), "low_conf_threshold", 0.60)
-    )
-    low_conf_cases, misclassified_cases = _collect_hard_cases(
-        hard_case_source_ds,
-        hard_case_pred.predictions,
-        hard_case_labels,
-        low_conf_threshold,
-    )
+        cache_dir = _resolve_data_path(cfg.data.cache_dir)
+        extra_train_dir = _resolve_data_path(cfg.data.extra_train_dir)
+        augment_data = _resolve_data_path(cfg.data.augment_data)
+        generated_eval_dir = _resolve_data_path(cfg.data.generated_eval_dir)
 
-    if trainer.is_world_process_zero():
-        hard_case_dir = Path(_resolve_run_dir(output_dir)) / "hard_case"
-        hard_case_dir.mkdir(parents=True, exist_ok=True)
+        train_ds = dataset_factory.get_dataset(
+            cfg.data.dataset_name, mode="train", cache_dir=cache_dir
+        )
+        eval_ds = dataset_factory.get_dataset(
+            cfg.data.dataset_name, mode="validation", cache_dir=cache_dir
+        )
 
-        low_conf_path = hard_case_dir / "low_confidence.jsonl"
-        misclassified_path = hard_case_dir / "misclassified.jsonl"
+        if extra_train_dir:
+            extra_ds = _load_json_data(extra_train_dir)
+            train_ds = concatenate_datasets([train_ds, extra_ds])
 
-        _save_jsonl(low_conf_path, low_conf_cases)
-        _save_jsonl(misclassified_path, misclassified_cases)
+        train_ds = _apply_train_ratio(train_ds, cfg.data.train_ratio, cfg.training.seed)
 
-        summary["hard_case"] = {
-            "source": hard_case_source_name,
-            "dir": str(hard_case_dir),
-            "low_conf_threshold": low_conf_threshold,
-            "num_samples": len(hard_case_tok),
-            "low_confidence_count": len(low_conf_cases),
-            "misclassified_count": len(misclassified_cases),
-            "low_confidence_file": str(low_conf_path),
-            "misclassified_file": str(misclassified_path),
+        logger.info("Initial training dataset size: %s samples.", len(train_ds))
+
+        if augment_data:
+            augment_ds = _load_json_data(augment_data)
+            train_ds = concatenate_datasets([train_ds, augment_ds])
+            logger.info("Augmentation data loaded with %s samples.", len(augment_ds))
+
+        logger.info("Final training dataset size: %s samples.", len(train_ds))
+
+        train_tok = _prepare_dataset(
+            train_ds,
+            tokenizer,
+            cleaner,
+            used_max_length,
+            cfg.data.num_proc,
+        )
+        eval_tok = _prepare_dataset(
+            eval_ds,
+            tokenizer,
+            cleaner,
+            used_max_length,
+            cfg.data.num_proc,
+        )
+
+        labels = np.array(train_tok["labels"])
+        pos = float(np.sum(labels == 1))
+        neg = float(np.sum(labels == 0))
+        if pos + neg == 0:
+            class_weights = None
+        else:
+            weight_pos = neg / (pos + 1e-6)
+            weight_neg = pos / (neg + 1e-6)
+            class_weights = torch.tensor([weight_neg, weight_pos], dtype=torch.float)
+
+        model = AutoModelForSequenceClassification.from_pretrained(
+            cfg.model.name, num_labels=cfg.model.num_labels
+        )
+
+        max_steps = getattr(cfg.training, "max_steps", None)
+        max_steps = int(max_steps) if max_steps is not None else -1
+
+        report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
+
+        training_args = TrainingArguments(
+            output_dir=output_dir,
+            eval_strategy=cfg.training.eval_strategy,
+            save_strategy=cfg.training.save_strategy,
+            learning_rate=cfg.training.learning_rate,
+            per_device_train_batch_size=cfg.training.train_batch_size,
+            per_device_eval_batch_size=cfg.training.eval_batch_size,
+            num_train_epochs=cfg.training.num_train_epochs,
+            max_steps=max_steps,
+            weight_decay=cfg.training.weight_decay,
+            load_best_model_at_end=cfg.training.save_best_model,
+            metric_for_best_model=cfg.training.metric_for_best_model,
+            greater_is_better=True,
+            logging_steps=cfg.training.logging_steps,
+            logging_dir=_resolve_logging_dir(
+                run_dir, getattr(cfg.training, "logging_dir", None)
+            ),
+            eval_steps=getattr(cfg.training, "eval_steps", None),
+            save_steps=getattr(cfg.training, "save_steps", None),
+            save_total_limit=cfg.training.save_total_limit,
+            fp16=torch.cuda.is_available(),
+            report_to=report_to,
+            seed=cfg.training.seed,
+        )
+
+        tb_enabled = "tensorboard" in list(cfg.training.report_to)
+        if tb_enabled:
+            _log_hydra_config(cfg, run_dir)
+
+        data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+        trainer = WeightedTrainer(
+            model=model,
+            args=training_args,
+            train_dataset=train_tok,
+            eval_dataset=eval_tok,
+            processing_class=tokenizer,
+            data_collator=data_collator,
+            compute_metrics=_compute_metrics,
+            class_weights=class_weights,
+        )
+        trainer.add_callback(
+            FileMetricsCallback(
+                run_dir=run_dir,
+                tensorboard_dir=training_args.logging_dir if tb_enabled else None,
+            )
+        )
+
+        trainer.train()
+        eval_metrics = trainer.evaluate()
+
+        summary = {
+            "train_size": len(train_tok),
+            "eval_size": len(eval_tok),
+            "model_name": cfg.model.name,
+            "cleaner_config": asdict(cleaner.cfg),
+            "eval_metrics": {k: float(v) for k, v in eval_metrics.items()},
         }
 
-        if generated_eval_dir and "generated_eval" in summary:
-            summary["generated_eval"]["hard_case"] = dict(summary["hard_case"])
+        if generated_eval_dir:
+            hard_case_ds = _load_json_data(generated_eval_dir)
+        else:
+            hard_case_ds = eval_ds
 
-    summary["intermediate_log_files"] = {
-        "jsonl": str(Path(run_dir) / "intermediate_logs.jsonl"),
-        "latest": str(Path(run_dir) / "latest_metrics.json"),
-    }
+        hard_case_tok, hard_case_labels, hard_case_source_ds = _prepare_infer_dataset(
+            hard_case_ds,
+            tokenizer,
+            cleaner,
+            used_max_length,
+            cfg.data.num_proc,
+        )
+        hard_case_pred = trainer.predict(hard_case_tok)
 
-    if trainer.is_world_process_zero():
-        with open(Path(run_dir) / "summary.json", "w", encoding="utf-8") as f:
-            json.dump(summary, f, ensure_ascii=False, indent=2)
+        if generated_eval_dir:
+            pred_summary = _prediction_summary(hard_case_pred.predictions)
+            summary["generated_eval"] = {
+                "num_samples": len(hard_case_tok),
+                "prediction_summary": pred_summary,
+            }
+            if hard_case_labels is not None and np.any(hard_case_labels >= 0):
+                valid_mask = hard_case_labels >= 0
+                logits = hard_case_pred.predictions[valid_mask]
+                valid_labels = hard_case_labels[valid_mask]
+                summary["generated_eval"]["label_metrics"] = (
+                    _compute_metrics_from_arrays(logits, valid_labels)
+                )
 
-        trainer.save_model(str(final_model_dir))
-        tokenizer.save_pretrained(str(final_model_dir))
+        summary["intermediate_log_files"] = {
+            "jsonl": str(Path(run_dir) / "intermediate_logs.jsonl"),
+            "latest": str(Path(run_dir) / "latest_metrics.json"),
+        }
+
+        if trainer.is_world_process_zero():
+            with open(Path(run_dir) / "summary.json", "w", encoding="utf-8") as f:
+                json.dump(summary, f, ensure_ascii=False, indent=2)
+
+            trainer.save_model(str(final_model_dir))
+            tokenizer.save_pretrained(str(final_model_dir))
+
+        logger.info("Training finished successfully.")
+
+    except Exception:
+        logger.exception("Training crashed. See log file: %s", log_file)
+        raise
 
 
 def _distributed_worker(

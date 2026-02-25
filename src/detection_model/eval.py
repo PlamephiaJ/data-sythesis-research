@@ -32,6 +32,28 @@ DEFAULT_MODEL_PATH = "exp_local/detection_model/2026.02.23/214447/1"
 DEFAULT_INPUT_FILE = "data_phish/eval/Nazario_cleaned_raw.json"
 
 
+def _safe_max_length(requested: int, tokenizer, model) -> int:
+    req = int(requested)
+    candidates: List[int] = []
+
+    tok_max = getattr(tokenizer, "model_max_length", None)
+    if isinstance(tok_max, int) and 0 < tok_max < 1_000_000:
+        candidates.append(tok_max)
+
+    base_model = model.module if hasattr(model, "module") else model
+    cfg = getattr(base_model, "config", None)
+    model_max_pos = (
+        getattr(cfg, "max_position_embeddings", None) if cfg is not None else None
+    )
+    if isinstance(model_max_pos, int) and model_max_pos > 0:
+        candidates.append(model_max_pos)
+
+    if not candidates:
+        return req
+
+    return int(min([req] + candidates))
+
+
 def _resolve_output_paths(
     output_file: Optional[str],
     summary_file: Optional[str],
@@ -46,6 +68,27 @@ def _resolve_output_paths(
     output_path = Path(output_file) if output_file else base_dir / "predictions.jsonl"
     summary_path = Path(summary_file) if summary_file else base_dir / "summary.json"
     return output_path, summary_path
+
+
+def _collect_hard_cases(
+    results: List[Dict],
+    low_conf_threshold: float,
+) -> Tuple[List[Dict], List[Dict]]:
+    low_confidence: List[Dict] = []
+    misclassified: List[Dict] = []
+
+    for record in results:
+        pred_confidence = float(record.get("pred_confidence", 0.0))
+        true_label = record.get("true_label")
+        pred_label = record.get("pred_label")
+
+        if pred_confidence < low_conf_threshold:
+            low_confidence.append(record)
+
+        if true_label is not None and int(pred_label) != int(true_label):
+            misclassified.append(record)
+
+    return low_confidence, misclassified
 
 
 def _extract_label(example: Dict, label_key: Optional[str] = None) -> Optional[int]:
@@ -333,7 +376,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--text_key", type=str, default="text")
     parser.add_argument("--caption_key", type=str, default=None)
     parser.add_argument("--label_key", type=str, default=None)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--max_length", type=int, default=512)
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--device", type=str, default="auto")
@@ -346,6 +389,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output_file", type=str, default=None)
     parser.add_argument("--summary_file", type=str, default=None)
     parser.add_argument("--confusion_matrix_file", type=str, default=None)
+    parser.add_argument("--misclassified_file", type=str, default=None)
+    parser.add_argument("--low_confidence_file", type=str, default=None)
+    parser.add_argument("--low_conf_threshold", type=float, default=0.60)
     return parser.parse_args()
 
 
@@ -402,6 +448,14 @@ def main() -> None:
         num_gpus=args.num_gpus,
     )
 
+    used_max_length = _safe_max_length(max_length, tokenizer, model)
+    if int(used_max_length) != int(max_length):
+        print(
+            f"Warning: requested max_length={int(max_length)} but model/tokenizer supports at most {int(used_max_length)}; clamping.",
+            flush=True,
+        )
+        max_length = int(used_max_length)
+
     samples = _load_samples(args.input_text, args.input_file)
     samples, cleaned_texts, labels = _prepare_features(
         samples=samples,
@@ -452,6 +506,33 @@ def main() -> None:
         run_dir=run_dir,
     )
 
+    low_confidence, misclassified = _collect_hard_cases(
+        results=results,
+        low_conf_threshold=float(args.low_conf_threshold),
+    )
+
+    low_conf_path = (
+        Path(args.low_confidence_file)
+        if args.low_confidence_file
+        else summary_path.parent / "low_confidence.jsonl"
+    )
+    misclassified_path = (
+        Path(args.misclassified_file)
+        if args.misclassified_file
+        else summary_path.parent / "misclassified.jsonl"
+    )
+
+    _save_jsonl(low_conf_path, low_confidence)
+    _save_jsonl(misclassified_path, misclassified)
+
+    summary["hard_case"] = {
+        "low_conf_threshold": float(args.low_conf_threshold),
+        "low_confidence_count": int(len(low_confidence)),
+        "misclassified_count": int(len(misclassified)),
+        "low_confidence_file": str(low_conf_path),
+        "misclassified_file": str(misclassified_path),
+    }
+
     valid_idx = [i for i, y in enumerate(labels) if y is not None]
     if valid_idx:
         y_true = np.array([int(labels[i]) for i in valid_idx], dtype=int)
@@ -475,6 +556,8 @@ def main() -> None:
 
     _save_jsonl(output_path, results)
     print(f"Saved predictions to: {output_path}")
+    print(f"Saved low-confidence cases to: {low_conf_path}")
+    print(f"Saved misclassified cases to: {misclassified_path}")
 
     summary_path.parent.mkdir(parents=True, exist_ok=True)
     with open(summary_path, "w", encoding="utf-8") as f:
