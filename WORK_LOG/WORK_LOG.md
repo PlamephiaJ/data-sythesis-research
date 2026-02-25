@@ -19,6 +19,10 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 24th, 2026 Update
+### Yuhao:
+1. Tried many base model train ratios. Found 0.1 is a good choice for the experiments. Both F1 and Recall have improvements after augmentation with 100% misclassified emails. Will try more low percentage ratios to see if we can achieve similar improvement with less misclassified augmented data.
+
 ## Feb 23rd, 2026 Update
 ### Yuhao:
 1. Added evaluation script for the detection model. New Nazario dataset is used for evaluation. The evaluation process is:
