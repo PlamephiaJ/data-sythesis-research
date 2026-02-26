@@ -9,7 +9,7 @@ data:
   dataset_name: phish-email
   cache_dir: data_phish/cleaned
   extra_train_dir: null
-  augment_data: data_phish/eval/0.001/augmented_1.0.jsonl
+  augment_data: data_phish/eval/origin/1e-3/augmented.jsonl
   augment_ratio: ${augment_ratio_from_data:${data.augment_data}}
   generated_eval_dir: null
   train_ratio: 1.0

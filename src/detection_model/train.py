@@ -43,6 +43,10 @@ from data_process.clean_factory import EmailCleanConfig, EmailCleaner
 
 logger = logging.getLogger(__name__)
 
+torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+
 
 def _extract_augment_ratio_from_path(path_value: Optional[str]) -> str:
     if not path_value:
@@ -619,17 +623,26 @@ def _run_training(cfg: DictConfig):
 
         report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
 
+        save_best_model = bool(getattr(cfg.training, "save_best_model", False))
+        save_strategy = "best" if save_best_model else cfg.training.save_strategy
+        save_total_limit = 1 if save_best_model else cfg.training.save_total_limit
+        save_steps = (
+            getattr(cfg.training, "save_steps", None)
+            if str(save_strategy) == "steps"
+            else None
+        )
+
         training_args = TrainingArguments(
             output_dir=output_dir,
             eval_strategy=cfg.training.eval_strategy,
-            save_strategy=cfg.training.save_strategy,
+            save_strategy=save_strategy,
             learning_rate=cfg.training.learning_rate,
             per_device_train_batch_size=cfg.training.train_batch_size,
             per_device_eval_batch_size=cfg.training.eval_batch_size,
             num_train_epochs=cfg.training.num_train_epochs,
             max_steps=max_steps,
             weight_decay=cfg.training.weight_decay,
-            load_best_model_at_end=cfg.training.save_best_model,
+            load_best_model_at_end=save_best_model,
             metric_for_best_model=cfg.training.metric_for_best_model,
             greater_is_better=True,
             logging_steps=cfg.training.logging_steps,
@@ -637,8 +650,8 @@ def _run_training(cfg: DictConfig):
                 run_dir, getattr(cfg.training, "logging_dir", None)
             ),
             eval_steps=getattr(cfg.training, "eval_steps", None),
-            save_steps=getattr(cfg.training, "save_steps", None),
-            save_total_limit=cfg.training.save_total_limit,
+            save_steps=save_steps,
+            save_total_limit=save_total_limit,
             fp16=torch.cuda.is_available(),
             report_to=report_to,
             seed=cfg.training.seed,
