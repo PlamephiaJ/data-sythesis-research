@@ -151,12 +151,11 @@ def get_entry_dataset(
             prefix = (
                 "This is a phish email. " if label == 1 else "This is a benign email. "
             )
-            caption = f"{prefix}{c or ''}".strip()
-            cleaned, _ = cleaner.render(caption, t)
+            raw_caption = (c or "").strip()
+            caption = f"{prefix}{raw_caption}".strip()
+            cleaned, _ = cleaner.render(raw_caption, t)
             if cleaned is None:
-                cleaned = (
-                    f"Subject: {cleaner.cfg.default_subject}\n\n[INVALID SAMPLE]\n"
-                )
+                cleaned = f"{cleaner.cfg.body_prefix}[INVALID SAMPLE]\n"
             clean_texts.append(cleaned)
             prefixed_captions.append(caption)
 

@@ -259,18 +259,11 @@ class EmailCleaner:
             return None, "empty_after_clean"
         return text, None
 
-    def derive_subject(self, caption: Optional[str], body: str) -> str:
+    def derive_subject(self, subject: Optional[str]) -> str:
         cfg = self.cfg
-        subject = (caption or "").strip()
-
+        subject = (subject or "").strip()
         if not subject:
-            first_line = body.split("\n", 1)[0].strip()
-            if 3 <= len(first_line) <= 80 and not re.match(
-                r"^(hi|hello|greetings)\b", first_line, re.I
-            ):
-                subject = first_line
-            else:
-                subject = cfg.default_subject
+            return ""
 
         subject = subject.replace("\n", " ")
         subject = re.sub(r"\s{2,}", " ", subject).strip()
@@ -278,21 +271,79 @@ class EmailCleaner:
             subject = subject[: cfg.max_subject_len - 1].rstrip() + "…"
         return subject
 
+    def extract_original_subject_and_body_source(
+        self, raw_text: str
+    ) -> Tuple[Optional[str], str]:
+        text = _normalize_newlines(raw_text or "")
+        lines = text.split("\n")
+
+        first_nonempty = None
+        for idx, line in enumerate(lines):
+            if line.strip():
+                first_nonempty = idx
+                break
+
+        if first_nonempty is None:
+            return None, text
+
+        line = lines[first_nonempty]
+        m = re.match(r"^\s*subject\s*:\s*(.*)$", line, re.IGNORECASE)
+        if m is None:
+            return None, text
+
+        original_subject = m.group(1).strip()
+        body_lines = lines[:first_nonempty] + lines[first_nonempty + 1 :]
+        body_source = "\n".join(body_lines).lstrip("\n")
+        return original_subject, body_source
+
     def render(
         self, caption: Optional[str], raw_text: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Returns (clean_email_or_body, reason)
         """
-        body, reason = self.clean_body(raw_text)
+        original_subject, body_source = self.extract_original_subject_and_body_source(
+            raw_text
+        )
+        # If the body begins with the same text as the original subject, drop
+        # that leading duplicate so the rendered Body doesn't repeat the Subject.
+        if original_subject and body_source:
+            subj_norm = self.derive_subject(original_subject).strip()
+            # examine the first non-empty line of body_source
+            body_lstrip = body_source.lstrip()
+            first_line = ""
+            if body_lstrip:
+                first_line = body_lstrip.split("\n", 1)[0].strip()
+
+            if first_line:
+                first_norm = self.derive_subject(first_line).strip()
+                try:
+                    if (
+                        first_norm
+                        and subj_norm
+                        and first_norm.lower() == subj_norm.lower()
+                    ):
+                        # remove the first line from body_source
+                        if "\n" in body_lstrip:
+                            body_source = body_lstrip.split("\n", 1)[1].lstrip("\n")
+                        else:
+                            body_source = ""
+                except Exception:
+                    # be conservative on any unexpected unicode/compare issues
+                    pass
+
+        body, reason = self.clean_body(body_source)
         if reason is not None:
             return None, reason
 
         if not self.cfg.render_clean_email:
             return body, None
 
-        subject = self.derive_subject(caption, body)
-        return (
-            f"{self.cfg.subject_prefix}{subject}\n\n{self.cfg.body_prefix}{body}\n",
-            None,
-        )
+        subject = self.derive_subject(original_subject)
+        if subject:
+            return (
+                f"{self.cfg.subject_prefix}{subject}\n\n{self.cfg.body_prefix}{body}\n",
+                None,
+            )
+
+        return f"{self.cfg.body_prefix}{body}\n", None
