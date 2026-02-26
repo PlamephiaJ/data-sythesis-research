@@ -43,10 +43,6 @@ from data_process.clean_factory import EmailCleanConfig, EmailCleaner
 
 logger = logging.getLogger(__name__)
 
-torch.use_deterministic_algorithms(True)
-torch.backends.cudnn.benchmark = False
-torch.backends.cudnn.deterministic = True
-
 
 def _extract_augment_ratio_from_path(path_value: Optional[str]) -> str:
     if not path_value:
