@@ -59,6 +59,30 @@ def _with_required_columns(ds: Dataset) -> Dataset:
     return ds.select_columns(required_cols)
 
 
+def _normalize_augment_dataset(ds: Dataset) -> Dataset:
+    if "text" not in ds.column_names:
+        if "sample" in ds.column_names:
+            ds = ds.rename_column("sample", "text")
+        else:
+            raise ValueError("augment_data must contain `text` or `sample` column.")
+
+    if "phish" not in ds.column_names:
+        if "label" in ds.column_names:
+            ds = ds.rename_column("label", "phish")
+        else:
+            raise ValueError("augment_data must contain `phish` or `label` column.")
+
+    def _coerce_fields(example: Dict):
+        text = example.get("text")
+        example["text"] = "" if text is None else str(text)
+        phish = example.get("phish")
+        example["phish"] = int(phish) if phish is not None else 0
+        return example
+
+    ds = ds.map(_coerce_fields)
+    return _with_required_columns(ds)
+
+
 def _parse_cluster_id(value) -> Optional[int]:
     if value is None:
         return None
@@ -98,6 +122,13 @@ def _build_masked_train_eval_dataset(
 
     train_split_ratio = float(getattr(cfg.data, "train_split_ratio", 0.9))
     split_seed = int(getattr(cfg.data, "split_seed", 42))
+    masked_data_preserve_rate = float(
+        getattr(cfg.data, "masked_data_preserve_rate", 0.0)
+    )
+    if not 0.0 <= masked_data_preserve_rate <= 1.0:
+        raise ValueError(
+            f"data.masked_data_preserve_rate must be in [0, 1], got: {masked_data_preserve_rate}"
+        )
 
     masked_all_ds = base_train._load_json_data(masked_phish_data)
     if "cluster_id" not in masked_all_ds.column_names:
@@ -128,11 +159,30 @@ def _build_masked_train_eval_dataset(
     eval_phish_ds = phish_split["test"]
 
     before_mask = len(train_phish_ds)
-    train_phish_ds = train_phish_ds.filter(
+    train_masked_cluster_ds = train_phish_ds.filter(
+        lambda x: _parse_cluster_id(x.get("cluster_id")) == mask_cluster_id,
+        num_proc=cfg.data.num_proc,
+    )
+    train_unmasked_phish_ds = train_phish_ds.filter(
         lambda x: _parse_cluster_id(x.get("cluster_id")) != mask_cluster_id,
         num_proc=cfg.data.num_proc,
     )
+
+    masked_cluster_count = len(train_masked_cluster_ds)
+    if masked_cluster_count > 0 and masked_data_preserve_rate > 0.0:
+        if masked_data_preserve_rate >= 1.0:
+            preserved_ds = train_masked_cluster_ds
+        else:
+            preserved_ds = train_masked_cluster_ds.train_test_split(
+                train_size=masked_data_preserve_rate,
+                seed=split_seed,
+            )["train"]
+        train_phish_ds = concatenate_datasets([train_unmasked_phish_ds, preserved_ds])
+    else:
+        train_phish_ds = train_unmasked_phish_ds
+
     after_mask = len(train_phish_ds)
+    preserved_count = after_mask - len(train_unmasked_phish_ds)
 
     train_benign_ds = base_train_ds.filter(
         lambda x: int(x.get("phish", 0)) == 0,
@@ -154,9 +204,12 @@ def _build_masked_train_eval_dataset(
     )
 
     logger.info(
-        "Applied cluster masking on train phish set: cluster_id=%s, phish_train_before=%s, phish_train_after=%s, removed=%s",
+        "Applied cluster masking on train phish set: cluster_id=%s, preserve_rate=%s, phish_train_before=%s, masked_cluster=%s, preserved=%s, phish_train_after=%s, removed=%s",
         mask_cluster_id,
+        masked_data_preserve_rate,
         before_mask,
+        masked_cluster_count,
+        preserved_count,
         after_mask,
         before_mask - after_mask,
     )
@@ -219,9 +272,8 @@ def _run_training(cfg: DictConfig):
 
         if augment_data:
             augment_ds = base_train._load_json_data(augment_data)
-            train_ds = concatenate_datasets(
-                [train_ds, _with_required_columns(augment_ds)]
-            )
+            augment_ds = _normalize_augment_dataset(augment_ds)
+            train_ds = concatenate_datasets([train_ds, augment_ds])
             logger.info("Augmentation data loaded with %s samples.", len(augment_ds))
 
         logger.info("Final training dataset size: %s samples.", len(train_ds))
@@ -355,7 +407,6 @@ def _run_training(cfg: DictConfig):
                         cluster_pred.predictions,
                         cluster_labels,
                     )
-                    cluster_metrics["pr"] = cluster_metrics.get("precision")
                     summary["masked_cluster_eval"] = {
                         "cluster_id": mask_cluster_id,
                         "num_samples": len(eval_masked_cluster_tok),
