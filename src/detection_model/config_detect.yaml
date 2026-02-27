@@ -8,7 +8,7 @@ model:
 data:
   dataset_name: phish-email
   cache_dir: data_phish/cleaned
-  masked_phish_data: data_phish/masked/phish_clustered_all.jsonl
+  masked_phish_data: data_phish/masked/kmeans_clustering/phish_clustered_all.jsonl
   mask_cluster_id: null
   train_split_ratio: 0.9
   split_seed: 42
@@ -18,7 +18,7 @@ data:
   generated_eval_dir: null
   train_ratio: 1.0
   max_length: 512 # This is the maximum sequence length for BERT. Emails longer than this will be truncated.
-  num_proc: 8
+  num_proc: 32
 
 training:
   output_dir: ${hydra:run.dir}
@@ -79,4 +79,5 @@ hydra:
     dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
   sweep:
     dir: exp_local/detection_model/${now:%Y.%m.%d}/${now:%H%M%S}
-    subdir: ${data.train_ratio}_${data.augment_ratio}
+    # subdir: ${hydra:run.job_num}_cluster_${data.mask_cluster_id}
+    subdir: mask_cluster_${data.mask_cluster_id}
