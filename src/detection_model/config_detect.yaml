@@ -8,8 +8,12 @@ model:
 data:
   dataset_name: phish-email
   cache_dir: data_phish/cleaned
+  masked_phish_data: data_phish/masked/phish_clustered_all.jsonl
+  mask_cluster_id: null
+  train_split_ratio: 0.9
+  split_seed: 42
   extra_train_dir: null
-  augment_data: data_phish/eval/origin/1e-3/augmented.jsonl
+  augment_data: null
   augment_ratio: ${augment_ratio_from_data:${data.augment_data}}
   generated_eval_dir: null
   train_ratio: 1.0

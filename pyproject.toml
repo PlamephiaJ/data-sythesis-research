@@ -63,6 +63,7 @@ dependencies = [
     "setuptools<81",
     "matplotlib>=3.9.4",
     "mauve-text>=0.4.0",
+    "hdbscan>=0.8.41",
 ]
 
 # --- Project URLs (Optional) ---
