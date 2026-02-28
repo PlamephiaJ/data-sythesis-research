@@ -19,6 +19,11 @@ Project for deep-learning-based email generator.
 
 # Reverse Chronological Order
 
+## Feb 27th, 2026 Update
+### Yuhao:
+1. I did a lot of experiments but the results are not quite good. The augmentation with generated emails does not seem to improve the detection model's performance. I measured the similarity between the generated emails and the original emails. Seems like the distributions do not match well, which may explain the lack of improvement. I now consider doing a pretraining on the wikitext to let it learn better language modeling ability before fine-tuning on the phishing email dataset. This may help improve the quality of generated emails and thus the augmentation effect.
+1. The downstream detection model's training and evaluation code is now ready. The basic idea is: use HDBSCAN to cluster all phishing emails. Then manually remove a cluster in the training set to create a long-tail distribution. Then use the generated emails to augment the training set and see if it can improve the detection performance on the removed cluster in the test set. Recall is the main metric to evaluate the improvement since we want to see if the generated emails can help the model better detect the long-tail samples.
+
 ## Feb 24th, 2026 Update
 ### Yuhao:
 1. Tried many base model train ratios. Found 0.1 is a good choice for the experiments. Both F1 and Recall have improvements after augmentation with 100% misclassified emails. Will try more low percentage ratios to see if we can achieve similar improvement with less misclassified augmented data.
