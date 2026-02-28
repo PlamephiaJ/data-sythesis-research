@@ -1,7 +1,6 @@
 defaults:
   - _self_
-  - model: small-raw
-  - data: default
+  - phase: pretrain
   - worker: gpuserver
   - override hydra/launcher: submitit_slurm
 
@@ -24,6 +23,11 @@ training:
   alpha_align: 0.1
   tau: 0.1
   eos_penalty: 0.1
+  # Optional explicit loss composition (if set, overrides default auto-composition)
+  # loss_terms:
+  #   - {name: sedd, weight: 1.0}
+  #   - {name: align, weight: 0.1}
+  #   - {name: eos_penalty, weight: 0.1}
 
 graph:
   type: absorb
@@ -42,7 +46,7 @@ sampling:
 
 eval:
   perplexity: True
-  mauve: True
+  mauve: False
   mauve_max_text_length: 1024
 
 optim:
@@ -58,8 +62,8 @@ optim:
 
 hydra:
   run:
-    # dir: exp_local/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
-    dir: exp_local/phish-email/2026.02.13/095342
+    dir: exp_local/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
+    # dir: exp_local/phish-email/2026.02.13/095342
   sweep:
     dir: exp/${data.trainset.name}/${now:%Y.%m.%d}/${now:%H%M%S}
     subdir: ${hydra.job.num}

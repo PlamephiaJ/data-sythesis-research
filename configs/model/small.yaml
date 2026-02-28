@@ -8,13 +8,7 @@ n_heads: 12
 scale_by_sigma: True
 dropout: 0.1
 caption_encoder:
-  name: bert-base-uncased
+  name: ${tokenizer.caption}
   pool: cls
   dropout: 0.1
   freeze: True
-
-conditioning:
-  mode: cross_attn_style          # sigma_only | sigma_plus_style | cross_attn_style
-blocks:
-  type: ddit_flash
-  enable_cross_attn: true   # 只有 cross_attn_style 才需要 true；其他模式可为 false

@@ -1,1 +1,0 @@
-A CNN custom email alert promoting insider stock tips, sent to a subscriber based on their preference settings, with options to manage settings or unsubscribe.

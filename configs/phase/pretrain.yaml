@@ -1,0 +1,16 @@
+# @package _global_
+
+defaults:
+  - /model: small
+  - /data: default
+
+phase: pretrain
+
+data:
+  format: chunk
+
+model:
+  conditioning:
+    mode: sigma_only
+  blocks:
+    enable_cross_attn: false

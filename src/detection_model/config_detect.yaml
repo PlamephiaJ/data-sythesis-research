@@ -14,7 +14,7 @@ data:
   train_split_ratio: 0.9
   split_seed: 42
   extra_train_dir: null
-  augment_data: src/detection_model/augmented_from_caption.jsonl
+  augment_data: src/detection_model/augmented_from_caption_all.jsonl
   augment_ratio: 1.0 # ${augment_ratio_from_data:${data.augment_data}}
   generated_eval_dir: null
   train_ratio: 1.0

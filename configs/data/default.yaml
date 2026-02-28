@@ -1,10 +1,9 @@
 defaults:
   - _self_
-  # - dataset/openwebtext-modern@trainset
-  - dataset/phish-email@trainset
-  # - dataset/wikitext103@validset
-  - dataset/phish-email@validset
+  - dataset/openwebtext-modern@trainset
+  # - dataset/phish-email@trainset
+  - dataset/wikitext103@validset
+  # - dataset/phish-email@validset
 
 num_proc: 120
-format: entry # chunk or entry
 max_length: 1024

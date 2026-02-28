@@ -244,10 +244,19 @@ def get_dataloaders(config, distributed=True):
             f"Eval Batch Size for {worker_cfg.eval.batch_size} is not divisible by {worker_cfg.ngpus} gpus with accumulation {worker_cfg.training.accum}."
         )
 
-    if config.data.format == "chunk":
-        raise NotImplementedError(
-            "Chunk dataset loading not implemented yet, please use entry format for now."
+    phase = str(getattr(config, "phase", "")).strip().lower()
+    if phase == "pretrain":
+        data_format = "chunk"
+    elif phase == "finetune":
+        data_format = "entry"
+    elif phase:
+        raise ValueError(
+            f"Unknown phase '{config.phase}', expected one of: pretrain, finetune."
         )
+    else:
+        data_format = config.data.format
+
+    if data_format == "chunk":
         train_set = get_chunk_dataset(
             config.data.trainset.name,
             "train",
@@ -262,7 +271,7 @@ def get_dataloaders(config, distributed=True):
             block_size=config.model.length,
             num_proc=config.data.num_proc,
         )
-    elif config.data.format == "entry":
+    elif data_format == "entry":
         train_set = get_entry_dataset(
             config.data.trainset.name,
             "train",
@@ -283,7 +292,7 @@ def get_dataloaders(config, distributed=True):
         )
     else:
         raise ValueError(
-            f"Unknown data format {config.data.format}, must be 'chunk' for language modeling or 'entry' for conditioned generation."
+            f"Unknown data format {data_format}, must be 'chunk' for language modeling or 'entry' for conditioned generation."
         )
 
     if distributed:

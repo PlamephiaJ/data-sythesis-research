@@ -584,6 +584,10 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         # conditioning strategy (config-driven)
         cond_cfg = config.model.conditioning if "conditioning" in config.model else None
         self.cond_strategy = build_conditioning_strategy(cond_cfg)
+        self.disable_caption_condition = bool(
+            str(getattr(config, "phase", "")).strip().lower() == "pretrain"
+            or bool(getattr(config.model, "disable_caption_condition", False))
+        )
 
         # blocks (config-driven)
         block_cfg = config.model.blocks if "blocks" in config.model else None
@@ -629,12 +633,20 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         seqlens = x_attention_mask.sum(dim=1).to(torch.int32)  # (B,)
 
         # build conditioning pack
-        cond_pack = self.cond_strategy.build(
-            cond_sigma=cond_sigma,
-            caption_encoder=self.caption_encoder,
-            caption_input_ids=caption_input_ids,
-            caption_attention_mask=caption_attention_mask,
-        )
+        if self.disable_caption_condition:
+            cond_pack = {
+                "c": cond_sigma,
+                "cond_style": None,
+                "style_tokens": None,
+                "style_attention_mask": None,
+            }
+        else:
+            cond_pack = self.cond_strategy.build(
+                cond_sigma=cond_sigma,
+                caption_encoder=self.caption_encoder,
+                caption_input_ids=caption_input_ids,
+                caption_attention_mask=caption_attention_mask,
+            )
 
         ctx = ForwardContext(
             sigma=sigma,

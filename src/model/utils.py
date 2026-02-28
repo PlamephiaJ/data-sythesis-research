@@ -86,7 +86,13 @@ class ScoreFn:
     def __call__(self, x, x_mask, style_caption, style_caption_mask, sigma, **kwargs):
         # Optional CFG parameters (only used during sampling)
         cfg_scale = kwargs.pop("cfg_scale", 0.0)
-        use_cfg = self.sampling and (cfg_scale is not None) and (cfg_scale > 0)
+        use_cfg = (
+            self.sampling
+            and (cfg_scale is not None)
+            and (cfg_scale > 0)
+            and (style_caption is not None)
+            and (style_caption_mask is not None)
+        )
 
         device = x.device
         sigma = sigma.reshape(-1)

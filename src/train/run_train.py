@@ -8,7 +8,7 @@ import torch
 import torch.distributed as dist
 import torch.nn.functional as F
 from ema import ExponentialMovingAverage
-from losses import OptimizationManager, SEDDInfoNCELoss, StepFn
+from losses import OptimizationManager, StepFn, build_loss_fn
 from optimizers import OptimizerRegistry
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
@@ -47,7 +47,21 @@ def cleanup():
 def run_multiprocess(rank, world_size, cfg, port):
     try:
         setup(rank, world_size, port)
-        if cfg.model.name in ["small", "medium"]:
+        phase = str(getattr(cfg, "phase", "")).strip().lower()
+        if phase:
+            if phase == "pretrain":
+                _run_style_control(rank, world_size, cfg)
+            elif phase == "finetune":
+                if "caption_encoder" not in cfg.model:
+                    raise ValueError(
+                        "phase=finetune requires a style-control model config with `model.caption_encoder` (e.g. model=small or model=medium)."
+                    )
+                _run_style_control(rank, world_size, cfg)
+            else:
+                raise ValueError(
+                    f"Unknown phase '{cfg.phase}', expected one of: pretrain, finetune."
+                )
+        elif cfg.model.name in ["small", "medium"]:
             _run_style_control(rank, world_size, cfg)
         elif cfg.model.name in ["small-raw"]:
             _run_raw(rank, world_size, cfg)
@@ -59,6 +73,8 @@ def _run_style_control(rank, world_size, cfg):
     torch.cuda.set_device(rank)
     work_dir = cfg.work_dir
     worker_cfg = cfg.worker if "worker" in cfg else cfg
+    phase = str(getattr(cfg, "phase", "")).strip().lower()
+    is_pretrain = phase == "pretrain"
 
     # Create directories for experimental logs
     sample_dir = os.path.join(work_dir, "samples")
@@ -148,7 +164,9 @@ def _run_style_control(rank, world_size, cfg):
 
     # load in tokenizer
     tokenizer_text = get_text_tokenizer("gpt2")
-    tokenizer_caption = get_caption_tokenizer("bert-base-uncased")
+    tokenizer_caption = (
+        get_caption_tokenizer("bert-base-uncased") if not is_pretrain else None
+    )
     # Build data iterators
     train_ds, eval_ds = data.get_dataloaders(cfg)
 
@@ -160,8 +178,12 @@ def _run_style_control(rank, world_size, cfg):
     # Build one-step training and evaluation functions
     optimize_fn = OptimizationManager(cfg)
     train_step_fn = StepFn(
-        loss_fn=SEDDInfoNCELoss(
-            cfg, noise, graph, True, p_uncond=cfg.training.p_uncond
+        loss_fn=build_loss_fn(
+            cfg,
+            noise,
+            graph,
+            True,
+            p_uncond=cfg.training.p_uncond,
         ),
         train=True,
         optimize_fn=optimize_fn,
@@ -169,8 +191,12 @@ def _run_style_control(rank, world_size, cfg):
     )
 
     eval_step_fn = StepFn(
-        loss_fn=SEDDInfoNCELoss(
-            cfg, noise, graph, False, p_uncond=cfg.training.p_uncond
+        loss_fn=build_loss_fn(
+            cfg,
+            noise,
+            graph,
+            False,
+            p_uncond=cfg.training.p_uncond,
         ),
         train=False,
         optimize_fn=optimize_fn,
@@ -194,11 +220,39 @@ def _run_style_control(rank, world_size, cfg):
             device,
         )
 
-    metric = get_alignment_metric(
-        model_name="intfloat/e5-base-v2",
-        use_sentence_transformers=True,
-        device=str(device),
+    metric = (
+        get_alignment_metric(
+            model_name="intfloat/e5-base-v2",
+            use_sentence_transformers=True,
+            device=str(device),
+        )
+        if not is_pretrain
+        else None
     )
+
+    def _extract_batch(batch_data):
+        if "input_ids" in batch_data:
+            text = batch_data["input_ids"].to(device)
+            text_mask = torch.ones_like(text, device=device)
+            return text, text_mask, None, None
+
+        if "text_input_ids" in batch_data and "text_attention_mask" in batch_data:
+            text = batch_data["text_input_ids"].to(device)
+            text_mask = batch_data["text_attention_mask"].to(device)
+            if (
+                "style_caption_input_ids" in batch_data
+                and "style_caption_attention_mask" in batch_data
+            ):
+                style_caption = batch_data["style_caption_input_ids"].to(device)
+                style_caption_mask = batch_data["style_caption_attention_mask"].to(
+                    device
+                )
+                return text, text_mask, style_caption, style_caption_mask
+            return text, text_mask, None, None
+
+        raise KeyError(
+            "Unsupported batch format. Expected chunk fields {'input_ids'} or entry fields {'text_input_ids','text_attention_mask',...}."
+        )
 
     num_train_steps = cfg.training.n_iters
     mprint(f"Starting training loop at step {initial_step}.")
@@ -207,16 +261,12 @@ def _run_style_control(rank, world_size, cfg):
         step = state["step"]
 
         if cfg.data.trainset.name != "text8":
-            # batch = next(train_iter)["input_ids"].to(device)
-            # batch = next(train_iter)["text_input_ids"].to(device)
             batch_data = next(train_iter)
-            text = batch_data["text_input_ids"].to(device)
-            text_mask = batch_data["text_attention_mask"].to(device)
-            style_caption = batch_data["style_caption_input_ids"].to(device)
-            style_caption_mask = batch_data["style_caption_attention_mask"].to(device)
+            text, text_mask, style_caption, style_caption_mask = _extract_batch(
+                batch_data
+            )
         else:
-            pass
-            # batch = next(train_iter).to(device)
+            raise NotImplementedError("text8 training not implemented yet.")
         loss = train_step_fn(state, text, text_mask, style_caption, style_caption_mask)
 
         # flag to see if there was movement i.e. a full batch got computed
@@ -247,19 +297,15 @@ def _run_style_control(rank, world_size, cfg):
 
             if step % cfg.training.eval_freq == 0:
                 if cfg.data.validset.name != "text8":
-                    # eval_batch = next(eval_iter)["text_input_ids"].to(device)
                     eval_batch_data = next(eval_iter)
-                    eval_text = eval_batch_data["text_input_ids"].to(device)
-                    eval_text_mask = eval_batch_data["text_attention_mask"].to(device)
-                    eval_style_caption = eval_batch_data["style_caption_input_ids"].to(
-                        device
-                    )
-                    eval_style_caption_mask = eval_batch_data[
-                        "style_caption_attention_mask"
-                    ].to(device)
+                    (
+                        eval_text,
+                        eval_text_mask,
+                        eval_style_caption,
+                        eval_style_caption_mask,
+                    ) = _extract_batch(eval_batch_data)
                 else:
-                    pass
-                    # eval_batch = next(train_iter).to(device)
+                    raise NotImplementedError("text8 evaluation not implemented yet.")
                 eval_loss = eval_step_fn(
                     state,
                     eval_text,
@@ -298,20 +344,20 @@ def _run_style_control(rank, world_size, cfg):
                     utils.makedirs(this_sample_dir)
 
                     if cfg.data.validset.name != "text8":
-                        # eval_batch = next(eval_iter)["text_input_ids"].to(device)
                         eval_batch_data = next(eval_iter)
-                        eval_text = eval_batch_data["text_input_ids"][
-                            : sampling_shape[0]
-                        ].to(device)
-                        eval_text_mask = eval_batch_data["text_attention_mask"][
-                            : sampling_shape[0]
-                        ].to(device)
-                        eval_style_caption = eval_batch_data["style_caption_input_ids"][
-                            : sampling_shape[0]
-                        ].to(device)
-                        eval_style_caption_mask = eval_batch_data[
-                            "style_caption_attention_mask"
-                        ][: sampling_shape[0]].to(device)
+                        (
+                            eval_text,
+                            eval_text_mask,
+                            eval_style_caption,
+                            eval_style_caption_mask,
+                        ) = _extract_batch(eval_batch_data)
+                        eval_text = eval_text[: sampling_shape[0]]
+                        eval_text_mask = eval_text_mask[: sampling_shape[0]]
+                        if eval_style_caption is not None:
+                            eval_style_caption = eval_style_caption[: sampling_shape[0]]
+                            eval_style_caption_mask = eval_style_caption_mask[
+                                : sampling_shape[0]
+                            ]
 
                     ema.store(score_model.parameters())
                     ema.copy_to(score_model.parameters())
@@ -336,8 +382,12 @@ def _run_style_control(rank, world_size, cfg):
 
                     sample_trunc = truncate_at_eos(sample, tokenizer_text.eos_token_id)
                     sentences = tokenizer_text.batch_decode(sample_trunc)
-                    captions = tokenizer_caption.batch_decode(
-                        eval_style_caption, skip_special_tokens=True
+                    captions = (
+                        tokenizer_caption.batch_decode(
+                            eval_style_caption, skip_special_tokens=True
+                        )
+                        if (not is_pretrain and eval_style_caption is not None)
+                        else ["" for _ in range(len(sentences))]
                     )
 
                     file_name = os.path.join(this_sample_dir, f"sample_{rank}.json")
@@ -359,18 +409,19 @@ def _run_style_control(rank, world_size, cfg):
                                 result.append(s)
                         return result
 
-                    similarity_scores = metric.score_batch(
-                        captions, extract_body(sentences)
-                    )
-                    avg_similarity = sum(similarity_scores) / len(similarity_scores)
-                    mprint(
-                        f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
-                    )
-                    # Log average similarity score to TensorBoard
-                    if rank == 0:
-                        writer.add_scalar(
-                            "eval/avg_similarity_score", avg_similarity, step
+                    if metric is not None and eval_style_caption is not None:
+                        similarity_scores = metric.score_batch(
+                            captions, extract_body(sentences)
                         )
+                        avg_similarity = sum(similarity_scores) / len(similarity_scores)
+                        mprint(
+                            f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
+                        )
+                        # Log average similarity score to TensorBoard
+                        if rank == 0:
+                            writer.add_scalar(
+                                "eval/avg_similarity_score", avg_similarity, step
+                            )
 
                     if cfg.eval.mauve:
                         generated_texts = extract_body(sentences)

@@ -1,0 +1,18 @@
+# @package _global_
+
+defaults:
+  - /model: small
+  - /data: default
+  - override /data/dataset@data.trainset: phish-email
+  - override /data/dataset@data.validset: phish-email
+
+phase: finetune
+
+data:
+  format: entry
+
+model:
+  conditioning:
+    mode: cross_attn_style
+  blocks:
+    enable_cross_attn: true

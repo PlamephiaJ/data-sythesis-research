@@ -7,3 +7,8 @@ n_blocks: 24
 n_heads: 16
 scale_by_sigma: True
 dropout: 0.1
+caption_encoder:
+  name: ${tokenizer.caption}
+  pool: cls
+  dropout: 0.1
+  freeze: True

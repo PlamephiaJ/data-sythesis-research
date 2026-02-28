@@ -36,15 +36,20 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 
-def truncate_at_eos(batch_ids, eos_id):
+def decode_with_eos_marker(batch_ids, eos_id, tokenizer, eos_marker: str = "<EOS>"):
     output = []
+    has_eos_flags = []
     for row in batch_ids.tolist():
         if eos_id in row:
             idx = row.index(eos_id)
-            output.append(row[:idx])
+            before_text = tokenizer.decode(row[:idx])
+            after_text = tokenizer.decode(row[idx + 1 :])
+            output.append(f"{before_text}{eos_marker}{after_text}")
+            has_eos_flags.append(True)
         else:
-            output.append(row)
-    return output
+            output.append(tokenizer.decode(row))
+            has_eos_flags.append(False)
+    return output, has_eos_flags
 
 
 def clean_generated_sample(text: str) -> str:
@@ -111,7 +116,8 @@ def _generate_on_device(
     worker_seed: int,
     batch_records: list[dict],
     generation_cfg: dict,
-) -> list[dict]:
+    output_path: str = "",
+) -> int:
     random.seed(worker_seed)
     torch.manual_seed(worker_seed)
 
@@ -164,90 +170,135 @@ def _generate_on_device(
     tokenizer_caption = get_caption_tokenizer(caption_tokenizer_name)
 
     generated_output = []
+    out_f = None
+    if output_path:
+        out_file_path = Path(output_path)
+        out_file_path.parent.mkdir(parents=True, exist_ok=True)
+        out_f = open(out_file_path, "a", encoding="utf-8")
     batch_size = generation_cfg["batch_size"]
     total_batches = (len(batch_records) + batch_size - 1) // batch_size
 
-    with torch.inference_mode():
-        for start in tqdm(
-            range(0, len(batch_records), batch_size),
-            total=total_batches,
-            desc=f"Worker-{worker_id} generating",
-            position=worker_id,
-            leave=True,
-        ):
-            records = batch_records[start : start + batch_size]
+    no_eos_count = 0
+    generated_count = 0
 
-            captions = [r["style_caption"] for r in records]
-            source_texts = [r.get("source_text") or r["style_caption"] for r in records]
-            labels = [int(r["label"]) for r in records]
-
-            enc_cap = tokenizer_caption(
-                captions,
-                return_attention_mask=True,
-                add_special_tokens=True,
-                max_length=caption_max_length,
-                truncation=True,
-                padding="max_length",
-                return_tensors="pt",
+    try:
+        with torch.inference_mode():
+            progress_bar = tqdm(
+                range(0, len(batch_records), batch_size),
+                total=total_batches,
+                desc=f"Worker-{worker_id} generating",
+                position=worker_id,
+                leave=True,
             )
+            progress_bar.set_postfix_str("no eos generation: 0 / already generated: 0")
+            for start in progress_bar:
+                records = batch_records[start : start + batch_size]
 
-            if mask_mode == "full":
-                eval_text_mask = torch.ones(
-                    (len(records), length), dtype=torch.int32, device=device
-                )
-            else:
-                enc_text = tokenizer_text(
-                    source_texts,
+                captions = [r["style_caption"] for r in records]
+                source_texts = [
+                    r.get("source_text") or r["style_caption"] for r in records
+                ]
+                labels = [int(r["label"]) for r in records]
+
+                enc_cap = tokenizer_caption(
+                    captions,
                     return_attention_mask=True,
                     add_special_tokens=True,
-                    max_length=length,
+                    max_length=caption_max_length,
                     truncation=True,
                     padding="max_length",
                     return_tensors="pt",
                 )
-                eval_text_mask = enc_text["attention_mask"].to(device)
-            eval_style_caption = enc_cap["input_ids"].to(device)
-            eval_style_caption_mask = enc_cap["attention_mask"].to(device)
 
-            sampling_fn = sampling.PCSampler(
-                graph,
-                noise,
-                (len(records), length),
-                predictor,
-                steps,
-                denoise,
-                1e-5,
-                device,
-            )
+                if mask_mode == "full":
+                    eval_text_mask = torch.ones(
+                        (len(records), length), dtype=torch.int32, device=device
+                    )
+                else:
+                    enc_text = tokenizer_text(
+                        source_texts,
+                        return_attention_mask=True,
+                        add_special_tokens=True,
+                        max_length=length,
+                        truncation=True,
+                        padding="max_length",
+                        return_tensors="pt",
+                    )
+                    eval_text_mask = enc_text["attention_mask"].to(device)
+                eval_style_caption = enc_cap["input_ids"].to(device)
+                eval_style_caption_mask = enc_cap["attention_mask"].to(device)
 
-            samples = sampling_fn(
-                model,
-                eval_text_mask,
-                eval_style_caption,
-                eval_style_caption_mask,
-                cfg_scale,
-            )
-
-            sample_trunc = truncate_at_eos(samples, tokenizer_text.eos_token_id)
-            sentences = tokenizer_text.batch_decode(sample_trunc)
-
-            for sentence, record, label in zip(sentences, records, labels):
-                generated_output.append(
-                    {
-                        "sample": clean_generated_sample(sentence),
-                        "label": int(label),
-                        "style_caption": record["style_caption"],
-                        "source_text": record["source_text"],
-                    }
+                sampling_fn = sampling.PCSampler(
+                    graph,
+                    noise,
+                    (len(records), length),
+                    predictor,
+                    steps,
+                    denoise,
+                    1e-5,
+                    device,
                 )
+
+                samples = sampling_fn(
+                    model,
+                    eval_text_mask,
+                    eval_style_caption,
+                    eval_style_caption_mask,
+                    cfg_scale,
+                )
+
+                sentences, has_eos_flags = decode_with_eos_marker(
+                    samples,
+                    tokenizer_text.eos_token_id,
+                    tokenizer_text,
+                )
+                full_sentences = tokenizer_text.batch_decode(samples)
+
+                for sentence, full_sentence, has_eos, record, label in zip(
+                    sentences,
+                    full_sentences,
+                    has_eos_flags,
+                    records,
+                    labels,
+                ):
+                    if not has_eos:
+                        no_eos_count += 1
+                        logger.warning(
+                            "Worker-%d no <eos> generated sample: %s",
+                            worker_id,
+                            clean_generated_sample(full_sentence),
+                        )
+
+                    generated_count += 1
+                    progress_bar.set_postfix_str(
+                        f"no eos generation: {no_eos_count} / already generated: {generated_count}"
+                    )
+
+                    generated_output.append(
+                        {
+                            "sample": clean_generated_sample(sentence),
+                            "label": int(label),
+                            "style_caption": record["style_caption"],
+                            "source_text": record["source_text"],
+                        }
+                    )
+
+                if out_f is not None and generated_output:
+                    for record in generated_output:
+                        out_f.write(json.dumps(record, ensure_ascii=False) + "\n")
+                    out_f.flush()
+                    generated_output = []
+    finally:
+        if out_f is not None:
+            out_f.close()
 
     logger.info(
         "Worker-%d finished on %s, generated %d samples",
         worker_id,
         device_str,
-        len(generated_output),
+        generated_count,
     )
-    return generated_output
+    return generated_count
 
 
 def main():
@@ -263,7 +314,7 @@ def main():
     parser.add_argument(
         "--caption_file",
         type=str,
-        default="src/detection_model/caption.txt",
+        default="src/detection_model/caption_cluster_id_0.txt",
         help="Path to caption file, one caption per line.",
     )
     parser.add_argument(
@@ -387,7 +438,19 @@ def main():
             "--source_text is empty in source mask mode; fallback to caption text as source_text."
         )
 
-    generated_output = []
+    if args.output_path:
+        output_path = Path(args.output_path).resolve()
+    else:
+        output_dir = Path.cwd() / "temp"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / "augmented_from_caption.jsonl"
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8"):
+        pass
+
+    generated_total = 0
+
     if torch.cuda.is_available():
         available = torch.cuda.device_count()
         requested_gpu_ids = parse_gpu_ids(args.gpu_ids)
@@ -404,18 +467,32 @@ def main():
         if len(gpu_ids) <= 1:
             device_str = f"cuda:{gpu_ids[0]}" if len(gpu_ids) == 1 else "cuda:0"
             logger.info("Using single GPU: %s", device_str)
-            generated_output = _generate_on_device(
+            logger.info("Streaming output to: %s", output_path)
+            generated_total = _generate_on_device(
                 device_str,
                 0,
                 args.seed,
                 generation_records,
                 generation_cfg,
+                str(output_path),
             )
         else:
             logger.info("Using multi-GPU: %s", gpu_ids)
             shards = split_records(generation_records, len(gpu_ids))
             for idx, shard in enumerate(shards):
                 logger.info("shard-%d size: %d", idx, len(shard))
+
+            part_paths = []
+            for worker_id in range(len(gpu_ids)):
+                part_path = output_path.with_name(
+                    f"{output_path.stem}.worker{worker_id}.part{output_path.suffix}"
+                )
+                with open(part_path, "w", encoding="utf-8"):
+                    pass
+                part_paths.append(part_path)
+            logger.info(
+                "Streaming output to worker part files under: %s", output_path.parent
+            )
 
             ctx = torch.multiprocessing.get_context("spawn")
             with concurrent.futures.ProcessPoolExecutor(
@@ -435,6 +512,7 @@ def main():
                             args.seed + worker_id,
                             shard_records,
                             generation_cfg,
+                            str(part_paths[worker_id]),
                         )
                     )
 
@@ -443,30 +521,27 @@ def main():
                     total=len(futures),
                     desc="Waiting workers",
                 ):
-                    generated_output.extend(future.result())
+                    generated_total += future.result()
+
+            with open(output_path, "w", encoding="utf-8") as out_f:
+                for part_path in part_paths:
+                    with open(part_path, encoding="utf-8") as part_f:
+                        for line in part_f:
+                            out_f.write(line)
+                    part_path.unlink(missing_ok=True)
     else:
         logger.info("CUDA not available, fallback to CPU")
-        generated_output = _generate_on_device(
+        logger.info("Streaming output to: %s", output_path)
+        generated_total = _generate_on_device(
             "cpu",
             0,
             args.seed,
             generation_records,
             generation_cfg,
+            str(output_path),
         )
 
-    if args.output_path:
-        output_path = Path(args.output_path).resolve()
-    else:
-        output_dir = Path.cwd() / "temp"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / "augmented_from_caption.jsonl"
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as out_f:
-        for record in generated_output:
-            out_f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
-    logger.info("Saved %d samples to: %s", len(generated_output), output_path)
+    logger.info("Saved %d samples to: %s", generated_total, output_path)
 
 
 if __name__ == "__main__":
