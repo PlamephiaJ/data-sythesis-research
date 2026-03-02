@@ -66,36 +66,41 @@ def main():
     hydra_cfg = os.path.join(args.model_path, ".hydra", "config.yaml")
     if os.path.exists(hydra_cfg):
         cfg = utils.load_hydra_config_from_run(args.model_path)
+    if cfg is None:
+        raise ValueError(
+            "Missing run config at <model_path>/.hydra/config.yaml. Config is required."
+        )
 
-    # tokenizer names from cfg or defaults
-    text_tokenizer_name = "gpt2"
-    caption_tokenizer_name = "bert-base-uncased"
-    if cfg is not None:
-        text_tokenizer_name = getattr(
-            getattr(cfg, "tokenizer", None), "text", text_tokenizer_name
-        )
-        caption_tokenizer_name = getattr(
-            getattr(cfg, "tokenizer", None), "caption", caption_tokenizer_name
-        )
+    if "tokenizer" not in cfg or "text" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.text")
+    if "tokenizer" not in cfg or "caption" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.caption")
+    text_tokenizer_name = cfg.tokenizer.text
+    caption_tokenizer_name = cfg.tokenizer.caption
 
     tokenizer_text = get_text_tokenizer(text_tokenizer_name)
     tokenizer_caption = get_caption_tokenizer(caption_tokenizer_name)
 
     length = args.length
-    if length is None and cfg is not None:
-        length = getattr(getattr(cfg, "model", None), "length", None)
-    length = int(length or 1024)
+    if length is None:
+        if "model" not in cfg or "length" not in cfg.model:
+            raise ValueError("Missing required config key: model.length")
+        length = cfg.model.length
+    length = int(length)
 
     steps = args.steps
-    if steps is None and cfg is not None:
-        steps = getattr(getattr(cfg, "sampling", None), "steps", None)
-    steps = int(steps or 128)
+    if steps is None:
+        if "sampling" not in cfg or "steps" not in cfg.sampling:
+            raise ValueError("Missing required config key: sampling.steps")
+        steps = cfg.sampling.steps
+    steps = int(steps)
 
-    predictor = "analytic"
-    denoise = True
-    if cfg is not None:
-        predictor = getattr(getattr(cfg, "sampling", None), "predictor", predictor)
-        denoise = getattr(getattr(cfg, "sampling", None), "noise_removal", denoise)
+    if "sampling" not in cfg or "predictor" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.predictor")
+    if "noise_removal" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.noise_removal")
+    predictor = cfg.sampling.predictor
+    denoise = cfg.sampling.noise_removal
 
     n = int(args.num)
 

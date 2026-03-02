@@ -120,9 +120,7 @@ def build_loss_fn(
     lv: bool = False,
     p_uncond: float = 0.1,
 ):
-    terms = [
-        t for t in _normalize_loss_terms(config) if float(t.get("weight", 0.0)) > 0
-    ]
+    terms = [t for t in _normalize_loss_terms(config) if float(t["weight"]) > 0]
     allowed = {"sedd", "align", "eos_penalty"}
     for t in terms:
         if t["name"] not in allowed:
@@ -258,7 +256,7 @@ def build_loss_fn(
         loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)
 
         total = log_score.new_zeros(loss_sedd.shape)
-        if term_weights.get("sedd", 0.0) > 0:
+        if "sedd" in term_weights and term_weights["sedd"] > 0:
             total = total + term_weights["sedd"] * loss_sedd
 
         if use_align:

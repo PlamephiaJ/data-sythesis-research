@@ -93,9 +93,9 @@ def _effective_max_length(
         except Exception:
             cfg = None
 
-    model_max_pos = (
-        getattr(cfg, "max_position_embeddings", None) if cfg is not None else None
-    )
+    model_max_pos = None
+    if cfg is not None and hasattr(cfg, "max_position_embeddings"):
+        model_max_pos = cfg.max_position_embeddings
     if isinstance(model_max_pos, int) and model_max_pos > 0:
         candidates.append(model_max_pos)
 
@@ -466,7 +466,9 @@ def _make_absolute(path: str) -> str:
 
 
 def _build_output_dir(cfg: DictConfig) -> str:
-    if getattr(cfg, "training", None) and getattr(cfg.training, "output_dir", None):
+    if "training" not in cfg or "output_dir" not in cfg.training:
+        raise ValueError("Missing required config key: training.output_dir")
+    if cfg.training.output_dir:
         return _make_absolute(str(cfg.training.output_dir))
     try:
         hydra_cfg = HydraConfig.get()
@@ -614,19 +616,19 @@ def _run_training(cfg: DictConfig):
             cfg.model.name, num_labels=cfg.model.num_labels
         )
 
-        max_steps = getattr(cfg.training, "max_steps", None)
+        if "max_steps" not in cfg.training:
+            raise ValueError("Missing required config key: training.max_steps")
+        max_steps = cfg.training.max_steps
         max_steps = int(max_steps) if max_steps is not None else -1
 
         report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
 
-        save_best_model = bool(getattr(cfg.training, "save_best_model", False))
+        if "save_best_model" not in cfg.training:
+            raise ValueError("Missing required config key: training.save_best_model")
+        save_best_model = bool(cfg.training.save_best_model)
         save_strategy = "best" if save_best_model else cfg.training.save_strategy
         save_total_limit = 1 if save_best_model else cfg.training.save_total_limit
-        save_steps = (
-            getattr(cfg.training, "save_steps", None)
-            if str(save_strategy) == "steps"
-            else None
-        )
+        save_steps = cfg.training.save_steps if str(save_strategy) == "steps" else None
 
         training_args = TrainingArguments(
             output_dir=output_dir,
@@ -642,10 +644,8 @@ def _run_training(cfg: DictConfig):
             metric_for_best_model=cfg.training.metric_for_best_model,
             greater_is_better=True,
             logging_steps=cfg.training.logging_steps,
-            logging_dir=_resolve_logging_dir(
-                run_dir, getattr(cfg.training, "logging_dir", None)
-            ),
-            eval_steps=getattr(cfg.training, "eval_steps", None),
+            logging_dir=_resolve_logging_dir(run_dir, cfg.training.logging_dir),
+            eval_steps=cfg.training.eval_steps,
             save_steps=save_steps,
             save_total_limit=save_total_limit,
             fp16=torch.cuda.is_available(),
@@ -756,7 +756,9 @@ def _distributed_worker(
 def main(cfg: DictConfig):
     if cfg.training.ngpus > 1 and "LOCAL_RANK" not in os.environ:
         cfg_container = OmegaConf.to_container(cfg, resolve=True)
-        training_cfg = cfg_container.get("training", {})
+        if "training" not in cfg_container:
+            raise ValueError("Missing required config key: training")
+        training_cfg = cfg_container["training"]
         try:
             hydra_cfg = HydraConfig.get()
             if hydra_cfg.mode == RunMode.RUN:
@@ -780,7 +782,9 @@ def main(cfg: DictConfig):
             training_cfg["logging_dir"] = runtime_logging_dir
         elif training_cfg.get("output_dir"):
             training_cfg["output_dir"] = _make_absolute(training_cfg["output_dir"])
-        data_cfg = cfg_container.get("data", {})
+        if "data" not in cfg_container:
+            raise ValueError("Missing required config key: data")
+        data_cfg = cfg_container["data"]
         for key in (
             "cache_dir",
             "extra_train_dir",

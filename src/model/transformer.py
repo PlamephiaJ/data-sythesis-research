@@ -599,7 +599,9 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
 
         # blocks (config-driven)
-        block_cfg = config.model.blocks if "blocks" in config.model else None
+        if "blocks" not in config.model:
+            raise ValueError("Missing required config key: model.blocks")
+        block_cfg = config.model.blocks
         self.blocks = nn.ModuleList(
             [
                 build_block(

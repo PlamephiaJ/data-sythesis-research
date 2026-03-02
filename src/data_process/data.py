@@ -133,7 +133,9 @@ def get_entry_dataset(
 
 
 def get_dataloaders(config, distributed=True):
-    worker_cfg = config.worker if "worker" in config else config
+    if "worker" not in config:
+        raise ValueError("Missing required config key: worker")
+    worker_cfg = config.worker
 
     if (
         worker_cfg.training.batch_size % (worker_cfg.ngpus * worker_cfg.training.accum)

@@ -42,9 +42,9 @@ def _safe_max_length(requested: int, tokenizer, model) -> int:
 
     base_model = model.module if hasattr(model, "module") else model
     cfg = getattr(base_model, "config", None)
-    model_max_pos = (
-        getattr(cfg, "max_position_embeddings", None) if cfg is not None else None
-    )
+    model_max_pos = None
+    if cfg is not None and hasattr(cfg, "max_position_embeddings"):
+        model_max_pos = cfg.max_position_embeddings
     if isinstance(model_max_pos, int) and model_max_pos > 0:
         candidates.append(model_max_pos)
 
@@ -157,19 +157,14 @@ def _load_cleaner_and_max_len(
         return EmailCleaner(EmailCleanConfig()), default_max_length
 
     cfg = OmegaConf.load(str(cfg_path))
-    cleaner_cfg = getattr(cfg, "cleaner", None)
-    data_cfg = getattr(cfg, "data", None)
+    if "cleaner" not in cfg:
+        raise ValueError("Missing required config key: cleaner")
+    if "data" not in cfg or "max_length" not in cfg.data:
+        raise ValueError("Missing required config key: data.max_length")
 
-    if cleaner_cfg is not None:
-        cleaner_dict = OmegaConf.to_container(cleaner_cfg, resolve=True)
-        cleaner = EmailCleaner(EmailCleanConfig(**cleaner_dict))
-    else:
-        cleaner = EmailCleaner(EmailCleanConfig())
-
-    if data_cfg is not None and getattr(data_cfg, "max_length", None) is not None:
-        max_length = int(data_cfg.max_length)
-    else:
-        max_length = default_max_length
+    cleaner_dict = OmegaConf.to_container(cfg.cleaner, resolve=True)
+    cleaner = EmailCleaner(EmailCleanConfig(**cleaner_dict))
+    max_length = int(cfg.data.max_length)
 
     return cleaner, max_length
 

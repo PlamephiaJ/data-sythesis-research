@@ -254,7 +254,7 @@ def build_dataset(cfg, split: str):
             mode,
             cache_dir=cache_dir,
             text_max_length=cfg.data.max_length,
-            caption_max_length=getattr(cfg.data, "caption_max_length", 256),
+            caption_max_length=cfg.data.caption_max_length,
             num_proc=cfg.data.num_proc,
             text_tokenizer_name=cfg.tokenizer.text,
             caption_tokenizer_name=cfg.tokenizer.caption,
@@ -279,7 +279,9 @@ def _load_cfg(config_path: str):
 
 
 def _worker_cfg(cfg):
-    return cfg.worker if "worker" in cfg else cfg
+    if "worker" not in cfg:
+        raise ValueError("Missing required config key: worker")
+    return cfg.worker
 
 
 def main():

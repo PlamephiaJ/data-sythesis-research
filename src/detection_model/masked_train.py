@@ -103,12 +103,12 @@ def _build_masked_train_eval_dataset(
         cfg.data.dataset_name, mode="validation", cache_dir=cache_dir
     )
 
-    mask_cluster_id = _to_optional_int(getattr(cfg.data, "mask_cluster_id", None))
-    masked_phish_data = getattr(
-        cfg.data,
-        "masked_phish_data",
-        "data_phish/masked/phish_clustered_all.jsonl",
-    )
+    if "mask_cluster_id" not in cfg.data:
+        raise ValueError("Missing required config key: data.mask_cluster_id")
+    if "masked_phish_data" not in cfg.data:
+        raise ValueError("Missing required config key: data.masked_phish_data")
+    mask_cluster_id = _to_optional_int(cfg.data.mask_cluster_id)
+    masked_phish_data = cfg.data.masked_phish_data
     masked_phish_data = base_train._resolve_data_path(masked_phish_data)
 
     if mask_cluster_id is None:
@@ -120,11 +120,15 @@ def _build_masked_train_eval_dataset(
             "mask_cluster_id is set but data.masked_phish_data is empty or invalid."
         )
 
-    train_split_ratio = float(getattr(cfg.data, "train_split_ratio", 0.9))
-    split_seed = int(getattr(cfg.data, "split_seed", 42))
-    masked_data_preserve_rate = float(
-        getattr(cfg.data, "masked_data_preserve_rate", 0.0)
-    )
+    if "train_split_ratio" not in cfg.data:
+        raise ValueError("Missing required config key: data.train_split_ratio")
+    if "split_seed" not in cfg.data:
+        raise ValueError("Missing required config key: data.split_seed")
+    if "masked_data_preserve_rate" not in cfg.data:
+        raise ValueError("Missing required config key: data.masked_data_preserve_rate")
+    train_split_ratio = float(cfg.data.train_split_ratio)
+    split_seed = int(cfg.data.split_seed)
+    masked_data_preserve_rate = float(cfg.data.masked_data_preserve_rate)
     if not 0.0 <= masked_data_preserve_rate <= 1.0:
         raise ValueError(
             f"data.masked_data_preserve_rate must be in [0, 1], got: {masked_data_preserve_rate}"
@@ -307,19 +311,19 @@ def _run_training(cfg: DictConfig):
             cfg.model.name, num_labels=cfg.model.num_labels
         )
 
-        max_steps = getattr(cfg.training, "max_steps", None)
+        if "max_steps" not in cfg.training:
+            raise ValueError("Missing required config key: training.max_steps")
+        max_steps = cfg.training.max_steps
         max_steps = int(max_steps) if max_steps is not None else -1
 
         report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
 
-        save_best_model = bool(getattr(cfg.training, "save_best_model", False))
+        if "save_best_model" not in cfg.training:
+            raise ValueError("Missing required config key: training.save_best_model")
+        save_best_model = bool(cfg.training.save_best_model)
         save_strategy = "best" if save_best_model else cfg.training.save_strategy
         save_total_limit = 1 if save_best_model else cfg.training.save_total_limit
-        save_steps = (
-            getattr(cfg.training, "save_steps", None)
-            if str(save_strategy) == "steps"
-            else None
-        )
+        save_steps = cfg.training.save_steps if str(save_strategy) == "steps" else None
 
         training_args = TrainingArguments(
             output_dir=output_dir,
@@ -336,9 +340,9 @@ def _run_training(cfg: DictConfig):
             greater_is_better=True,
             logging_steps=cfg.training.logging_steps,
             logging_dir=base_train._resolve_logging_dir(
-                run_dir, getattr(cfg.training, "logging_dir", None)
+                run_dir, cfg.training.logging_dir
             ),
-            eval_steps=getattr(cfg.training, "eval_steps", None),
+            eval_steps=cfg.training.eval_steps,
             save_steps=save_steps,
             save_total_limit=save_total_limit,
             fp16=torch.cuda.is_available(),
@@ -371,7 +375,9 @@ def _run_training(cfg: DictConfig):
 
         trainer.train()
         eval_metrics = trainer.evaluate()
-        mask_cluster_id = _to_optional_int(getattr(cfg.data, "mask_cluster_id", None))
+        if "mask_cluster_id" not in cfg.data:
+            raise ValueError("Missing required config key: data.mask_cluster_id")
+        mask_cluster_id = _to_optional_int(cfg.data.mask_cluster_id)
 
         summary = {
             "train_size": len(train_tok),
@@ -524,7 +530,9 @@ def main(cfg: DictConfig):
 
     if cfg.training.ngpus > 1 and "LOCAL_RANK" not in os.environ:
         cfg_container = OmegaConf.to_container(cfg, resolve=True)
-        training_cfg = cfg_container.get("training", {})
+        if "training" not in cfg_container:
+            raise ValueError("Missing required config key: training")
+        training_cfg = cfg_container["training"]
         training_cfg["ngpus"] = effective_ngpus
         try:
             hydra_cfg = HydraConfig.get()
@@ -551,7 +559,9 @@ def main(cfg: DictConfig):
             training_cfg["output_dir"] = base_train._make_absolute(
                 training_cfg["output_dir"]
             )
-        data_cfg = cfg_container.get("data", {})
+        if "data" not in cfg_container:
+            raise ValueError("Missing required config key: data")
+        data_cfg = cfg_container["data"]
         for key in (
             "cache_dir",
             "extra_train_dir",

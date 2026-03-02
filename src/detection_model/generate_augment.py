@@ -139,31 +139,66 @@ def _generate_on_device(
     cfg_scale = generation_cfg["cfg_scale"]
     mask_mode = generation_cfg["mask_mode"]
 
-    if length is None and cfg is not None:
-        length = getattr(getattr(cfg, "model", None), "length", None)
-    length = length or 1024
+    if length is None:
+        if cfg is None:
+            raise ValueError(
+                "Missing generation length: provide --length or include model.length in loaded config"
+            )
+        if "model" not in cfg or "length" not in cfg.model:
+            raise ValueError("Missing required config key: model.length")
+        length = cfg.model.length
 
-    if steps is None and cfg is not None:
-        steps = getattr(getattr(cfg, "sampling", None), "steps", None)
-    steps = steps or 128
+    if steps is None:
+        if cfg is None:
+            raise ValueError(
+                "Missing sampling steps: provide --steps or include sampling.steps in loaded config"
+            )
+        if "sampling" not in cfg or "steps" not in cfg.sampling:
+            raise ValueError("Missing required config key: sampling.steps")
+        steps = cfg.sampling.steps
 
     if cfg is not None:
-        predictor = getattr(getattr(cfg, "sampling", None), "predictor", predictor)
-        denoise = getattr(getattr(cfg, "sampling", None), "noise_removal", denoise)
+        if "sampling" not in cfg:
+            raise ValueError("Missing required config key: sampling")
+        if predictor is None:
+            if "predictor" not in cfg.sampling:
+                raise ValueError("Missing required config key: sampling.predictor")
+            predictor = cfg.sampling.predictor
+        if denoise is None:
+            if "noise_removal" not in cfg.sampling:
+                raise ValueError("Missing required config key: sampling.noise_removal")
+            denoise = cfg.sampling.noise_removal
 
     text_tokenizer_name = generation_cfg["text_tokenizer_name"]
     caption_tokenizer_name = generation_cfg["caption_tokenizer_name"]
     if cfg is not None:
-        text_tokenizer_name = getattr(
-            getattr(cfg, "tokenizer", None), "text", text_tokenizer_name
+        if "tokenizer" not in cfg:
+            raise ValueError("Missing required config key: tokenizer")
+        if text_tokenizer_name is None:
+            if "text" not in cfg.tokenizer:
+                raise ValueError("Missing required config key: tokenizer.text")
+            text_tokenizer_name = cfg.tokenizer.text
+        if caption_tokenizer_name is None:
+            if "caption" not in cfg.tokenizer:
+                raise ValueError("Missing required config key: tokenizer.caption")
+            caption_tokenizer_name = cfg.tokenizer.caption
+
+        if caption_max_length is None:
+            if "data" not in cfg or "caption_max_length" not in cfg.data:
+                raise ValueError("Missing required config key: data.caption_max_length")
+            caption_max_length = int(cfg.data.caption_max_length)
+
+    if text_tokenizer_name is None:
+        raise ValueError(
+            "Missing text tokenizer name: set --text_tokenizer_name or tokenizer.text"
         )
-        caption_tokenizer_name = getattr(
-            getattr(cfg, "tokenizer", None), "caption", caption_tokenizer_name
+    if caption_tokenizer_name is None:
+        raise ValueError(
+            "Missing caption tokenizer name: set --caption_tokenizer_name or tokenizer.caption"
         )
-        caption_max_length = int(
-            getattr(
-                getattr(cfg, "data", None), "caption_max_length", caption_max_length
-            )
+    if caption_max_length is None:
+        raise ValueError(
+            "Missing caption max length: set --caption_max_length or data.caption_max_length"
         )
 
     tokenizer_text = get_text_tokenizer(text_tokenizer_name)

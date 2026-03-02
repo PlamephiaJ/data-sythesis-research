@@ -62,40 +62,49 @@ def main():
     if os.path.exists(hydra_cfg):
         cfg = utils.load_hydra_config_from_run(args.model_path)
 
-    model_cfg = getattr(model, "config", None)
-    cfg = cfg or model_cfg
-    worker_cfg = getattr(cfg, "worker", cfg) if cfg is not None else None
+    if cfg is None:
+        raise ValueError(
+            "Missing run config at <model_path>/.hydra/config.yaml. Config is required."
+        )
+    if "worker" not in cfg:
+        raise ValueError("Missing required config key: worker")
+    worker_cfg = cfg.worker
 
     length = args.length
-    if length is None and cfg is not None:
-        length = getattr(getattr(cfg, "model", None), "length", None)
-    length = length or 1024
+    if length is None:
+        if "model" not in cfg or "length" not in cfg.model:
+            raise ValueError("Missing required config key: model.length")
+        length = cfg.model.length
 
     steps = args.steps
-    if steps is None and cfg is not None:
-        steps = getattr(getattr(cfg, "sampling", None), "steps", None)
-    steps = steps or 1024
+    if steps is None:
+        if "sampling" not in cfg or "steps" not in cfg.sampling:
+            raise ValueError("Missing required config key: sampling.steps")
+        steps = cfg.sampling.steps
 
-    predictor = "analytic"
-    denoise = True
-    if cfg is not None:
-        predictor = getattr(getattr(cfg, "sampling", None), "predictor", predictor)
-        denoise = getattr(getattr(cfg, "sampling", None), "noise_removal", denoise)
+    if "sampling" not in cfg or "predictor" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.predictor")
+    if "noise_removal" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.noise_removal")
+    predictor = cfg.sampling.predictor
+    denoise = cfg.sampling.noise_removal
 
-    text_tokenizer_name = "gpt2"
-    caption_tokenizer_name = "bert-base-uncased"
-    if cfg is not None:
-        text_tokenizer_name = getattr(
-            getattr(cfg, "tokenizer", None), "text", text_tokenizer_name
-        )
-        caption_tokenizer_name = getattr(
-            getattr(cfg, "tokenizer", None), "caption", caption_tokenizer_name
-        )
+    if "tokenizer" not in cfg or "text" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.text")
+    if "tokenizer" not in cfg or "caption" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.caption")
+    text_tokenizer_name = cfg.tokenizer.text
+    caption_tokenizer_name = cfg.tokenizer.caption
 
     tokenizer_text = get_text_tokenizer(text_tokenizer_name)
     tokenizer_caption = get_caption_tokenizer(caption_tokenizer_name)
 
-    if cfg is None or getattr(getattr(cfg, "data", None), "format", None) != "entry":
+    if (
+        "data" not in cfg
+        or "validset" not in cfg.data
+        or "format" not in cfg.data.validset
+        or str(cfg.data.validset.format).strip().lower() != "entry"
+    ):
         raise ValueError("run_sample.py currently supports only entry-format datasets")
 
     valid_set = data_process.get_entry_dataset(
@@ -136,9 +145,12 @@ def main():
         device=str(device),
     )
 
-    eval_cfg = getattr(cfg, "eval", None) if cfg is not None else None
-    enable_mauve = bool(getattr(eval_cfg, "mauve", True))
-    mauve_max_text_length = int(getattr(eval_cfg, "mauve_max_text_length", 256))
+    if "eval" not in cfg or "mauve" not in cfg.eval:
+        raise ValueError("Missing required config key: eval.mauve")
+    if "mauve_max_text_length" not in cfg.eval:
+        raise ValueError("Missing required config key: eval.mauve_max_text_length")
+    enable_mauve = bool(cfg.eval.mauve)
+    mauve_max_text_length = int(cfg.eval.mauve_max_text_length)
 
     def extract_body(sentences):
         result = []
@@ -156,9 +168,11 @@ def main():
     ):
         eval_model = get_eval_lm("gpt2-large", device)
 
-        batch_size = int(
-            getattr(getattr(worker_cfg, "eval", None), "perplexity_batch_size", 32)
-        )
+        if "eval" not in worker_cfg or "perplexity_batch_size" not in worker_cfg.eval:
+            raise ValueError(
+                "Missing required config key: worker.eval.perplexity_batch_size"
+            )
+        batch_size = int(worker_cfg.eval.perplexity_batch_size)
 
         similarity_sum = 0.0
         similarity_count = 0

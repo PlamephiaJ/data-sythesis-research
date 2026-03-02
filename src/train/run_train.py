@@ -58,7 +58,9 @@ def run_multiprocess(rank, world_size, cfg, port):
 def _run_style_control(rank, world_size, cfg):
     torch.cuda.set_device(rank)
     work_dir = cfg.work_dir
-    worker_cfg = cfg.worker if "worker" in cfg else cfg
+    if "worker" not in cfg:
+        raise ValueError("Missing required config key: worker")
+    worker_cfg = cfg.worker
     train_format = str(cfg.data.trainset.format).strip().lower()
     valid_format = str(cfg.data.validset.format).strip().lower()
     if train_format != valid_format:
@@ -525,7 +527,9 @@ def _run_style_control(rank, world_size, cfg):
 def _run_raw(rank, world_size, cfg):
     torch.cuda.set_device(rank)
     work_dir = cfg.work_dir
-    worker_cfg = cfg.worker if "worker" in cfg else cfg
+    if "worker" not in cfg:
+        raise ValueError("Missing required config key: worker")
+    worker_cfg = cfg.worker
 
     # Create directories for experimental logs
     sample_dir = os.path.join(work_dir, "samples")

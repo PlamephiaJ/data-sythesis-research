@@ -15,7 +15,9 @@ from utils import utils
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def main(cfg):
-    worker_cfg = cfg.worker if "worker" in cfg else cfg
+    if "worker" not in cfg:
+        raise ValueError("Missing required config key: worker")
+    worker_cfg = cfg.worker
     ngpus = worker_cfg.ngpus
     if "load_dir" in cfg:
         hydra_cfg_path = os.path.join(cfg.load_dir, ".hydra/hydra.yaml")
@@ -35,10 +37,7 @@ def main(cfg):
         utils.makedirs(work_dir)
 
     with open_dict(cfg):
-        if "worker" in cfg:
-            cfg.worker.ngpus = ngpus
-        else:
-            cfg.ngpus = ngpus
+        cfg.worker.ngpus = ngpus
         cfg.work_dir = work_dir
         cfg.wandb_name = os.path.basename(os.path.normpath(work_dir))
 

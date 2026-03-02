@@ -114,11 +114,9 @@ def _sample_to_size(ds: Dataset, target_size: int, seed: int) -> Dataset:
 def _build_aug_train_eval_dataset(
     cfg: DictConfig,
 ) -> Tuple[Dataset, Dataset]:
-    augment_data = getattr(
-        cfg.data,
-        "augment_data",
-        "src/detection_model/augmented_from_caption_all.jsonl",
-    )
+    if "augment_data" not in cfg.data:
+        raise ValueError("Missing required config key: data.augment_data")
+    augment_data = cfg.data.augment_data
     augment_data = base_train._resolve_data_path(augment_data)
     if not augment_data:
         raise ValueError("data.augment_data is empty or invalid.")
@@ -131,7 +129,9 @@ def _build_aug_train_eval_dataset(
     base_eval_ds = dataset_factory.get_dataset(
         cfg.data.dataset_name, mode="validation", cache_dir=cache_dir
     )
-    split_seed = int(getattr(cfg.data, "split_seed", 42))
+    if "split_seed" not in cfg.data:
+        raise ValueError("Missing required config key: data.split_seed")
+    split_seed = int(cfg.data.split_seed)
 
     if "cluster_id" in base_eval_ds.column_names:
         eval_cluster_ds = base_eval_ds.filter(
@@ -144,11 +144,9 @@ def _build_aug_train_eval_dataset(
                 "Validation dataset has neither `cluster_id` nor `id`, cannot build cluster_id==0 eval set."
             )
 
-        masked_phish_data = getattr(
-            cfg.data,
-            "masked_phish_data",
-            "data_phish/masked/phish_clustered_all.jsonl",
-        )
+        if "masked_phish_data" not in cfg.data:
+            raise ValueError("Missing required config key: data.masked_phish_data")
+        masked_phish_data = cfg.data.masked_phish_data
         masked_phish_data = base_train._resolve_data_path(masked_phish_data)
         masked_all_ds = base_train._load_json_data(masked_phish_data)
         if (
@@ -317,19 +315,19 @@ def _run_training(cfg: DictConfig):
             cfg.model.name, num_labels=cfg.model.num_labels
         )
 
-        max_steps = getattr(cfg.training, "max_steps", None)
+        if "max_steps" not in cfg.training:
+            raise ValueError("Missing required config key: training.max_steps")
+        max_steps = cfg.training.max_steps
         max_steps = int(max_steps) if max_steps is not None else -1
 
         report_to = [x for x in list(cfg.training.report_to) if x != "tensorboard"]
 
-        save_best_model = bool(getattr(cfg.training, "save_best_model", False))
+        if "save_best_model" not in cfg.training:
+            raise ValueError("Missing required config key: training.save_best_model")
+        save_best_model = bool(cfg.training.save_best_model)
         save_strategy = "best" if save_best_model else cfg.training.save_strategy
         save_total_limit = 1 if save_best_model else cfg.training.save_total_limit
-        save_steps = (
-            getattr(cfg.training, "save_steps", None)
-            if str(save_strategy) == "steps"
-            else None
-        )
+        save_steps = cfg.training.save_steps if str(save_strategy) == "steps" else None
 
         training_args = TrainingArguments(
             output_dir=output_dir,
@@ -346,9 +344,9 @@ def _run_training(cfg: DictConfig):
             greater_is_better=True,
             logging_steps=cfg.training.logging_steps,
             logging_dir=base_train._resolve_logging_dir(
-                run_dir, getattr(cfg.training, "logging_dir", None)
+                run_dir, cfg.training.logging_dir
             ),
-            eval_steps=getattr(cfg.training, "eval_steps", None),
+            eval_steps=cfg.training.eval_steps,
             save_steps=save_steps,
             save_total_limit=save_total_limit,
             fp16=torch.cuda.is_available(),
@@ -500,7 +498,9 @@ def main(cfg: DictConfig):
 
     if cfg.training.ngpus > 1 and "LOCAL_RANK" not in os.environ:
         cfg_container = OmegaConf.to_container(cfg, resolve=True)
-        training_cfg = cfg_container.get("training", {})
+        if "training" not in cfg_container:
+            raise ValueError("Missing required config key: training")
+        training_cfg = cfg_container["training"]
         training_cfg["ngpus"] = effective_ngpus
         try:
             hydra_cfg = HydraConfig.get()
@@ -527,7 +527,9 @@ def main(cfg: DictConfig):
             training_cfg["output_dir"] = base_train._make_absolute(
                 training_cfg["output_dir"]
             )
-        data_cfg = cfg_container.get("data", {})
+        if "data" not in cfg_container:
+            raise ValueError("Missing required config key: data")
+        data_cfg = cfg_container["data"]
         for key in (
             "cache_dir",
             "extra_train_dir",
