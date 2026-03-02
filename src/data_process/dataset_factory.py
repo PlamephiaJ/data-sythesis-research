@@ -177,3 +177,13 @@ def make_phish_emails(
     else:
         raise ValueError(f"Unknown mode {mode} for phish-email dataset.")
     return merged_dataset
+
+
+@register_dataset("abisee/cnn_dailymail")
+def make_cnn_dailymail(
+    mode: str = "train",
+    cache_dir: str = None,
+    **kwargs,
+):
+    dataset = load_dataset("abisee/cnn_dailymail", "3.0.0", cache_dir=cache_dir)
+    return dataset[mode]

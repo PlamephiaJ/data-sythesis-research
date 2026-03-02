@@ -4,8 +4,8 @@ import numpy as np
 from torch.utils.data import DataLoader, DistributedSampler
 
 import data_process.dataset_factory as dataset_factory
-from data_process.clean_factory import EmailCleanConfig, EmailCleaner
-from utils.tokenizer_factory import get_caption_tokenizer, get_text_tokenizer
+from data_process.entry_processor_factory import get_entry_pipeline
+from utils.tokenizer_factory import get_text_tokenizer
 
 from .detokenizer_factory import get_detokenizer
 
@@ -99,131 +99,34 @@ def get_entry_dataset(
     text_tokenizer_name="gpt2",
     caption_tokenizer_name="bert-base-uncased",
 ):
-    if name != "phish-email":
-        raise NotImplementedError(f"Entry dataset {name} not implemented yet.")
-
     data = dataset_factory.get_dataset(name, mode=mode, cache_dir=cache_dir)
-
-    cleaner = EmailCleaner(
-        EmailCleanConfig(
-            render_clean_email=True,  # learn clean email format
-            mask_urls=True,
-            mask_emails=True,
-            mask_phones=True,
-            truncate_on_thread_markers=True,
-            truncate_on_long_quote_block=True,
-            strip_common_disclaimers=True,
-            drop_if_symbol_ratio_gt=0.60,  # lenient enough for older mailing-list content
-            max_body_chars=4000,
+    try:
+        pipeline = get_entry_pipeline(
+            name,
+            text_max_length=text_max_length,
+            caption_max_length=caption_max_length,
+            text_tokenizer_name=text_tokenizer_name,
+            caption_tokenizer_name=caption_tokenizer_name,
         )
-    )
+    except KeyError as exc:
+        raise NotImplementedError(f"Entry dataset {name} not implemented yet.") from exc
 
-    def is_valid_example(example):
-        if (
-            "text" not in example
-            or example["text"] is None
-            or len(example["text"].strip()) == 0
-            or "style_caption" not in example
-            or example["style_caption"] is None
-            or len(example["style_caption"].strip()) == 0
-        ):
-            return False
-        cleaned, _ = cleaner.render(example["style_caption"], example["text"])
-        return cleaned is not None
-
-    data = data.filter(is_valid_example, num_proc=num_proc)
-
-    tokenizer_text = get_text_tokenizer(text_tokenizer_name)
-    eos_id = tokenizer_text.eos_token_id
-    pad_id = tokenizer_text.pad_token_id
-
-    tokenizer_caption = get_caption_tokenizer(caption_tokenizer_name)
-
-    def preprocess_and_tokenize(batch):
-        texts = batch["text"]
-        captions = batch["style_caption"]
-        labels = batch.get("phish", [0] * len(texts))
-
-        clean_texts = []
-        prefixed_captions = []
-        for t, c, p in zip(texts, captions, labels):
-            label = int(p) if p is not None else 0
-            prefix = (
-                "This is a phish email. " if label == 1 else "This is a benign email. "
-            )
-            raw_caption = (c or "").strip()
-            caption = f"{prefix}{raw_caption}".strip()
-            cleaned, _ = cleaner.render(raw_caption, t)
-            if cleaned is None:
-                cleaned = f"{cleaner.cfg.body_prefix}[INVALID SAMPLE]\n"
-            clean_texts.append(cleaned)
-            prefixed_captions.append(caption)
-
-        enc_text = tokenizer_text(
-            clean_texts,
-            return_attention_mask=True,
-            add_special_tokens=True,
-            max_length=text_max_length,
-            truncation=True,
-            padding="max_length",
-        )
-        # Keep only one visible EOS: the last token in the visible span.
-        for ids, mask in zip(enc_text["input_ids"], enc_text["attention_mask"]):
-            seq_len = len(ids)
-            visible_len = sum(mask)
-            visible_ids = ids[:visible_len]
-
-            content_wo_eos = [t for t in visible_ids if t != eos_id]
-
-            if len(content_wo_eos) >= seq_len:
-                new_visible_ids = content_wo_eos[:seq_len]
-                new_visible_ids[-1] = eos_id
-            else:
-                new_visible_ids = content_wo_eos + [eos_id]
-
-            new_visible_len = len(new_visible_ids)
-            new_ids = new_visible_ids + [pad_id] * (seq_len - new_visible_len)
-            new_mask = [1] * new_visible_len + [0] * (seq_len - new_visible_len)
-
-            ids[:] = new_ids
-            mask[:] = new_mask
-
-        # lightweight validation on the first sample in batch
-        if enc_text["input_ids"]:
-            ids = enc_text["input_ids"][0]
-            mask = enc_text["attention_mask"][0]
-            visible_tokens = [t for t, m in zip(ids, mask) if m == 1]
-            eos_count = sum(1 for t in visible_tokens if t == eos_id)
-            if eos_count != 1 or visible_tokens[-1] != eos_id:
-                raise ValueError(
-                    "Expected exactly one visible EOS and it must be the last visible token."
-                )
-        enc_cap = tokenizer_caption(
-            prefixed_captions,
-            return_attention_mask=True,
-            add_special_tokens=True,
-            max_length=caption_max_length,
-            truncation=True,
-            padding="max_length",
-        )
-
-        return {
-            "text_input_ids": enc_text["input_ids"],
-            "text_attention_mask": enc_text["attention_mask"],
-            "style_caption_input_ids": enc_cap["input_ids"],
-            "style_caption_attention_mask": enc_cap["attention_mask"],
-        }
+    data = data.filter(pipeline.validate_example, num_proc=num_proc)
 
     tokenized_dataset = data.map(
-        preprocess_and_tokenize,
+        pipeline.preprocess_batch,
         batched=True,
         num_proc=num_proc,
         load_from_cache_file=True,
     )
 
-    tokenized_dataset = tokenized_dataset.remove_columns("text")
-    tokenized_dataset = tokenized_dataset.remove_columns("style_caption")
-    tokenized_dataset = tokenized_dataset.remove_columns("labels")
+    removable_columns = [
+        col
+        for col in pipeline.columns_to_remove
+        if col in tokenized_dataset.column_names
+    ]
+    if removable_columns:
+        tokenized_dataset = tokenized_dataset.remove_columns(removable_columns)
 
     tokenized_dataset = tokenized_dataset.with_format("torch")
     return tokenized_dataset
@@ -244,17 +147,24 @@ def get_dataloaders(config, distributed=True):
             f"Eval Batch Size for {worker_cfg.eval.batch_size} is not divisible by {worker_cfg.ngpus} gpus with accumulation {worker_cfg.training.accum}."
         )
 
-    phase = str(getattr(config, "phase", "")).strip().lower()
-    if phase == "pretrain":
-        data_format = "chunk"
-    elif phase == "finetune":
-        data_format = "entry"
-    elif phase:
+    if "format" not in config.data.trainset:
         raise ValueError(
-            f"Unknown phase '{config.phase}', expected one of: pretrain, finetune."
+            "Missing required config key: data.trainset.format. Please set it explicitly to 'chunk' or 'entry'."
         )
-    else:
-        data_format = config.data.format
+    if "format" not in config.data.validset:
+        raise ValueError(
+            "Missing required config key: data.validset.format. Please set it explicitly to 'chunk' or 'entry'."
+        )
+
+    train_format = config.data.trainset.format
+    valid_format = config.data.validset.format
+    if train_format != valid_format:
+        raise ValueError(
+            f"Mismatched dataset formats: trainset={train_format}, validset={valid_format}. "
+            "Both must be the same for current dataloader pipeline."
+        )
+
+    data_format = train_format
 
     if data_format == "chunk":
         train_set = get_chunk_dataset(

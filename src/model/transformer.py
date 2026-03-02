@@ -226,10 +226,9 @@ class CrossAttnStyle(ConditioningStrategy):
 
 
 def build_conditioning_strategy(cfg: Any) -> ConditioningStrategy:
-    # cfg can be missing: default sigma_plus_style
-    mode = "sigma_plus_style"
-    if cfg is not None and "mode" in cfg:
-        mode = str(cfg.mode)
+    if cfg is None or "mode" not in cfg:
+        raise ValueError("Missing required config key: model.conditioning.mode")
+    mode = str(cfg.mode)
     if mode not in _COND_REGISTRY:
         raise KeyError(
             f"Unknown conditioning.mode={mode}. Supported: {list(_COND_REGISTRY.keys())}"
@@ -582,11 +581,21 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
 
         # conditioning strategy (config-driven)
-        cond_cfg = config.model.conditioning if "conditioning" in config.model else None
+        if "conditioning" not in config.model:
+            raise ValueError("Missing required config key: model.conditioning")
+        cond_cfg = config.model.conditioning
         self.cond_strategy = build_conditioning_strategy(cond_cfg)
+        if "data" not in config or "trainset" not in config.data:
+            raise ValueError("Missing required config key: data.trainset")
+        if "format" not in config.data.trainset:
+            raise ValueError("Missing required config key: data.trainset.format")
+        data_format = str(config.data.trainset.format).strip().lower()
         self.disable_caption_condition = bool(
-            str(getattr(config, "phase", "")).strip().lower() == "pretrain"
-            or bool(getattr(config.model, "disable_caption_condition", False))
+            data_format == "chunk"
+            or (
+                "disable_caption_condition" in config.model
+                and bool(config.model.disable_caption_condition)
+            )
         )
 
         # blocks (config-driven)

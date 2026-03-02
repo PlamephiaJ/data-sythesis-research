@@ -3,7 +3,7 @@ name: gpuserver
 ngpus: 2
 
 training:
-  batch_size: 128
+  batch_size: 180
   accum: 2
 
 eval:

@@ -15,11 +15,6 @@ from utils import utils
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def main(cfg):
-    # Customized setting check
-    if cfg.graph.type != "absorb":
-        raise NotImplementedError(
-            f"Only absorb graph is supported now! Currently using {cfg.graph.type}"
-        )
     worker_cfg = cfg.worker if "worker" in cfg else cfg
     ngpus = worker_cfg.ngpus
     if "load_dir" in cfg:

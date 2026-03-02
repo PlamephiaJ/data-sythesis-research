@@ -1,3 +1,4 @@
 name: wikitext103
 mode: validation
+format: chunk
 cache_dir: data

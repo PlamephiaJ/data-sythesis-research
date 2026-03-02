@@ -1,6 +1,7 @@
 defaults:
   - _self_
-  - phase: pretrain
+  - model: small
+  - data: default
   - worker: gpuserver
   - override hydra/launcher: submitit_slurm
 
@@ -20,17 +21,23 @@ training:
   snapshot_sampling: True
   ema: 0.9999
   p_uncond: 0.1
-  alpha_align: 0.1
   tau: 0.1
-  eos_penalty: 0.1
-  # Optional explicit loss composition (if set, overrides default auto-composition)
-  # loss_terms:
-  #   - {name: sedd, weight: 1.0}
-  #   - {name: align, weight: 0.1}
-  #   - {name: eos_penalty, weight: 0.1}
+  # Unified loss composition.
+  # - entry datasets: can enable align
+  # - chunk datasets: set align weight to 0
+  loss_terms:
+    - {name: sedd, weight: 1.0}
+    - {name: align, weight: 0.4}
+    - {name: eos_penalty, weight: 0.2}
+
+model:
+  conditioning:
+    mode: cross_attn_style
+  blocks:
+    enable_cross_attn: true
 
 graph:
-  type: absorb
+  type: uniform
   file: data
   report_all: False
 

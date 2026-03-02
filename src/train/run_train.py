@@ -47,21 +47,7 @@ def cleanup():
 def run_multiprocess(rank, world_size, cfg, port):
     try:
         setup(rank, world_size, port)
-        phase = str(getattr(cfg, "phase", "")).strip().lower()
-        if phase:
-            if phase == "pretrain":
-                _run_style_control(rank, world_size, cfg)
-            elif phase == "finetune":
-                if "caption_encoder" not in cfg.model:
-                    raise ValueError(
-                        "phase=finetune requires a style-control model config with `model.caption_encoder` (e.g. model=small or model=medium)."
-                    )
-                _run_style_control(rank, world_size, cfg)
-            else:
-                raise ValueError(
-                    f"Unknown phase '{cfg.phase}', expected one of: pretrain, finetune."
-                )
-        elif cfg.model.name in ["small", "medium"]:
+        if cfg.model.name in ["small", "medium"]:
             _run_style_control(rank, world_size, cfg)
         elif cfg.model.name in ["small-raw"]:
             _run_raw(rank, world_size, cfg)
@@ -73,8 +59,17 @@ def _run_style_control(rank, world_size, cfg):
     torch.cuda.set_device(rank)
     work_dir = cfg.work_dir
     worker_cfg = cfg.worker if "worker" in cfg else cfg
-    phase = str(getattr(cfg, "phase", "")).strip().lower()
-    is_pretrain = phase == "pretrain"
+    train_format = str(cfg.data.trainset.format).strip().lower()
+    valid_format = str(cfg.data.validset.format).strip().lower()
+    if train_format != valid_format:
+        raise ValueError(
+            f"Mismatched dataset formats: trainset={train_format}, validset={valid_format}."
+        )
+    if train_format not in {"chunk", "entry"}:
+        raise ValueError(
+            f"Unsupported dataset format '{train_format}', expected one of: chunk, entry."
+        )
+    use_entry_format = train_format == "entry"
 
     # Create directories for experimental logs
     sample_dir = os.path.join(work_dir, "samples")
@@ -163,10 +158,14 @@ def _run_style_control(rank, world_size, cfg):
     initial_step = int(state["step"])
 
     # load in tokenizer
-    tokenizer_text = get_text_tokenizer("gpt2")
-    tokenizer_caption = (
-        get_caption_tokenizer("bert-base-uncased") if not is_pretrain else None
-    )
+    if "tokenizer" not in cfg or "text" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.text")
+    tokenizer_text = get_text_tokenizer(cfg.tokenizer.text)
+    tokenizer_caption = None
+    if use_entry_format:
+        if "tokenizer" not in cfg or "caption" not in cfg.tokenizer:
+            raise ValueError("Missing required config key: tokenizer.caption")
+        tokenizer_caption = get_caption_tokenizer(cfg.tokenizer.caption)
     # Build data iterators
     train_ds, eval_ds = data.get_dataloaders(cfg)
 
@@ -226,7 +225,7 @@ def _run_style_control(rank, world_size, cfg):
             use_sentence_transformers=True,
             device=str(device),
         )
-        if not is_pretrain
+        if use_entry_format
         else None
     )
 
@@ -248,6 +247,10 @@ def _run_style_control(rank, world_size, cfg):
                     device
                 )
                 return text, text_mask, style_caption, style_caption_mask
+
+            logger.warning(
+                "Batch contains text fields but is missing style caption fields. Proceeding with None for pure language modeling."
+            )
             return text, text_mask, None, None
 
         raise KeyError(
@@ -386,7 +389,10 @@ def _run_style_control(rank, world_size, cfg):
                         tokenizer_caption.batch_decode(
                             eval_style_caption, skip_special_tokens=True
                         )
-                        if (not is_pretrain and eval_style_caption is not None)
+                        if (
+                            tokenizer_caption is not None
+                            and eval_style_caption is not None
+                        )
                         else ["" for _ in range(len(sentences))]
                     )
 

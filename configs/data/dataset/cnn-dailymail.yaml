@@ -1,0 +1,4 @@
+name: abisee/cnn_dailymail
+mode: train
+format: entry
+cache_dir: data/cnn-dailymail

@@ -1,3 +1,4 @@
 name: phish-email
 mode: train
+format: entry
 cache_dir: data_phish/json

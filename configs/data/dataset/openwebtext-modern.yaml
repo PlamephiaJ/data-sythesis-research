@@ -1,3 +1,4 @@
 name: Plamephia/openwebtext-modern
 mode: train
+format: chunk
 cache_dir: data

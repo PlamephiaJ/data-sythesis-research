@@ -1,8 +1,8 @@
 defaults:
   - _self_
-  - dataset/openwebtext-modern@trainset
+  - dataset/cnn-dailymail@trainset
   # - dataset/phish-email@trainset
-  - dataset/wikitext103@validset
+  - dataset/cnn-dailymail@validset
   # - dataset/phish-email@validset
 
 num_proc: 120

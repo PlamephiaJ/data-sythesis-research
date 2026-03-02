@@ -1,3 +1,4 @@
+import logging
 from typing import Callable, Dict, List, Optional
 
 import numpy as np
@@ -10,8 +11,13 @@ from model.utils import ScoreFn
 from utils.tokenizer_factory import get_text_tokenizer
 
 
+logger = logging.getLogger(__name__)
+
+
 def _get_eos_id(config) -> int:
-    tokenizer_name = getattr(config.tokenizer, "text", "gpt2")
+    if "tokenizer" not in config or "text" not in config.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.text")
+    tokenizer_name = config.tokenizer.text
     tokenizer = get_text_tokenizer(tokenizer_name)
     return int(tokenizer.eos_token_id)
 
@@ -73,50 +79,35 @@ def _compute_info_nce_loss(
 
 
 def _normalize_loss_terms(config) -> List[Dict[str, float]]:
-    terms_cfg = getattr(config.training, "loss_terms", None)
-    if terms_cfg:
-        terms = []
-        for item in terms_cfg:
-            if isinstance(item, str):
-                terms.append({"name": item, "weight": 1.0})
-            else:
-                terms.append(
-                    {"name": item.get("name"), "weight": float(item.get("weight", 1.0))}
-                )
-        return terms
+    if "training" not in config or "loss_terms" not in config.training:
+        raise ValueError("`training.loss_terms` is required in config")
+    terms_cfg = config.training.loss_terms
+    if not terms_cfg:
+        raise ValueError("`training.loss_terms` must not be empty")
 
-    phase = str(getattr(config, "phase", "")).strip().lower()
-    base = [{"name": "sedd", "weight": 1.0}]
-    if phase != "pretrain":
-        base.append(
+    terms = []
+    for item in terms_cfg:
+        if isinstance(item, str):
+            raise ValueError(
+                "String loss term is not allowed. Use mapping: {name: <term>, weight: <float>}"
+            )
+
+        name = item.get("name")
+        if not name:
+            raise ValueError("Each entry in `training.loss_terms` must include `name`")
+        if "weight" not in item:
+            raise ValueError(
+                f"Loss term '{name}' must include explicit `weight` in `training.loss_terms`"
+            )
+        terms.append(
             {
-                "name": "align",
-                "weight": float(getattr(config.training, "alpha_align", 0.0)),
+                "name": name,
+                "weight": float(item["weight"]),
+                "eos_id": item.get("eos_id"),
             }
         )
 
-    aux_cfg = getattr(config.training, "aux_losses", None)
-    if aux_cfg:
-        for item in aux_cfg:
-            base.append(
-                {
-                    "name": item.get("name"),
-                    "weight": float(item.get("weight", 0.0)),
-                    "eos_id": item.get("eos_id"),
-                }
-            )
-    else:
-        eos_penalty = float(getattr(config.training, "eos_penalty", 0.0))
-        if eos_penalty > 0:
-            base.append(
-                {
-                    "name": "eos_penalty",
-                    "weight": eos_penalty,
-                    "eos_id": _get_eos_id(config),
-                }
-            )
-
-    return base
+    return terms
 
 
 def build_loss_fn(
@@ -139,9 +130,32 @@ def build_loss_fn(
                 f"Unknown loss term: {t['name']}. Allowed: {sorted(allowed)}"
             )
 
-    term_weights = {t["name"]: float(t.get("weight", 1.0)) for t in terms}
-    use_align = term_weights.get("align", 0.0) > 0
-    use_eos = term_weights.get("eos_penalty", 0.0) > 0
+    term_weights = {t["name"]: float(t["weight"]) for t in terms}
+    logger.info(
+        "Enabled loss terms (%s): %s",
+        "train" if train else "eval",
+        ", ".join(f"{name}={coef:.6g}" for name, coef in term_weights.items()),
+    )
+    use_align = "align" in term_weights and term_weights["align"] > 0
+    use_eos = "eos_penalty" in term_weights and term_weights["eos_penalty"] > 0
+
+    if use_align:
+        if "data" not in config or "trainset" not in config.data:
+            raise ValueError("Missing required config key: data.trainset")
+        if "validset" not in config.data:
+            raise ValueError("Missing required config key: data.validset")
+        if "format" not in config.data.trainset:
+            raise ValueError("Missing required config key: data.trainset.format")
+        if "format" not in config.data.validset:
+            raise ValueError("Missing required config key: data.validset.format")
+
+        train_format = str(config.data.trainset.format).strip().lower()
+        valid_format = str(config.data.validset.format).strip().lower()
+        if train_format != "entry" or valid_format != "entry":
+            raise ValueError(
+                "align loss requires entry-format datasets for both trainset and validset."
+            )
+
     eos_id = next(
         (
             int(t.get("eos_id"))
@@ -153,7 +167,9 @@ def build_loss_fn(
 
     caption_encoder = None
     email_proj = None
-    tau = float(getattr(config.training, "tau", 0.1))
+    if "tau" not in config.training:
+        raise ValueError("Missing required config key: training.tau")
+    tau = float(config.training.tau)
     if use_align:
         if "caption_encoder" not in config.model:
             raise ValueError("align loss needs `model.caption_encoder` in config")
