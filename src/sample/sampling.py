@@ -66,7 +66,6 @@ class EulerPredictor(Predictor):
     ):
         sigma, dsigma = self.noise(t)
         score = score_fn(x, x_mask, style_caption, style_caption_mask, sigma)
-        score = score_fn(x, x_mask, style_caption, style_caption_mask, sigma)
 
         rev_rate = step_size * dsigma[..., None] * self.graph.reverse_rate(x, score)
         x = self.graph.sample_rate(x, rev_rate)
