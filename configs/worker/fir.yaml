@@ -1,6 +1,6 @@
-name: gpuserver
+name: fir
 
-ngpus: 2
+ngpus: 4
 
 training:
   batch_size: 180
@@ -11,8 +11,8 @@ eval:
   perplexity_batch_size: 32
 
 processing:
-  num_proc_train: 120
-  num_proc_valid: 120
+  num_proc_train: 40
+  num_proc_valid: 40
 
 loader:
   train_num_workers: 4

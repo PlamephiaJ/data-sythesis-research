@@ -168,20 +168,52 @@ def get_dataloaders(config, distributed=True):
 
     data_format = train_format
 
+    if "processing" not in worker_cfg:
+        raise ValueError("Missing required config key: worker.processing")
+    processing_cfg = worker_cfg.processing
+    if "num_proc_train" not in processing_cfg:
+        raise ValueError(
+            "Missing required config key: worker.processing.num_proc_train"
+        )
+    if "num_proc_valid" not in processing_cfg:
+        raise ValueError(
+            "Missing required config key: worker.processing.num_proc_valid"
+        )
+    num_proc_train = int(processing_cfg.num_proc_train)
+    num_proc_valid = int(processing_cfg.num_proc_valid)
+
+    if "loader" not in worker_cfg:
+        raise ValueError("Missing required config key: worker.loader")
+    loader_cfg = worker_cfg.loader
+    if "train_num_workers" not in loader_cfg:
+        raise ValueError("Missing required config key: worker.loader.train_num_workers")
+    if "eval_num_workers" not in loader_cfg:
+        raise ValueError("Missing required config key: worker.loader.eval_num_workers")
+    if "pin_memory" not in loader_cfg:
+        raise ValueError("Missing required config key: worker.loader.pin_memory")
+    if "persistent_workers" not in loader_cfg:
+        raise ValueError(
+            "Missing required config key: worker.loader.persistent_workers"
+        )
+    train_num_workers = int(loader_cfg.train_num_workers)
+    eval_num_workers = int(loader_cfg.eval_num_workers)
+    pin_memory = bool(loader_cfg.pin_memory)
+    persistent_workers = bool(loader_cfg.persistent_workers)
+
     if data_format == "chunk":
         train_set = get_chunk_dataset(
             config.data.trainset.name,
             "train",
             cache_dir=config.data.trainset.cache_dir,
             block_size=config.model.length,
-            num_proc=config.data.num_proc,
+            num_proc=num_proc_train,
         )
         valid_set = get_chunk_dataset(
             config.data.validset.name,
             "validation" if config.data.validset.name != "text8" else "test",
             cache_dir=config.data.validset.cache_dir,
             block_size=config.model.length,
-            num_proc=config.data.num_proc,
+            num_proc=num_proc_valid,
         )
     elif data_format == "entry":
         train_set = get_entry_dataset(
@@ -189,7 +221,7 @@ def get_dataloaders(config, distributed=True):
             "train",
             cache_dir=config.data.trainset.cache_dir,
             text_max_length=config.data.max_length,
-            num_proc=config.data.num_proc,
+            num_proc=num_proc_train,
             text_tokenizer_name=config.tokenizer.text,
             caption_tokenizer_name=config.tokenizer.caption,
         )
@@ -198,7 +230,7 @@ def get_dataloaders(config, distributed=True):
             "validation",
             cache_dir=config.data.validset.cache_dir,
             text_max_length=config.data.max_length,
-            num_proc=config.data.num_proc,
+            num_proc=num_proc_valid,
             text_tokenizer_name=config.tokenizer.text,
             caption_tokenizer_name=config.tokenizer.caption,
         )
@@ -220,10 +252,10 @@ def get_dataloaders(config, distributed=True):
             batch_size=worker_cfg.training.batch_size
             // (worker_cfg.ngpus * worker_cfg.training.accum),
             sampler=train_sampler,
-            num_workers=4,
-            pin_memory=True,
+            num_workers=train_num_workers,
+            pin_memory=pin_memory,
             shuffle=(train_sampler is None),
-            persistent_workers=True,
+            persistent_workers=persistent_workers and train_num_workers > 0,
         )
     )
     valid_loader = cycle_loader(
@@ -232,9 +264,10 @@ def get_dataloaders(config, distributed=True):
             batch_size=worker_cfg.eval.batch_size
             // (worker_cfg.ngpus * worker_cfg.training.accum),
             sampler=test_sampler,
-            num_workers=4,
-            pin_memory=True,
+            num_workers=eval_num_workers,
+            pin_memory=pin_memory,
             shuffle=(test_sampler is None),
+            persistent_workers=persistent_workers and eval_num_workers > 0,
         )
     )
     return train_loader, valid_loader
