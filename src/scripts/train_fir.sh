@@ -23,5 +23,6 @@ source .venv/bin/activate
 
 # 4 块 GPU 对应 4 个 spawn 出来的进程
 python src/train/train.py \
+    worker=fir \
     model.scale_by_sigma=False \
     worker.ngpus=4
