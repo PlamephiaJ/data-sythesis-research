@@ -119,6 +119,7 @@ def build_loss_fn(
     sampling_eps: float = 1e-3,
     lv: bool = False,
     p_uncond: float = 0.1,
+    return_details: bool = False,
 ):
     terms = [t for t in _normalize_loss_terms(config) if float(t["weight"]) > 0]
     allowed = {"sedd", "align", "eos_penalty"}
@@ -200,6 +201,8 @@ def build_loss_fn(
         del cond
         nonlocal caption_encoder, email_proj
 
+        component_losses = {}
+
         style_caption, style_caption_mask, drop_indices = _apply_cfg_dropout(
             style_caption,
             style_caption_mask,
@@ -254,6 +257,7 @@ def build_loss_fn(
             log_score, sigma[:, None], perturbed_batch, text, text_mask
         )
         loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)
+        component_losses["sedd"] = loss_sedd.mean().detach()
 
         total = log_score.new_zeros(loss_sedd.shape)
         if "sedd" in term_weights and term_weights["sedd"] > 0:
@@ -276,12 +280,23 @@ def build_loss_fn(
                 emb_email = F.normalize(email_proj(pooled_k), dim=-1)
                 loss_align = _compute_info_nce_loss(emb_email, emb_caption, tau=tau)
                 total = total + term_weights["align"] * loss_align
+                component_losses["infonce"] = loss_align.detach()
+            else:
+                component_losses["infonce"] = total.new_zeros((), device=total.device)
+        elif "align" in term_weights and term_weights["align"] > 0:
+            component_losses["infonce"] = total.new_zeros((), device=total.device)
 
         if use_eos:
-            total = total + term_weights["eos_penalty"] * _eos_penalty_term(
-                log_score, text, text_mask, eos_id=eos_id
+            eos_term = _eos_penalty_term(log_score, text, text_mask, eos_id=eos_id)
+            total = total + term_weights["eos_penalty"] * eos_term
+            component_losses["eos_prediction"] = eos_term.mean().detach()
+        elif "eos_penalty" in term_weights and term_weights["eos_penalty"] > 0:
+            component_losses["eos_prediction"] = total.new_zeros(
+                (), device=total.device
             )
 
+        if return_details:
+            return total, component_losses
         return total
 
     return loss_fn
@@ -430,6 +445,7 @@ class StepFn:
 
         self.accum_iter = 0
         self.total_loss = 0
+        self.total_details = None
 
     def __call__(
         self, state, text, text_mask, style_caption, style_caption_mask, cond=None
@@ -440,16 +456,31 @@ class StepFn:
             optimizer = state["optimizer"]
             scaler = state["scaler"]
 
-            loss = (
-                self.loss_fn(
-                    model, text, text_mask, style_caption, style_caption_mask, cond=cond
-                ).mean()
-                / self.accum
+            loss_out = self.loss_fn(
+                model, text, text_mask, style_caption, style_caption_mask, cond=cond
             )
+            if isinstance(loss_out, tuple):
+                loss_tensor, details = loss_out
+            else:
+                loss_tensor, details = loss_out, None
+
+            loss = loss_tensor.mean() / self.accum
             scaler.scale(loss).backward()
 
             self.accum_iter += 1
             self.total_loss += loss.detach()
+            if details is not None:
+                if self.total_details is None:
+                    self.total_details = {
+                        key: value.detach() / self.accum
+                        for key, value in details.items()
+                    }
+                else:
+                    for key, value in details.items():
+                        if key not in self.total_details:
+                            self.total_details[key] = value.detach() / self.accum
+                        else:
+                            self.total_details[key] += value.detach() / self.accum
 
             if self.accum_iter == self.accum:
                 self.accum_iter = 0
@@ -465,10 +496,18 @@ class StepFn:
                 optimizer.zero_grad(set_to_none=True)
 
                 loss_to_return = self.total_loss
+                details_to_return = self.total_details
                 self.total_loss = 0
+                self.total_details = None
+                if details_to_return is not None:
+                    return loss_to_return, details_to_return
                 return loss_to_return
 
             # micro-step: return current scaled micro loss (same semantics as your original)
+            if details is not None:
+                return loss, {
+                    key: value.detach() / self.accum for key, value in details.items()
+                }
             return loss
 
         # eval
@@ -479,7 +518,16 @@ class StepFn:
 
             loss = self.loss_fn(
                 model, text, text_mask, style_caption, style_caption_mask, cond=cond
-            ).mean()
+            )
+
+            if isinstance(loss, tuple):
+                loss_tensor, details = loss
+                loss = loss_tensor.mean()
+            else:
+                details = None
+                loss = loss.mean()
 
             ema.restore(model.parameters())
+            if details is not None:
+                return loss, {key: value.detach() for key, value in details.items()}
             return loss

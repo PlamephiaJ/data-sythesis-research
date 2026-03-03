@@ -185,6 +185,7 @@ def _run_style_control(rank, world_size, cfg):
             graph,
             True,
             p_uncond=cfg.training.p_uncond,
+            return_details=True,
         ),
         train=True,
         optimize_fn=optimize_fn,
@@ -198,6 +199,7 @@ def _run_style_control(rank, world_size, cfg):
             graph,
             False,
             p_uncond=cfg.training.p_uncond,
+            return_details=True,
         ),
         train=False,
         optimize_fn=optimize_fn,
@@ -262,6 +264,17 @@ def _run_style_control(rank, world_size, cfg):
     num_train_steps = cfg.training.n_iters
     mprint(f"Starting training loop at step {initial_step}.")
 
+    def _reduce_detail_losses(detail_losses):
+        if detail_losses is None:
+            return {}
+        reduced = {}
+        for name, value in detail_losses.items():
+            t = value.detach().clone()
+            dist.all_reduce(t)
+            t /= world_size
+            reduced[name] = t
+        return reduced
+
     while state["step"] < num_train_steps + 1:
         step = state["step"]
 
@@ -272,19 +285,44 @@ def _run_style_control(rank, world_size, cfg):
             )
         else:
             raise NotImplementedError("text8 training not implemented yet.")
-        loss = train_step_fn(state, text, text_mask, style_caption, style_caption_mask)
+        train_out = train_step_fn(
+            state, text, text_mask, style_caption, style_caption_mask
+        )
+        if isinstance(train_out, tuple):
+            loss, train_detail_losses = train_out
+        else:
+            loss, train_detail_losses = train_out, None
 
         # flag to see if there was movement i.e. a full batch got computed
         if step != state["step"]:
             if step % cfg.training.log_freq == 0:
                 dist.all_reduce(loss)
                 loss /= world_size
+                reduced_train_details = _reduce_detail_losses(train_detail_losses)
 
                 mprint("step: %d, training_loss: %.5e" % (step, loss.item()))
 
                 # Log training loss to TensorBoard
                 if rank == 0:
                     writer.add_scalar("loss/train", loss.item(), step)
+                    if "sedd" in reduced_train_details:
+                        writer.add_scalar(
+                            "loss_components/train_sedd",
+                            reduced_train_details["sedd"].item(),
+                            step,
+                        )
+                    if "infonce" in reduced_train_details:
+                        writer.add_scalar(
+                            "loss_components/train_infonce",
+                            reduced_train_details["infonce"].item(),
+                            step,
+                        )
+                    if "eos_prediction" in reduced_train_details:
+                        writer.add_scalar(
+                            "loss_components/train_eos_prediction",
+                            reduced_train_details["eos_prediction"].item(),
+                            step,
+                        )
                     # Log learning rate
                     current_lr = optimizer.param_groups[0]["lr"]
                     writer.add_scalar("training/learning_rate", current_lr, step)
@@ -311,22 +349,45 @@ def _run_style_control(rank, world_size, cfg):
                     ) = _extract_batch(eval_batch_data)
                 else:
                     raise NotImplementedError("text8 evaluation not implemented yet.")
-                eval_loss = eval_step_fn(
+                eval_out = eval_step_fn(
                     state,
                     eval_text,
                     eval_text_mask,
                     eval_style_caption,
                     eval_style_caption_mask,
                 )
+                if isinstance(eval_out, tuple):
+                    eval_loss, eval_detail_losses = eval_out
+                else:
+                    eval_loss, eval_detail_losses = eval_out, None
 
                 dist.all_reduce(eval_loss)
                 eval_loss /= world_size
+                reduced_eval_details = _reduce_detail_losses(eval_detail_losses)
 
                 mprint("step: %d, evaluation_loss: %.5e" % (step, eval_loss.item()))
 
                 # Log evaluation loss to TensorBoard
                 if rank == 0:
                     writer.add_scalar("loss/eval", eval_loss.item(), step)
+                    if "sedd" in reduced_eval_details:
+                        writer.add_scalar(
+                            "loss_components/eval_sedd",
+                            reduced_eval_details["sedd"].item(),
+                            step,
+                        )
+                    if "infonce" in reduced_eval_details:
+                        writer.add_scalar(
+                            "loss_components/eval_infonce",
+                            reduced_eval_details["infonce"].item(),
+                            step,
+                        )
+                    if "eos_prediction" in reduced_eval_details:
+                        writer.add_scalar(
+                            "loss_components/eval_eos_prediction",
+                            reduced_eval_details["eos_prediction"].item(),
+                            step,
+                        )
 
             if (
                 step > 0
@@ -364,13 +425,30 @@ def _run_style_control(rank, world_size, cfg):
                                 : sampling_shape[0]
                             ]
 
+                    sampled_style_caption = eval_style_caption
+                    sampled_style_caption_mask = eval_style_caption_mask
+                    sample_drop_indices = None
+                    if (
+                        sampled_style_caption is not None
+                        and sampled_style_caption_mask is not None
+                    ):
+                        sampled_style_caption = sampled_style_caption.clone()
+                        sampled_style_caption_mask = sampled_style_caption_mask.clone()
+                        sample_drop_indices = (
+                            torch.rand(sampled_style_caption.shape[0], device=device)
+                            < cfg.training.p_uncond
+                        )
+                        if sample_drop_indices.any():
+                            sampled_style_caption[sample_drop_indices] = 0
+                            sampled_style_caption_mask[sample_drop_indices] = 0
+
                     ema.store(score_model.parameters())
                     ema.copy_to(score_model.parameters())
                     sample = sampling_fn(
                         score_model,
                         eval_text_mask,
-                        eval_style_caption,
-                        eval_style_caption_mask,
+                        sampled_style_caption,
+                        sampled_style_caption_mask,
                     )
                     ema.restore(score_model.parameters())
 
@@ -389,21 +467,34 @@ def _run_style_control(rank, world_size, cfg):
                     sentences = tokenizer_text.batch_decode(sample_trunc)
                     captions = (
                         tokenizer_caption.batch_decode(
-                            eval_style_caption, skip_special_tokens=True
+                            sampled_style_caption, skip_special_tokens=True
                         )
                         if (
                             tokenizer_caption is not None
-                            and eval_style_caption is not None
+                            and sampled_style_caption is not None
                         )
                         else ["" for _ in range(len(sentences))]
                     )
+                    if sample_drop_indices is not None:
+                        captions = [
+                            "" if bool(is_drop) else cap
+                            for cap, is_drop in zip(
+                                captions, sample_drop_indices.tolist()
+                            )
+                        ]
 
                     file_name = os.path.join(this_sample_dir, f"sample_{rank}.json")
                     import json
 
                     results = [
-                        {"caption": cap, "text": txt}
-                        for cap, txt in zip(captions, sentences)
+                        {
+                            "caption": cap,
+                            "text": txt,
+                            "is_unconditional": bool(sample_drop_indices[i].item())
+                            if sample_drop_indices is not None
+                            else False,
+                        }
+                        for i, (cap, txt) in enumerate(zip(captions, sentences))
                     ]
                     with open(file_name, "w", encoding="utf-8") as file:
                         json.dump(results, file, indent=2, ensure_ascii=False)
@@ -417,19 +508,39 @@ def _run_style_control(rank, world_size, cfg):
                                 result.append(s)
                         return result
 
-                    if metric is not None and eval_style_caption is not None:
-                        similarity_scores = metric.score_batch(
-                            captions, extract_body(sentences)
-                        )
-                        avg_similarity = sum(similarity_scores) / len(similarity_scores)
-                        mprint(
-                            f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
-                        )
-                        # Log average similarity score to TensorBoard
-                        if rank == 0:
-                            writer.add_scalar(
-                                "eval/avg_similarity_score", avg_similarity, step
+                    if metric is not None and sampled_style_caption is not None:
+                        body_texts = extract_body(sentences)
+                        if sample_drop_indices is not None:
+                            keep_indices = [
+                                i
+                                for i, is_drop in enumerate(
+                                    sample_drop_indices.tolist()
+                                )
+                                if not is_drop
+                            ]
+                            if keep_indices:
+                                scored_captions = [captions[i] for i in keep_indices]
+                                scored_texts = [body_texts[i] for i in keep_indices]
+                                similarity_scores = metric.score_batch(
+                                    scored_captions, scored_texts
+                                )
+                            else:
+                                similarity_scores = []
+                        else:
+                            similarity_scores = metric.score_batch(captions, body_texts)
+
+                        if similarity_scores:
+                            avg_similarity = sum(similarity_scores) / len(
+                                similarity_scores
                             )
+                            mprint(
+                                f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
+                            )
+                            # Log average similarity score to TensorBoard
+                            if rank == 0:
+                                writer.add_scalar(
+                                    "eval/avg_similarity_score", avg_similarity, step
+                                )
 
                     if cfg.eval.mauve:
                         generated_texts = extract_body(sentences)
