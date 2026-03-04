@@ -3,11 +3,11 @@ name: fir
 ngpus: 4
 
 training:
-  batch_size: 180
+  batch_size: 128
   accum: 2
 
 eval:
-  batch_size: 512
+  batch_size: 128
   perplexity_batch_size: 32
 
 processing:
