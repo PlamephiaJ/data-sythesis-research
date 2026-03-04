@@ -76,6 +76,7 @@ exp_local
 outputs/
 training_output/
 training_output
+slurm_logs/
 
 # Custom files
 draft.py

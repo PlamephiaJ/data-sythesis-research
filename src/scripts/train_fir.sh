@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=yuhao-sedd
-#SBATCH --account=def-lincai
+#SBATCH --account=def-lincai_gpu
 
 # 一台 GPU 节点上 4 块 H100（Fir 文档推荐的写法）
 #SBATCH --gpus-per-node=h100:4
@@ -12,7 +12,7 @@
 #SBATCH --mem=128G
 #SBATCH --time=24:00:00
 
-#SBATCH --output=logs/%x-%j.out
+#SBATCH --output=slurm_logs/%x-%j.out
 
 cd "$SLURM_SUBMIT_DIR"
 

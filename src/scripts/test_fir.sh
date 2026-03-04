@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=6            # 对齐 Fir 文档，一个 CCD = 6 cores
 #SBATCH --mem=32G                    # 内存给少一点
 #SBATCH --time=00:30:00              # 最多跑 30 分钟，debug 用
-#SBATCH --output=logs/%x-%j.out
+#SBATCH --output=slurm_logs/%x-%j.out
 
 # 保证在提交目录
 cd "$SLURM_SUBMIT_DIR"
@@ -22,5 +22,3 @@ python src/train/train.py \
     worker=fir \
     model.scale_by_sigma=False \
     worker.ngpus=1
-    # 例如想再加一些 debug config，可以这样：
-    # training.max_steps=100 training.batch_size=8
