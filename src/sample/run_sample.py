@@ -46,6 +46,13 @@ def main():
     parser.add_argument("--steps", type=int, default=None)
     parser.add_argument("--length", type=int, default=None)
     parser.add_argument("--cfg_scale", type=float, default=0.0)
+    parser.add_argument(
+        "--cfg_scale_schedule",
+        type=str,
+        default=None,
+        choices=["linear", "cosine", "exp", "constant"],
+    )
+    parser.add_argument("--cfg_scale_exp_k", type=float, default=None)
     args = parser.parse_args()
 
     metrics_log_dir = os.path.join(args.model_path, "eval_logs")
@@ -88,6 +95,21 @@ def main():
         raise ValueError("Missing required config key: sampling.noise_removal")
     predictor = cfg.sampling.predictor
     denoise = cfg.sampling.noise_removal
+    if args.cfg_scale_schedule is None and "cfg_scale_schedule" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.cfg_scale_schedule")
+    if args.cfg_scale_exp_k is None and "cfg_scale_exp_k" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.cfg_scale_exp_k")
+
+    cfg_scale_schedule = (
+        args.cfg_scale_schedule
+        if args.cfg_scale_schedule is not None
+        else cfg.sampling.cfg_scale_schedule
+    )
+    cfg_scale_exp_k = (
+        float(args.cfg_scale_exp_k)
+        if args.cfg_scale_exp_k is not None
+        else cfg.sampling.cfg_scale_exp_k
+    )
 
     if "tokenizer" not in cfg or "text" not in cfg.tokenizer:
         raise ValueError("Missing required config key: tokenizer.text")
@@ -211,6 +233,8 @@ def main():
                 denoise,
                 1e-5,
                 device,
+                cfg_scale_schedule=cfg_scale_schedule,
+                cfg_scale_exp_k=cfg_scale_exp_k,
             )
 
             samples = sampling_fn(

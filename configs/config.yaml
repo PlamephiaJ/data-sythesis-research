@@ -50,6 +50,9 @@ sampling:
   predictor: euler
   steps: 128
   noise_removal: True
+  cfg_scale: 0.0
+  cfg_scale_schedule: linear
+  cfg_scale_exp_k: 5.0
 
 eval:
   perplexity: True

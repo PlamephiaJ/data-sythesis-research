@@ -1,5 +1,6 @@
 import abc
 import logging
+import math
 
 import torch
 
@@ -184,6 +185,8 @@ class PCSampler:
         eps=1e-5,
         device=torch.device("cpu"),
         proj_fun=lambda x: x,
+        cfg_scale_schedule: str = None,
+        cfg_scale_exp_k: float = None,
     ):
         self.graph = graph
         self.noise = noise
@@ -192,6 +195,18 @@ class PCSampler:
         self.denoise = denoise
         self.eps = eps
         self.device = device
+        if cfg_scale_schedule is None:
+            raise ValueError("cfg_scale_schedule is required and cannot be None")
+        if cfg_scale_exp_k is None:
+            raise ValueError("cfg_scale_exp_k is required and cannot be None")
+
+        self.cfg_scale_schedule = str(cfg_scale_schedule).strip().lower()
+        self.cfg_scale_exp_k = float(cfg_scale_exp_k)
+
+        if self.cfg_scale_schedule not in {"linear", "cosine", "exp", "constant"}:
+            raise ValueError(
+                "sampling.cfg_scale_schedule must be one of {'linear','cosine','exp','constant'}"
+            )
 
         self.projector = proj_fun
         self.predictor = get_predictor(predictor)(graph, noise)
@@ -201,27 +216,58 @@ class PCSampler:
         self.timesteps = torch.linspace(1, eps, steps + 1, device=device)
         self.dt = (1 - eps) / steps
 
+    def _cfg_scale_multiplier(self, step_idx: int) -> float:
+        progress = float(step_idx + 1) / float(self.steps)
+
+        if self.cfg_scale_schedule == "constant":
+            return 1.0
+        if self.cfg_scale_schedule == "linear":
+            return progress
+        if self.cfg_scale_schedule == "cosine":
+            return 0.5 * (1.0 - math.cos(math.pi * progress))
+        if self.cfg_scale_schedule == "exp":
+            k = self.cfg_scale_exp_k
+            if k <= 0:
+                return progress
+            denom = math.exp(k) - 1.0
+            if denom == 0.0:
+                return progress
+            return (math.exp(k * progress) - 1.0) / denom
+        return progress
+
     @torch.no_grad()
     def __call__(
         self, model, x_mask, style_caption, style_caption_mask, cfg_scale: float = 0.0
     ):
         base_sampling_score_fn = mutils.ScoreFn(model, train=False, sampling=True)
 
-        def score_fn(x, x_mask, style_caption, style_caption_mask, sigma, **kwargs):
-            return base_sampling_score_fn(
+        def make_score_fn(step_cfg_scale: float):
+            def score_fn(
                 x,
                 x_mask,
                 style_caption,
                 style_caption_mask,
                 sigma,
-                cfg_scale=cfg_scale,
-            )
+                **kwargs,
+            ):
+                return base_sampling_score_fn(
+                    x,
+                    x_mask,
+                    style_caption,
+                    style_caption_mask,
+                    sigma,
+                    cfg_scale=step_cfg_scale,
+                )
+
+            return score_fn
 
         x = self.graph.sample_limit(*self.batch_dims).to(self.device)
 
         x_mask = x_mask[:, : self.batch_dims[1]].to(self.device)
         for i in range(self.steps):
             t = self.timesteps[i] * torch.ones(x.shape[0], 1, device=self.device)
+            step_cfg_scale = cfg_scale * self._cfg_scale_multiplier(i)
+            score_fn = make_score_fn(step_cfg_scale)
 
             x = self.projector(x)
             x = self.predictor.update_fn(
@@ -237,8 +283,14 @@ class PCSampler:
         if self.denoise:
             x = self.projector(x)
             t = self.timesteps[-1] * torch.ones(x.shape[0], 1, device=self.device)
+            score_fn = make_score_fn(cfg_scale)
             x = self.denoiser.update_fn(
-                score_fn, x, x_mask, style_caption, style_caption_mask, t
+                score_fn,
+                x,
+                x_mask,
+                style_caption,
+                style_caption_mask,
+                t,
             )
 
         logging.getLogger(__name__).info(

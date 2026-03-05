@@ -207,11 +207,23 @@ def _run_style_control(rank, world_size, cfg):
     )
 
     if cfg.training.snapshot_sampling:
+        if "sampling" not in cfg:
+            raise ValueError("Missing required config key: sampling")
+        if "cfg_scale_schedule" not in cfg.sampling:
+            raise ValueError("Missing required config key: sampling.cfg_scale_schedule")
+        if "cfg_scale_exp_k" not in cfg.sampling:
+            raise ValueError("Missing required config key: sampling.cfg_scale_exp_k")
+        if "cfg_scale" not in cfg.sampling:
+            raise ValueError("Missing required config key: sampling.cfg_scale")
+
         sampling_shape = (
             worker_cfg.training.batch_size
             // (worker_cfg.ngpus * worker_cfg.training.accum),
             cfg.model.length,
         )
+        cfg_scale_schedule = cfg.sampling.cfg_scale_schedule
+        cfg_scale_exp_k = cfg.sampling.cfg_scale_exp_k
+        sample_cfg_scale = cfg.sampling.cfg_scale
         sampling_fn = sampling.PCSampler(
             graph,
             noise,
@@ -221,6 +233,8 @@ def _run_style_control(rank, world_size, cfg):
             cfg.sampling.noise_removal,
             sampling_eps,
             device,
+            cfg_scale_schedule=cfg_scale_schedule,
+            cfg_scale_exp_k=cfg_scale_exp_k,
         )
 
     metric = (
@@ -449,6 +463,7 @@ def _run_style_control(rank, world_size, cfg):
                         eval_text_mask,
                         sampled_style_caption,
                         sampled_style_caption_mask,
+                        cfg_scale=float(sample_cfg_scale),
                     )
                     ema.restore(score_model.parameters())
 

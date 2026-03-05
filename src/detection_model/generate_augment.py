@@ -137,6 +137,8 @@ def _generate_on_device(
     denoise = generation_cfg["denoise"]
     caption_max_length = generation_cfg["caption_max_length"]
     cfg_scale = generation_cfg["cfg_scale"]
+    cfg_scale_schedule = generation_cfg["cfg_scale_schedule"]
+    cfg_scale_exp_k = generation_cfg["cfg_scale_exp_k"]
     mask_mode = generation_cfg["mask_mode"]
 
     if length is None:
@@ -168,6 +170,27 @@ def _generate_on_device(
             if "noise_removal" not in cfg.sampling:
                 raise ValueError("Missing required config key: sampling.noise_removal")
             denoise = cfg.sampling.noise_removal
+        if cfg_scale_schedule is None:
+            if "cfg_scale_schedule" not in cfg.sampling:
+                raise ValueError(
+                    "Missing required config key: sampling.cfg_scale_schedule"
+                )
+            cfg_scale_schedule = cfg.sampling.cfg_scale_schedule
+        if cfg_scale_exp_k is None:
+            if "cfg_scale_exp_k" not in cfg.sampling:
+                raise ValueError(
+                    "Missing required config key: sampling.cfg_scale_exp_k"
+                )
+            cfg_scale_exp_k = cfg.sampling.cfg_scale_exp_k
+
+    if cfg_scale_schedule is None:
+        raise ValueError(
+            "Missing cfg scale schedule: set --cfg_scale_schedule or sampling.cfg_scale_schedule"
+        )
+    if cfg_scale_exp_k is None:
+        raise ValueError(
+            "Missing cfg scale exp parameter: set --cfg_scale_exp_k or sampling.cfg_scale_exp_k"
+        )
 
     text_tokenizer_name = generation_cfg["text_tokenizer_name"]
     caption_tokenizer_name = generation_cfg["caption_tokenizer_name"]
@@ -272,6 +295,8 @@ def _generate_on_device(
                     denoise,
                     1e-5,
                     device,
+                    cfg_scale_schedule=cfg_scale_schedule,
+                    cfg_scale_exp_k=cfg_scale_exp_k,
                 )
 
                 samples = sampling_fn(
@@ -382,6 +407,13 @@ def main():
         help="Generation text mask mode: full=all ones, source=from source_text tokenizer attention mask.",
     )
     parser.add_argument("--cfg_scale", type=float, default=0.0)
+    parser.add_argument(
+        "--cfg_scale_schedule",
+        type=str,
+        default=None,
+        choices=["linear", "cosine", "exp", "constant"],
+    )
+    parser.add_argument("--cfg_scale_exp_k", type=float, default=None)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--gpu_ids",
@@ -422,6 +454,8 @@ def main():
         "caption_tokenizer_name": "bert-base-uncased",
         "caption_max_length": 256,
         "cfg_scale": args.cfg_scale,
+        "cfg_scale_schedule": args.cfg_scale_schedule,
+        "cfg_scale_exp_k": args.cfg_scale_exp_k,
         "batch_size": args.batch_size,
     }
 

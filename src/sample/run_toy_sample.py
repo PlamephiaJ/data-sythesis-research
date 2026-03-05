@@ -52,6 +52,13 @@ def main():
         help="Classifier-free guidance scale, higher values increase faithfulness to the description but may reduce diversity",
     )
     parser.add_argument(
+        "--cfg_scale_schedule",
+        type=str,
+        default=None,
+        choices=["linear", "cosine", "exp", "constant"],
+    )
+    parser.add_argument("--cfg_scale_exp_k", type=float, default=None)
+    parser.add_argument(
         "--device", type=str, default=None, help="Device to use, e.g. cuda:0 or cpu"
     )
     args = parser.parse_args()
@@ -101,6 +108,21 @@ def main():
         raise ValueError("Missing required config key: sampling.noise_removal")
     predictor = cfg.sampling.predictor
     denoise = cfg.sampling.noise_removal
+    if args.cfg_scale_schedule is None and "cfg_scale_schedule" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.cfg_scale_schedule")
+    if args.cfg_scale_exp_k is None and "cfg_scale_exp_k" not in cfg.sampling:
+        raise ValueError("Missing required config key: sampling.cfg_scale_exp_k")
+
+    cfg_scale_schedule = (
+        args.cfg_scale_schedule
+        if args.cfg_scale_schedule is not None
+        else cfg.sampling.cfg_scale_schedule
+    )
+    cfg_scale_exp_k = (
+        float(args.cfg_scale_exp_k)
+        if args.cfg_scale_exp_k is not None
+        else cfg.sampling.cfg_scale_exp_k
+    )
 
     n = int(args.num)
 
@@ -125,7 +147,16 @@ def main():
     x_mask = torch.ones((n, length), dtype=torch.long, device=device)
 
     sampling_fn = sampling.PCSampler(
-        graph, noise, (n, length), predictor, steps, denoise, 1e-5, device
+        graph,
+        noise,
+        (n, length),
+        predictor,
+        steps,
+        denoise,
+        1e-5,
+        device,
+        cfg_scale_schedule=cfg_scale_schedule,
+        cfg_scale_exp_k=cfg_scale_exp_k,
     )
 
     with torch.inference_mode():
