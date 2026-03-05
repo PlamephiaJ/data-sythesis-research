@@ -1,14 +1,14 @@
 <!doctype html>
 <html class="no-js" lang="en" data-content_root="../">
-  <head><meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html" /><link rel="search" title="Search" href="../search.html" /><link rel="next" title="Diffusers Library for Quickly Building and Deploying Diffusion Models" href="../tools/diffusers.html" /><link rel="prev" title="Datasets" href="datasets.html" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Diffusers Library for Quickly Building and Deploying Diffusion Models" href="../tools/diffusers.html"><link rel="prev" title="Datasets" href="datasets.html">
 
-    <!-- Generated with Sphinx 8.2.3 and Furo 2025.07.19 -->
-        <title>Rule-guided Diffusion - Phish-Generator 0.0.1 documentation</title>
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Style-controlled Phishing Email Data Generation with Score Entropy Discrete Diffusion - Phish-Generator 0.0.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=25af2a20" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
@@ -22,14 +22,14 @@
   }
   @media not print {
     body[data-theme="dark"] {
-      --color-code-background: #2b2b2b;
-  --color-code-foreground: #f8f8f2;
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
   
     }
     @media (prefers-color-scheme: dark) {
       body:not([data-theme="light"]) {
-        --color-code-background: #2b2b2b;
-  --color-code-foreground: #f8f8f2;
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
   
       }
     }
@@ -144,14 +144,10 @@
   </symbol>
 </svg>
 
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
-<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
-<label class="overlay sidebar-overlay" for="__navigation">
-  <div class="visually-hidden">Hide navigation sidebar</div>
-</label>
-<label class="overlay toc-overlay" for="__toc">
-  <div class="visually-hidden">Hide table of contents sidebar</div>
-</label>
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
 
 <a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
 
@@ -161,8 +157,7 @@
   <header class="mobile-header">
     <div class="header-left">
       <label class="nav-overlay-icon" for="__navigation">
-        <div class="visually-hidden">Toggle site navigation sidebar</div>
-        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
       </label>
     </div>
     <div class="header-center">
@@ -170,8 +165,7 @@
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
-        <button class="theme-toggle">
-          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
           <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
           <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
           <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
@@ -179,8 +173,7 @@
         </button>
       </div>
       <label class="toc-overlay-icon toc-header-icon" for="__toc">
-        <div class="visually-hidden">Toggle table of contents sidebar</div>
-        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
   </header>
@@ -210,7 +203,7 @@
 <li class="toctree-l1"><a class="reference internal" href="readme.html#functional-architecture">Functional Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="readme.html#core-modules">Core Modules</a></li>
 <li class="toctree-l1"><a class="reference internal" href="datasets.html">Datasets</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Rule-guided Diffusion</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Style-controlled Phishing Email Data Generation with Score Entropy Discrete Diffusion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../tools/diffusers.html">Diffusers Library for Quickly Building and Deploying Diffusion Models</a></li>
 </ul>
 
@@ -238,8 +231,7 @@
   </a>
 </div>
 <div class="theme-toggle-container theme-toggle-content">
-            <button class="theme-toggle">
-              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
               <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
               <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
               <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
@@ -247,154 +239,138 @@
             </button>
           </div>
           <label class="toc-overlay-icon toc-content-icon" for="__toc">
-            <div class="visually-hidden">Toggle table of contents sidebar</div>
-            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="rule-guided-diffusion">
-<h1>Rule-guided Diffusion<a class="headerlink" href="#rule-guided-diffusion" title="Link to this heading">¶</a></h1>
-<p>The diffusion model is one of the earliest generative models used for image generation, and in recent years it has also been applied to text generation tasks. Compared with traditional Transformer-based text generation models, diffusion models perform remarkably well in terms of diversity and quality. However, approaches that rely purely on data-driven generation may overlook domain-specific rules and constraints, leading to results that do not meet expectations. In phishing email generation, following certain rules (such as including specific phishing keywords or mimicking the format of real emails) is crucial for producing high-quality phishing emails. To address this issue, we aim to explore a rule-guided diffusion model approach that integrates rules into the generation process, thereby improving both the quality and diversity of phishing email outputs.</p>
+          <section id="style-controlled-phishing-email-data-generation-with-score-entropy-discrete-diffusion">
+<h1>Style-controlled Phishing Email Data Generation with Score Entropy Discrete Diffusion<a class="headerlink" href="#style-controlled-phishing-email-data-generation-with-score-entropy-discrete-diffusion" title="Link to this heading">¶</a></h1>
+<p>The diffusion model is one of the earliest generative models used for image generation, and in recent years it has also been applied to text generation tasks. Compared with traditional GPT-based autoregressive text generation models, diffusion models perform well in terms of diversity. However, approaches that rely purely on data-driven generation may overlook domain-specific rules and constraints, leading to results that do not meet expectations. In phishing email generation, following certain rules (such as including specific phishing keywords or mimicking the format of real emails) is crucial for producing high-quality phishing emails. To address this issue, we aim to explore a style-controlled discrete diffusion model approach that integrates style captions into the generation process, thereby improving both the quality and diversity of phishing email outputs.</p>
 <section id="methodology">
 <h2>Methodology<a class="headerlink" href="#methodology" title="Link to this heading">¶</a></h2>
-<section id="the-process-of-diffusion-models">
-<h3>The process of diffusion models<a class="headerlink" href="#the-process-of-diffusion-models" title="Link to this heading">¶</a></h3>
-<ul>
-<li><p>Forward process (adding noise):</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[q(x_t|x_{t-1})=\mathcal{N}(x_t;\sqrt{1-\beta_t}x_{t-1},\beta_tI)\]</div>
-</div>
-<p>In the text scenario, this can be: token embedding → add noise → obtain <span class="math notranslate nohighlight">\(x_t\)</span>.</p>
-</li>
-<li><p>Reverse process (denoising):</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[p_\theta(x_{t-1}|x_t,cond)=\mathcal{N}(x_{t-1};\mu_\theta(x_t,t,cond),\Sigma_\theta(x_t,t,cond))\]</div>
-</div>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mu_\theta(x_t,t,cond)=\frac{1}{\sqrt{1-\beta_t}}\left(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}_t}}\epsilon_\theta(x_t,t,cond)\right)\]</div>
-</div>
-<p>The model learns <span class="math notranslate nohighlight">\(\epsilon_\theta(x_t,t,\mathrm{cond})\)</span> and gradually recovers <span class="math notranslate nohighlight">\(x_0\)</span>.</p>
-</li>
-<li><p>Training objective:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[L_{simple}=\mathbb{E}_{t,x_0,\epsilon}[\|\epsilon-\epsilon_\theta(x_t,t,\mathrm{cond})\|^2]\]</div>
-</div>
-</li>
+<section id="the-process-of-traditional-continuous-space-diffusion-models">
+<h3>The process of traditional continuous-space diffusion models<a class="headerlink" href="#the-process-of-traditional-continuous-space-diffusion-models" title="Link to this heading">¶</a></h3>
+<p>The working process of traditional continuous-space diffusion models mainly includes two steps: noise addition and denoising. In the noise addition process, a Markov chain is used to gradually add noise to the data until it eventually becomes pure noise. The denoising process, on the other hand, is a reverse Markov chain, in which the model learns to recover the data from noise at each time step, thereby enabling generation. Specifically:</p>
+<ul class="simple">
+<li><p>Forward process (adding noise):
+$$
+q(x_t|x_{t-1})=\mathcal{N}(x_t;\sqrt{1-\beta_t}x_{t-1},\beta_tI)
+$$
+In the text scenario, this can be: token embedding → add noise → obtain $x_t$.
+Here, $\beta_t$ is a predefined noise schedule that controls the amount of noise added at each step; as $t$ approaches $T$, $x_t$ gradually becomes pure noise.</p></li>
+<li><p>Reverse process (denoising):
+$$
+p_\theta(x_{t-1}|x_t)=\mathcal{N}(x_{t-1};\mu_\theta(x_t,t),\Sigma_\theta(x_t,t))
+$$
+$$
+\mu_\theta(x_t,t)=\frac{1}{\sqrt{1-\beta_t}}\left(x_t-\frac{\beta_t}{\sqrt{1-\bar{\alpha}<em>t}}\epsilon</em>\theta(x_t,t)\right)
+$$
+The model learns $\epsilon_\theta(x_t,t)$ and gradually recovers $x_0$.
+In the reverse process, the model learns a parameterized noise predictor $\epsilon_\theta(x_t,t)$ to estimate the ability to recover the original data $x_0$ from the noisy data $x_t$ at each time step $t$. The training objective is to minimize the mean squared error between the predicted noise and the actual added noise. During the sampling phase, the model iteratively applies the reverse process to gradually remove noise from the noisy data, ultimately generating high-quality samples.</p></li>
+<li><p>Training objective:
+$$
+L_{simple}=\mathbb{E}<em>{t,x_0,\epsilon}[|\epsilon-\epsilon</em>\theta(x_t,t)|^2]
+$$</p></li>
 </ul>
 </section>
-<section id="incorporate-rules-into-diffusion">
-<h3>Incorporate rules into diffusion<a class="headerlink" href="#incorporate-rules-into-diffusion" title="Link to this heading">¶</a></h3>
-<p>Rules can be integrated into the diffusion process during the noise prediction / sampling constraint stages:</p>
-<ol class="arabic">
-<li><p>Classifier / Guidance style (Inference-time rule guidance, plug-and-play)</p>
-<ul>
-<li><p>Treat the rule <span class="math notranslate nohighlight">\(R\)</span> as a “constraint classifier”:</p>
-<ul class="simple">
-<li><p>At each denoising step, compute whether the generated sample satisfies the rule.</p></li>
-<li><p>If it deviates from the rule, modify the noise gradient (similar to classifier guidance).</p></li>
-<li><p>Formally:</p></li>
-</ul>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\nabla_{x_t}\log p(x_t|R)\approx\nabla_{x_t}\log p_\theta(x_t)+w\cdot\nabla_{x_t}\log p(R|x_t)\]</div>
-</div>
-</li>
-</ul>
-</li>
-<li><p>Rules encoded as condition vectors (In-training rule guidance)</p>
-<ul class="simple">
-<li><p>Formalize the rules (regex/logical predicates) → encode them as embeddings.</p></li>
-<li><p>Incorporate them into the noise prediction network (similar to prompts):</p></li>
-</ul>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\epsilon_\theta(x_t,t,rule\_embedding)\]</div>
-</div>
-<ul class="simple">
-<li><p>Effect: The model learns to follow these “rule signals” during denoising.</p></li>
-</ul>
-</li>
-<li><p>Rule-driven noise masking</p>
-<ul class="simple">
-<li><p>Rules specify which tokens can be diffused and which must be preserved.</p></li>
-<li><p>For example: If the rule states that verbs must be preserved → set the noise strength of the verb token embeddings to 0 and only add noise to other parts.</p></li>
-<li><p>This is equivalent to the rules controlling the noise schedule.</p></li>
-</ul>
-</li>
-</ol>
+<section id="discrete-diffusion-for-text-generation">
+<h3>Discrete diffusion for text generation<a class="headerlink" href="#discrete-diffusion-for-text-generation" title="Link to this heading">¶</a></h3>
+<p>Since text is discrete, performing diffusion directly in the text space is relatively difficult. Therefore, recent diffusion models typically conduct diffusion in a discrete space. Discrete diffusion language models are modeled using a continuous-time, discrete-space Markov chain. Specifically, the diffusion process for a position in a sequence is defined as:
+$$
+p(x_{t+\Delta t}=y\mid x_t=x)=\delta_{xy}+Q_t(y,x)\Delta t+O(\Delta t)
+\begin{array}
+{cc}\delta_{xy}=
+\begin{cases}
+1, &amp; x=y \
+0, &amp; x\neq y &amp; &amp;
+\end{cases}
+\end{array}
+$$
+Here, x and y are discrete text representations (such as token IDs), and $Q_t$ is a manually predefined time-dependent transition matrix that defines the probability of transitioning from one token to another.
+In general, $Q_t$ can be designed as a simple uniform transition matrix (where each token transitions to other tokens with equal probability, commonly referred to as $Q^{uniform}$), or it can be designed according to specific rules (for example, some tokens are more likely to transition to specific tokens, or tokens can only transition to specific mask tokens, commonly referred to as $Q^{absorb}$). During training, the model needs to learn to predict the distribution of the next state $x_{t+\Delta t}$ given the current state $x_t$ and time step $t$.</p>
+<p>Similarly, the reverse process can be written as:
+$$
+p(x_t=x\mid x_{t+\Delta t}=y)=\delta_{yx}+\overline{Q}_t(x,y)\Delta t+O(\Delta t)
+$$
+Here, $\overline{Q}<em>t$ is the reverse transition matrix, defining the probability of transitioning from one token to another in the reverse process. The model needs to learn to predict the distribution of the previous state $x_t$ given the current state $x</em>{t+\Delta t}$ and time step $t$. Through Bayesian inversion, the reverse transition matrix $\overline{Q}_t$ can be expressed as a function of the forward transition matrix $Q_t$ and the data distribution $p(x)$.
+$$
+\overline{Q}_t(y,x)=\frac{p_t(y)}{p_t(x)}Q_t(x,y)
+$$
+Here, $\frac{p_t(y)}{p_t(x)}$ is called the concrete score, reflecting the relative importance or probability of token $y$ compared to token $x$ at time step $t$.</p>
+<p>The goal of discrete language diffusion models is to predict this concrete score, thereby enabling the generation process from noise to text through reverse Markov diffusion. The model can be parameterized as $s_\theta(x,t)$, which is trained to approximate the concrete score:
+$$s_\theta(x,t)\approx\left[\frac{p_t(y)}{p_t(x)}\right]_{y\neq x}$$</p>
+<p>The training objective is to minimize the difference between the predicted concrete score and the actual concrete score, typically measured using Bregman divergence:
+$$
+\mathbb{E}<em>{x\thicksim p}\left[\sum</em>{y\neq x}w_{xy}\left(s_\theta(x)<em>y-\frac{p(y)}{p(x)}\log s</em>\theta(x)_y+K\left(\frac{p(y)}{p(x)}\right)\right)\right]
+$$
+where $K(a)=a(\log a-1)$
+Here, the ground truth concrete score $\frac{p(y)}{p(x)}$ is based on the true data distribution. However, in practice, we often use a predefined transition matrix $Q_t$ to approximate this distribution, resulting in a computable objective function. This is the core of diffusion model training:</p>
+<p>$$
+\mathbb{E}<em>{x_0 \sim p_0,, x \sim p(\cdot \mid x_0)}\left[
+\sum</em>{y \ne x} w_{xy}\left(s_\theta(x)<em>y-\frac{p(y \mid x_0)}{p(x \mid x_0)}\log s</em>\theta(x)_y
+\right)
+\right]
+$$
+$p(x|x_0)$ and $p(y|x_0)$ are both distributions defined by the forward diffusion process and are approximated using the predefined transition matrix $Q_t$.</p>
 </section>
-<section id="using-phishing-email-detection-rules-as-guidance">
-<h3>Using phishing email detection rules as guidance<a class="headerlink" href="#using-phishing-email-detection-rules-as-guidance" title="Link to this heading">¶</a></h3>
-<section id="transforming-rules-into-a-differentiable-approximately-differentiable-scorer">
-<h4>Transforming rules into a “differentiable/approximately differentiable” scorer<a class="headerlink" href="#transforming-rules-into-a-differentiable-approximately-differentiable-scorer" title="Link to this heading">¶</a></h4>
-<p>Phishing rules are often discrete (regex/keywords/structure). To use gradients in diffusion, we need to create differentiable approximations or surrogates:</p>
-<ul class="simple">
-<li><p>Structural (subject/greeting/Call To Action/sign-off)
-Surrogate: Sequence labeler (BiLSTM/Transformer) scores the completeness of placeholder templates:
-r_struct(x) ∈ [0,1]</p></li>
-<li><p>Tone/urgency/pressure tactics
-Surrogate: Sentiment/tone classifier (e.g., a specially trained “urgency” binary classifier) scores sentence-level embeddings:
-r_urgency(x)</p></li>
-<li><p>Domain/link inconsistency (only generate placeholders)
-Surrogate: Template consistency checker (a differentiable surrogate is a small discriminator that takes the embedding difference vector of [LINK_TEXT] and [URL_HOST] as input and outputs the “inconsistency” probability):
-r_mismatch(x)</p></li>
-<li><p>Brand impersonation (placeholder level)
-Surrogate: Named entity consistency/similarity constraint, aligning [ORG] with the organization mentioned in the text:
-r_brand(x)</p></li>
-</ul>
-<p>Rule set:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathcal{R}=\{r_k(x)\}_{k=1}^K,\text{each}\quad r_k:\mathrm{text}\to[0,1]\]</div>
-</div>
+<section id="incorporate-features-into-discrete-language-diffusion">
+<h3>Incorporate features into discrete language diffusion<a class="headerlink" href="#incorporate-features-into-discrete-language-diffusion" title="Link to this heading">¶</a></h3>
+<p>Purely data-driven discrete diffusion language modeling cannot guarantee that the generated text satisfies specific rules or constraints. To guide the generation process and ensure that the diffusion language model produces the content we desire, we can improve generation quality through the following approaches:</p>
+<section id="classifier-free-guidance">
+<h4>Classifier-free guidance<a class="headerlink" href="#classifier-free-guidance" title="Link to this heading">¶</a></h4>
+<p>In continuous-space diffusion models, classifier-free guidance is a common technique that trains an unconditional model by randomly dropping conditional information (such as class labels) during training, allowing the generation of specific attributes to be enhanced by adjusting the difference between the conditional and unconditional model outputs during sampling. For discrete language diffusion models, we can adopt a similar approach by treating rules as conditional information and randomly dropping these rules during training to train an unconditional model. This way, during sampling, we can enhance the model’s ability to generate text that satisfies specific rules by adjusting the difference between the conditional and unconditional model outputs.</p>
+<p>Specifically, the model input can include the current state of the text $x_t$, the time step $t$, and the rule condition $c$ (e.g., a natural language prompt describing the desired content). The model then becomes $s_\theta(x,t,c)$, which is trained to approximate the concrete score under the condition of $c$:
+$$s_\theta(x,t,c)\approx\left[\frac{p_t(y)}{p_t(x)}\right]<em>{y\neq x}$$
+The training objective then becomes
+$$
+\mathbb{E}</em>{(x_0, c) \sim p_0,, x \sim p(\cdot \mid x_0)}\left[
+\sum_{y \ne x} w_{xy}\left(s_\theta(x, c)<em>y-\frac{p(y \mid x_0)}{p(x \mid x_0)}\log s</em>\theta(x, c)_y
+\right)
+\right]
+$$</p>
+<p>During training, we randomly drop the rule condition $c$, allowing the model to learn to generate text without rule guidance. Then, during sampling, we can enhance the model’s ability to generate text that satisfies specific rules by adjusting the difference between the conditional and unconditional model outputs. Specifically, we can use the following formula to adjust the model output:
+$$s_{guided}(x,t,c) = s_\theta(x,t,c) + \lambda (s_\theta(x,t,c) - s_\theta(x,t))$$
+Here, $s_\theta(x,t)$ is the output of the unconditional model (i.e., when $c$ is dropped), and $\lambda$ is a hyperparameter that controls the strength of the guidance. By increasing $\lambda$, we can enhance the model’s ability to generate text that satisfies the specific rules described by $c$.</p>
 </section>
-<section id="equations-for-rule-guided-diffusion">
-<h4>Equations for rule-guided diffusion<a class="headerlink" href="#equations-for-rule-guided-diffusion" title="Link to this heading">¶</a></h4>
-<p>In the latent space, diffusion is performed with the current state denoted as <span class="math notranslate nohighlight">\(x_t\)</span>. The standard model predicts noise <span class="math notranslate nohighlight">\(\epsilon_\theta(x_t,t,c)\)</span>, where <span class="math notranslate nohighlight">\(c\)</span> is the condition (e.g., task/topic).
-Incorporating rule-guided gradient adjustment (similar to classifier-free guidance):</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\tilde{\epsilon}(x_t)=\epsilon_\theta(x_t,t,c)-\lambda\cdot\nabla_{x_t}\mathcal{E}(x_t),\quad\mathcal{E}(x_t)=-\sum_kw_k\log r_k(x_t)\]</div>
-</div>
-<ul class="simple">
-<li><p><span class="math notranslate nohighlight">\(\mathcal{E}\)</span> is the “energy”: the more the rules are satisfied, the lower <span class="math notranslate nohighlight">\(\mathcal{E}\)</span> becomes.</p></li>
-<li><p><span class="math notranslate nohighlight">\(w_k\)</span> is the rule weight; <span class="math notranslate nohighlight">\(\lambda\)</span> is the guidance strength.</p></li>
-<li><p>Intuition: Denoise in the direction of increasing rule scores.</p></li>
-</ul>
+<section id="information-noise-contrastive-estimation">
+<h4>Information Noise Contrastive Estimation<a class="headerlink" href="#information-noise-contrastive-estimation" title="Link to this heading">¶</a></h4>
+<p>Information Noise Contrastive Estimation (InfoNCE) is a technique used to train models to distinguish between positive and negative samples. In discrete language diffusion models, we can use InfoNCE to supervise the relationship between the model’s latent space representation and the rules. Specifically, InfoNCE is defined as
+$$
+\mathcal{L}<em>{\mathrm{InfoNCE}}=-\log\frac{\exp(s(q,k^+)/\tau)}{\sum</em>{k\in\mathcal{K}}\exp(s(q,k)/\tau)}
+$$
+where $q$ is the model’s latent representation, $k^+$ is a positive sample related to the rule, $\mathcal{K}$ is a set containing both positive and negative samples, $s(q,k)$ is a similarity function (e.g., dot product), and $\tau$ is a temperature parameter. By minimizing the InfoNCE loss, we can encourage the model’s latent representation to be more similar to positive samples related to the rules and less similar to negative samples, thereby enhancing the model’s ability to generate text that satisfies specific rules.</p>
 </section>
-<section id="approaches-to-incorporate-rules-into-diffusion">
-<h4>Approaches to incorporate rules into diffusion<a class="headerlink" href="#approaches-to-incorporate-rules-into-diffusion" title="Link to this heading">¶</a></h4>
-<ol class="arabic simple">
-<li><p>Gradient guidance of rule scores</p></li>
-</ol>
-<ul class="simple">
-<li><p>At each sampling step, use a discriminator/scorer to obtain <span class="math notranslate nohighlight">\(r_k(x_t)\)</span>, and backpropagate to get <span class="math notranslate nohighlight">\(\nabla_{x_t}\log r_k\)</span>, which can be injected into the above equation.</p></li>
-<li><p>Advantages: Simple to implement and compatible with any rule surrogate.</p></li>
-<li><p>PS: Apply temperature/smoothing to each scorer to avoid gradient explosion.</p></li>
-</ul>
-<ol class="arabic simple" start="2">
-<li><p>Masked diffusion (rules determine “which positions to diffuse”)</p></li>
-</ol>
-<ul class="simple">
-<li><p>First, use rule templates to produce a skeleton (pure placeholders):
-<code class="docutils literal notranslate"><span class="pre">[SUBJ]</span> <span class="pre">::</span> <span class="pre">[ORG]</span> <span class="pre">[NOTICE]</span></code>
-<code class="docutils literal notranslate"><span class="pre">Dear</span> <span class="pre">[RECIPIENT],</span> <span class="pre">...</span> <span class="pre">[CTA]</span> <span class="pre">...</span> <span class="pre">[URL]</span> <span class="pre">...</span> <span class="pre">[SIGNOFF]</span></code></p></li>
-<li><p>Create a noise mask <span class="math notranslate nohighlight">\(M\)</span>: slots that must satisfy the rules are frozen or have low noise, while unimportant slots have high noise to increase diversity.</p></li>
-<li><p>During sampling:
-<code class="docutils literal notranslate"><span class="pre">x_t</span> <span class="pre">=</span> <span class="pre">M</span> <span class="pre">⊙</span> <span class="pre">x_t</span> <span class="pre">+</span> <span class="pre">(1-M)</span> <span class="pre">⊙</span> <span class="pre">(x_t</span> <span class="pre">-</span> <span class="pre">η</span> <span class="pre">*</span> <span class="pre">guidance_grad)</span></code></p></li>
-</ul>
-<ol class="arabic simple" start="3">
-<li><p>Projection/Constraint Sampling</p></li>
-</ol>
-<ul class="simple">
-<li><p>After each denoising step, perform a projection: project the output back to the “template-valid” set (e.g., complete placeholders, valid order).</p></li>
-<li><p>Very stable for strict rules (e.g., length, mandatory fields); for tone-related rules, apply additional guidance.</p></li>
-</ul>
+<section id="end-of-sequence-prediction">
+<h4>End-of-sequence prediction<a class="headerlink" href="#end-of-sequence-prediction" title="Link to this heading">¶</a></h4>
+<p>In discrete language diffusion models, predicting the end of a sequence is an important task. By introducing a special end-of-sequence (EOS) token, we can train the model to generate this token at the appropriate time to mark the end of the text. To enhance the model’s ability to predict the EOS token, we can introduce an additional loss term during training that encourages the model to generate the EOS token at the correct position. This can be achieved as follows:
+$$
+\mathcal{L}<em>{<eos>}=-\frac{1}{B}\sum</em>{b=1}^B\frac{\sum_{t=1}^T\delta_{b,t}\log p_{b,t,e}}{\max\left(1,\sum_{t=1}^T\delta_{b,t}\right)}
+$$
+where $B$ is the batch size, $T$ is the sequence length, $\delta_{b,t}$ is an indicator function that is 1 if $t$ is the correct end position for sequence $b$ and 0 otherwise, and $p_{b,t,e}$ is the probability of the model predicting the EOS token at time step $t$. By minimizing this loss term, we can encourage the model to generate the EOS token at the correct position, thereby improving the quality and coherence of the generated text.</p>
 </section>
+</section>
+</section>
+<section id="workflow-of-style-controlled-diffusion-for-phishing-email-generation">
+<h2>Workflow of style-controlled diffusion for phishing email generation<a class="headerlink" href="#workflow-of-style-controlled-diffusion-for-phishing-email-generation" title="Link to this heading">¶</a></h2>
+<section id="dataset-collection-and-preprocessing">
+<h3>Dataset collection and preprocessing<a class="headerlink" href="#dataset-collection-and-preprocessing" title="Link to this heading">¶</a></h3>
+<p>First, we need to collect a corpus containing a large number of real emails. We extract relevant emails from publicly available email datasets (such as the Enron phishing email dataset) and perform cleaning and preprocessing, including removing sensitive information and standardizing text formats. Next, we need to generate corresponding style captions for each email, which can describe the content, structure, and keywords used in the email. For example, for an email containing specific phishing keywords, we can generate a caption such as “Contains keywords: account security, urgent notice.” This process is automated using a locally deployed language model (such as Qwen3) and supplemented with manual review to ensure the accuracy and relevance of the captions.</p>
+</section>
+<section id="model-design">
+<h3>Model design<a class="headerlink" href="#model-design" title="Link to this heading">¶</a></h3>
+<p>The model is based on the Score Entropy Discrete Diffusion (SEDD) framework. The original diffusion language model only supports language modeling tasks, but we need to introduce style captions as conditional information during generation. Therefore, we designed a conditional diffusion model branch to incorporate style captions. The style captions are processed through a pre-trained semantic embedding network and interact with the text generation branch via a cross-attention mechanism to guide the generation process.
+<img alt="alt text" src="../_images/image.png" /></p>
+</section>
+<section id="model-training">
+<h3>Model training<a class="headerlink" href="#model-training" title="Link to this heading">¶</a></h3>
+<p>During training, we use a comprehensive loss function to optimize the model’s performance. This includes the original language modeling loss (such as Bregman divergence) as well as the introduced conditional guidance losses (such as InfoNCE loss and EOS prediction loss). We train an unconditional model by randomly dropping style captions, allowing us to enhance the model’s ability to generate text that satisfies specific rules by adjusting the difference between the outputs of the conditional and unconditional models during sampling. The overall training objective can be expressed as follows:
+$$
+\mathcal{L}=\alpha\times\mathcal{L}<em>{Bregman}+\beta\times\mathcal{L}</em>{InfoNCE}+\gamma\times\mathcal{L}_{<eos>}
+$$</p>
+</section>
+<section id="model-evaluation">
+<h3>Model evaluation<a class="headerlink" href="#model-evaluation" title="Link to this heading">¶</a></h3>
+<p>We will use a variety of evaluation metrics to assess the quality and diversity of the generated phishing emails. Quality evaluation will include both human review and automated metrics (such as BERT embedding similarity) to evaluate the plausibility of the generated text and its consistency with the style captions.</p>
 </section>
 </section>
 <section id="references">
@@ -402,6 +378,7 @@ Incorporating rule-guided gradient adjustment (similar to classifier-free guidan
 <ul class="simple">
 <li><p><a class="reference external" href="https://arxiv.org/abs/2408.04220v1">Diffusion Guided Language Modeling</a> : ACL 2024</p></li>
 <li><p><a class="reference external" href="https://arxiv.org/abs/2402.14285">Symbolic Music Generation with Non-Differentiable Rule Guided Diffusion</a> : ICML 2024</p></li>
+<li><p><a class="reference external" href="https://arxiv.org/abs/2310.16834">Discrete Diffusion Modeling by Estimating the Ratios of the Data Distribution</a> : ICML 2024</p></li>
 </ul>
 </section>
 </section>
@@ -461,16 +438,23 @@ Incorporating rule-guided gradient adjustment (similar to classifier-free guidan
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Rule-guided Diffusion</a><ul>
+<li><a class="reference internal" href="#">Style-controlled Phishing Email Data Generation with Score Entropy Discrete Diffusion</a><ul>
 <li><a class="reference internal" href="#methodology">Methodology</a><ul>
-<li><a class="reference internal" href="#the-process-of-diffusion-models">The process of diffusion models</a></li>
-<li><a class="reference internal" href="#incorporate-rules-into-diffusion">Incorporate rules into diffusion</a></li>
-<li><a class="reference internal" href="#using-phishing-email-detection-rules-as-guidance">Using phishing email detection rules as guidance</a><ul>
-<li><a class="reference internal" href="#transforming-rules-into-a-differentiable-approximately-differentiable-scorer">Transforming rules into a “differentiable/approximately differentiable” scorer</a></li>
-<li><a class="reference internal" href="#equations-for-rule-guided-diffusion">Equations for rule-guided diffusion</a></li>
-<li><a class="reference internal" href="#approaches-to-incorporate-rules-into-diffusion">Approaches to incorporate rules into diffusion</a></li>
+<li><a class="reference internal" href="#the-process-of-traditional-continuous-space-diffusion-models">The process of traditional continuous-space diffusion models</a></li>
+<li><a class="reference internal" href="#discrete-diffusion-for-text-generation">Discrete diffusion for text generation</a></li>
+<li><a class="reference internal" href="#incorporate-features-into-discrete-language-diffusion">Incorporate features into discrete language diffusion</a><ul>
+<li><a class="reference internal" href="#classifier-free-guidance">Classifier-free guidance</a></li>
+<li><a class="reference internal" href="#information-noise-contrastive-estimation">Information Noise Contrastive Estimation</a></li>
+<li><a class="reference internal" href="#end-of-sequence-prediction">End-of-sequence prediction</a></li>
 </ul>
 </li>
+</ul>
+</li>
+<li><a class="reference internal" href="#workflow-of-style-controlled-diffusion-for-phishing-email-generation">Workflow of style-controlled diffusion for phishing email generation</a><ul>
+<li><a class="reference internal" href="#dataset-collection-and-preprocessing">Dataset collection and preprocessing</a></li>
+<li><a class="reference internal" href="#model-design">Model design</a></li>
+<li><a class="reference internal" href="#model-training">Model training</a></li>
+<li><a class="reference internal" href="#model-evaluation">Model evaluation</a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#references">References</a></li>
@@ -486,9 +470,8 @@ Incorporating rule-guided gradient adjustment (similar to classifier-free guidan
     </aside>
   </div>
 </div><script src="../_static/documentation_options.js?v=d45e8c67"></script>
-    <script src="../_static/doctools.js?v=9bcbadda"></script>
-    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
-    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     </body>
 </html>
