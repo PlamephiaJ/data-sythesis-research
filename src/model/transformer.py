@@ -15,7 +15,7 @@ You will need ONE small change in CaptionEncoder:
 import logging
 import math
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -270,7 +270,16 @@ class CrossAttnAdapter(nn.Module):
         x_attention_mask: torch.Tensor,
         style_tokens: torch.Tensor,
         style_attention_mask: torch.Tensor,
+        return_attn_map: bool = False,
     ) -> torch.Tensor:
+        if return_attn_map:
+            return self._forward_with_attn_map(
+                x,
+                x_attention_mask=x_attention_mask,
+                style_tokens=style_tokens,
+                style_attention_mask=style_attention_mask,
+            )
+
         from flash_attn.bert_padding import pad_input, unpad_input
         from flash_attn.flash_attn_interface import flash_attn_varlen_kvpacked_func
 
@@ -316,6 +325,40 @@ class CrossAttnAdapter(nn.Module):
         out_unpad = rearrange(out_unpad, "t h d -> t (h d)")
         out = pad_input(out_unpad, q_indices, B, S)  # (B,S,dim)
         return self.out(out)
+
+    def _forward_with_attn_map(
+        self,
+        x: torch.Tensor,
+        *,
+        x_attention_mask: torch.Tensor,
+        style_tokens: torch.Tensor,
+        style_attention_mask: torch.Tensor,
+    ):
+        xq = self.norm(x)
+        q = self.q(xq)
+        q = rearrange(q, "b s (h d) -> b h s d", h=self.n_heads)
+
+        kv = self.kv(style_tokens)
+        kv = rearrange(kv, "b l (two h d) -> b l two h d", two=2, h=self.n_heads)
+        k = rearrange(kv[:, :, 0], "b l h d -> b h l d")
+        v = rearrange(kv[:, :, 1], "b l h d -> b h l d")
+
+        scale = 1.0 / math.sqrt(self.head_dim)
+        attn_logits = (
+            torch.matmul(q.float(), k.float().transpose(-2, -1)) * scale
+        )  # (B,H,S,L)
+
+        q_mask = x_attention_mask[:, None, :, None].to(dtype=torch.bool)
+        k_mask = style_attention_mask[:, None, None, :].to(dtype=torch.bool)
+
+        min_value = torch.finfo(attn_logits.dtype).min
+        attn_logits = attn_logits.masked_fill(~k_mask, min_value)
+        attn_map = torch.softmax(attn_logits, dim=-1)
+        attn_map = attn_map * q_mask.to(attn_map.dtype)
+
+        out = torch.matmul(attn_map, v.float())
+        out = rearrange(out, "b h s d -> b s (h d)").to(dtype=x.dtype)
+        return self.out(out), attn_map
 
 
 #################################################################################
@@ -435,12 +478,14 @@ class DDiTBlock(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,  # (B,S) 1 valid 0 pad
         style_tokens: Optional[torch.Tensor] = None,  # (B,L,dim)
         style_attention_mask: Optional[torch.Tensor] = None,  # (B,L)
+        return_cross_attn: bool = False,
     ) -> torch.Tensor:
         from flash_attn.bert_padding import pad_input, unpad_input
         from flash_attn.flash_attn_interface import flash_attn_varlen_qkvpacked_func
 
         B, S = x.shape[0], x.shape[1]
         bias_dropout_scale_fn = self._get_bias_dropout_scale()
+        cross_attn_map = None
 
         # adaLN params
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
@@ -500,12 +545,17 @@ class DDiTBlock(nn.Module):
             and style_attention_mask is not None
         ):
             x_skip = x
-            x_xattn = self.cross_attn(
+            xattn_out = self.cross_attn(
                 x,
                 x_attention_mask=attention_mask,
                 style_tokens=style_tokens,
                 style_attention_mask=style_attention_mask,
+                return_attn_map=return_cross_attn,
             )
+            if return_cross_attn:
+                x_xattn, cross_attn_map = xattn_out
+            else:
+                x_xattn = xattn_out
             gate_x = self.xattn_gate(c)[:, None, :]  # (B,1,dim)
             x = bias_dropout_scale_fn(x_xattn, None, gate_x, x_skip, self.dropout)
 
@@ -519,6 +569,8 @@ class DDiTBlock(nn.Module):
             x,
             self.dropout,
         )
+        if return_cross_attn:
+            return x, cross_attn_map
         return x
 
 
@@ -630,6 +682,10 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         *,
         return_pooled: bool = False,
         return_hidden: bool = False,
+        return_cross_attn_maps: bool = False,
+        cross_attn_sink: Optional[list] = None,
+        cross_attn_block_indices: Optional[List[int]] = None,
+        cross_attn_head_reduce: bool = False,
     ) -> torch.Tensor:
         # embeddings
         x = self.vocab_embed(x_input_ids)
@@ -672,17 +728,48 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         )
 
         # forward blocks
+        cross_attn_maps = [] if return_cross_attn_maps else None
+        block_index_set = (
+            {int(i) for i in cross_attn_block_indices}
+            if cross_attn_block_indices is not None
+            else None
+        )
         with torch.amp.autocast(device_type="cuda", dtype=torch.bfloat16):
-            for blk in self.blocks:
-                x = blk(
-                    x,
-                    ctx.rotary_cos_sin,
-                    ctx.c,
-                    seqlens=ctx.seqlens,
-                    attention_mask=ctx.x_attention_mask,
-                    style_tokens=ctx.style_tokens,
-                    style_attention_mask=ctx.style_attention_mask,
-                )
+            for blk_idx, blk in enumerate(self.blocks):
+                if return_cross_attn_maps:
+                    should_capture_block = (
+                        block_index_set is None or blk_idx in block_index_set
+                    )
+                    x, blk_attn_map = blk(
+                        x,
+                        ctx.rotary_cos_sin,
+                        ctx.c,
+                        seqlens=ctx.seqlens,
+                        attention_mask=ctx.x_attention_mask,
+                        style_tokens=ctx.style_tokens,
+                        style_attention_mask=ctx.style_attention_mask,
+                        return_cross_attn=should_capture_block,
+                    )
+                    if blk_attn_map is not None:
+                        attn_tensor = blk_attn_map.detach()
+                        if cross_attn_head_reduce and attn_tensor.ndim == 4:
+                            attn_tensor = attn_tensor.mean(dim=1)
+                        cross_attn_maps.append(
+                            {
+                                "block_idx": blk_idx,
+                                "attn": attn_tensor.cpu().to(torch.float16),
+                            }
+                        )
+                else:
+                    x = blk(
+                        x,
+                        ctx.rotary_cos_sin,
+                        ctx.c,
+                        seqlens=ctx.seqlens,
+                        attention_mask=ctx.x_attention_mask,
+                        style_tokens=ctx.style_tokens,
+                        style_attention_mask=ctx.style_attention_mask,
+                    )
 
             h = x
 
@@ -703,6 +790,9 @@ class SEDD(nn.Module, PyTorchModelHubMixin):
         x = torch.scatter(
             x, dim=-1, index=x_input_ids[..., None], src=torch.zeros_like(x[..., :1])
         )
+
+        if return_cross_attn_maps and cross_attn_sink is not None:
+            cross_attn_sink.append(cross_attn_maps)
 
         if return_hidden and return_pooled:
             return x, h, pooled_h

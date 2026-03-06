@@ -224,6 +224,40 @@ def _run_style_control(rank, world_size, cfg):
         cfg_scale_schedule = cfg.sampling.cfg_scale_schedule
         cfg_scale_exp_k = cfg.sampling.cfg_scale_exp_k
         sample_cfg_scale = cfg.sampling.cfg_scale
+        save_cross_attn_maps = bool(cfg.training.get("save_cross_attn_maps", False))
+
+        def _pick_three_indices(n: int):
+            if n <= 0:
+                return []
+            if n == 1:
+                return [0]
+            if n == 2:
+                return [0, 1]
+            return [0, n // 2, n - 1]
+
+        save_cross_attn_head_avg = bool(
+            cfg.training.get("save_cross_attn_head_avg", True)
+        )
+        save_cross_attn_minimal = bool(
+            cfg.training.get("save_cross_attn_minimal", True)
+        )
+
+        raw_cross_attn_steps = cfg.training.get("save_cross_attn_step_indices", None)
+        raw_cross_attn_blocks = cfg.training.get("save_cross_attn_block_indices", None)
+
+        if raw_cross_attn_steps is not None:
+            cross_attn_step_indices = [int(x) for x in raw_cross_attn_steps]
+        elif save_cross_attn_minimal:
+            cross_attn_step_indices = _pick_three_indices(int(cfg.sampling.steps))
+        else:
+            cross_attn_step_indices = None
+
+        if raw_cross_attn_blocks is not None:
+            cross_attn_block_indices = [int(x) for x in raw_cross_attn_blocks]
+        elif save_cross_attn_minimal:
+            cross_attn_block_indices = _pick_three_indices(int(cfg.model.n_blocks))
+        else:
+            cross_attn_block_indices = None
         sampling_fn = sampling.PCSampler(
             graph,
             noise,
@@ -458,14 +492,22 @@ def _run_style_control(rank, world_size, cfg):
 
                     ema.store(score_model.parameters())
                     ema.copy_to(score_model.parameters())
-                    sample = sampling_fn(
+                    sample_out = sampling_fn(
                         score_model,
                         eval_text_mask,
                         sampled_style_caption,
                         sampled_style_caption_mask,
                         cfg_scale=float(sample_cfg_scale),
+                        return_cross_attn_maps=save_cross_attn_maps,
+                        cross_attn_step_indices=cross_attn_step_indices,
+                        cross_attn_block_indices=cross_attn_block_indices,
+                        cross_attn_head_reduce=save_cross_attn_head_avg,
                     )
                     ema.restore(score_model.parameters())
+                    if save_cross_attn_maps:
+                        sample, cross_attn_trace = sample_out
+                    else:
+                        sample, cross_attn_trace = sample_out, None
 
                     def truncate_at_eos(batch_ids, eos_id):
                         # batch_ids: torch.Tensor [B, T]
@@ -513,6 +555,58 @@ def _run_style_control(rank, world_size, cfg):
                     ]
                     with open(file_name, "w", encoding="utf-8") as file:
                         json.dump(results, file, indent=2, ensure_ascii=False)
+
+                    if save_cross_attn_maps and cross_attn_trace is not None:
+                        cross_attn_root = os.path.join(
+                            this_sample_dir, f"sample_{rank}_cross_attn_maps"
+                        )
+                        utils.makedirs(cross_attn_root)
+
+                        if (
+                            len(cross_attn_trace) > 0
+                            and len(cross_attn_trace[0].get("records", [])) > 0
+                        ):
+                            for sample_idx_in_batch in range(sample.shape[0]):
+                                sample_attn_dir = os.path.join(
+                                    cross_attn_root, f"sample_{sample_idx_in_batch}"
+                                )
+                                utils.makedirs(sample_attn_dir)
+
+                            for step_item in cross_attn_trace:
+                                step_idx = int(step_item["step_idx"])
+                                step_records = step_item.get("records", [])
+                                for record in step_records:
+                                    block_idx = int(record["block_idx"])
+                                    attn = record["attn"]
+                                    for sample_idx_in_batch in range(attn.shape[0]):
+                                        step_file = os.path.join(
+                                            cross_attn_root,
+                                            f"sample_{sample_idx_in_batch}",
+                                            f"step_{step_idx:04d}_block_{block_idx:02d}.pt",
+                                        )
+                                        torch.save(attn[sample_idx_in_batch], step_file)
+
+                        meta_file = os.path.join(cross_attn_root, "meta.json")
+                        with open(meta_file, "w", encoding="utf-8") as meta_fp:
+                            json.dump(
+                                {
+                                    "step_count": int(len(cross_attn_trace)),
+                                    "selected_step_indices": [
+                                        int(s["step_idx"]) for s in cross_attn_trace
+                                    ],
+                                    "maps_per_step": [
+                                        int(len(s.get("records", [])))
+                                        for s in cross_attn_trace
+                                    ],
+                                    "head_reduced": bool(save_cross_attn_head_avg),
+                                    "selected_block_indices": cross_attn_block_indices,
+                                    "format": "torch.save tensor with shape [x_seq_len, style_seq_len] if head_reduced else [n_heads, x_seq_len, style_seq_len]",
+                                    "file_pattern": "sample_{i}/step_{step:04d}_block_{block:02d}.pt",
+                                },
+                                meta_fp,
+                                indent=2,
+                                ensure_ascii=False,
+                            )
 
                     def extract_body(sentences):
                         result = []

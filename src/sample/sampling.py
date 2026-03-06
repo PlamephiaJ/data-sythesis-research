@@ -237,11 +237,34 @@ class PCSampler:
 
     @torch.no_grad()
     def __call__(
-        self, model, x_mask, style_caption, style_caption_mask, cfg_scale: float = 0.0
+        self,
+        model,
+        x_mask,
+        style_caption,
+        style_caption_mask,
+        cfg_scale: float = 0.0,
+        return_cross_attn_maps: bool = False,
+        cross_attn_step_indices=None,
+        cross_attn_block_indices=None,
+        cross_attn_head_reduce: bool = True,
     ):
         base_sampling_score_fn = mutils.ScoreFn(model, train=False, sampling=True)
+        step_index_set = (
+            {int(i) for i in cross_attn_step_indices}
+            if cross_attn_step_indices is not None
+            else None
+        )
+        block_indices_list = (
+            [int(i) for i in cross_attn_block_indices]
+            if cross_attn_block_indices is not None
+            else None
+        )
 
-        def make_score_fn(step_cfg_scale: float):
+        def make_score_fn(
+            step_cfg_scale: float,
+            step_cross_attn_sink=None,
+            capture_cross_attn: bool = False,
+        ):
             def score_fn(
                 x,
                 x_mask,
@@ -250,6 +273,20 @@ class PCSampler:
                 sigma,
                 **kwargs,
             ):
+                extra_kwargs = dict(kwargs)
+                if capture_cross_attn:
+                    extra_kwargs.update(
+                        {
+                            "return_cross_attn_maps": True,
+                            "cross_attn_sink": step_cross_attn_sink,
+                            "cross_attn_block_indices": block_indices_list,
+                            "cross_attn_head_reduce": bool(cross_attn_head_reduce),
+                            "uncond_kwargs": {
+                                "return_cross_attn_maps": False,
+                                "cross_attn_sink": None,
+                            },
+                        }
+                    )
                 return base_sampling_score_fn(
                     x,
                     x_mask,
@@ -257,17 +294,27 @@ class PCSampler:
                     style_caption_mask,
                     sigma,
                     cfg_scale=step_cfg_scale,
+                    **extra_kwargs,
                 )
 
             return score_fn
 
         x = self.graph.sample_limit(*self.batch_dims).to(self.device)
+        cross_attn_trace = [] if return_cross_attn_maps else None
 
         x_mask = x_mask[:, : self.batch_dims[1]].to(self.device)
         for i in range(self.steps):
             t = self.timesteps[i] * torch.ones(x.shape[0], 1, device=self.device)
             step_cfg_scale = cfg_scale * self._cfg_scale_multiplier(i)
-            score_fn = make_score_fn(step_cfg_scale)
+            capture_this_step = return_cross_attn_maps and (
+                step_index_set is None or i in step_index_set
+            )
+            step_cross_attn_sink = [] if capture_this_step else None
+            score_fn = make_score_fn(
+                step_cfg_scale,
+                step_cross_attn_sink,
+                capture_cross_attn=capture_this_step,
+            )
 
             x = self.projector(x)
             x = self.predictor.update_fn(
@@ -279,6 +326,13 @@ class PCSampler:
                 t,
                 self.dt,
             )
+            if capture_this_step:
+                if step_cross_attn_sink:
+                    cross_attn_trace.append(
+                        {"step_idx": int(i), "records": step_cross_attn_sink[0]}
+                    )
+                else:
+                    cross_attn_trace.append({"step_idx": int(i), "records": []})
 
         if self.denoise:
             x = self.projector(x)
@@ -296,4 +350,6 @@ class PCSampler:
         logging.getLogger(__name__).info(
             "sample output dtype/shape: %s %s", x.dtype, tuple(x.shape)
         )
+        if return_cross_attn_maps:
+            return x, cross_attn_trace
         return x
