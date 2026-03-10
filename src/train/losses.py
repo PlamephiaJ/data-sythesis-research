@@ -256,12 +256,18 @@ def build_loss_fn(
         loss_sedd = graph.score_entropy(
             log_score, sigma[:, None], perturbed_batch, text, text_mask
         )
-        loss_sedd = (dsigma[:, None] * loss_sedd).sum(dim=-1)
+        loss_sedd = dsigma[:, None] * loss_sedd
+        valid_mask = text_mask.to(loss_sedd.dtype)
+        valid_tokens = valid_mask.sum(dim=-1).clamp(min=1.0)
+        loss_sedd = (loss_sedd * valid_mask).sum(dim=-1) / valid_tokens
         component_losses["sedd"] = loss_sedd.mean().detach()
 
         total = log_score.new_zeros(loss_sedd.shape)
         if "sedd" in term_weights and term_weights["sedd"] > 0:
             total = total + term_weights["sedd"] * loss_sedd
+            component_losses["weighted_sedd"] = (
+                term_weights["sedd"] * loss_sedd.mean()
+            ).detach()
 
         if use_align:
             keep = (~drop_indices) & (style_caption_mask.sum(dim=1) > 0)
@@ -281,17 +287,32 @@ def build_loss_fn(
                 loss_align = _compute_info_nce_loss(emb_email, emb_caption, tau=tau)
                 total = total + term_weights["align"] * loss_align
                 component_losses["infonce"] = loss_align.detach()
+                component_losses["weighted_infonce"] = (
+                    term_weights["align"] * loss_align
+                ).detach()
             else:
                 component_losses["infonce"] = total.new_zeros((), device=total.device)
+                component_losses["weighted_infonce"] = total.new_zeros(
+                    (), device=total.device
+                )
         elif "align" in term_weights and term_weights["align"] > 0:
             component_losses["infonce"] = total.new_zeros((), device=total.device)
+            component_losses["weighted_infonce"] = total.new_zeros(
+                (), device=total.device
+            )
 
         if use_eos:
             eos_term = _eos_penalty_term(log_score, text, text_mask, eos_id=eos_id)
             total = total + term_weights["eos_penalty"] * eos_term
             component_losses["eos_prediction"] = eos_term.mean().detach()
+            component_losses["weighted_eos_prediction"] = (
+                term_weights["eos_penalty"] * eos_term.mean()
+            ).detach()
         elif "eos_penalty" in term_weights and term_weights["eos_penalty"] > 0:
             component_losses["eos_prediction"] = total.new_zeros(
+                (), device=total.device
+            )
+            component_losses["weighted_eos_prediction"] = total.new_zeros(
                 (), device=total.device
             )
 

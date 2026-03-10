@@ -371,6 +371,24 @@ def _run_style_control(rank, world_size, cfg):
                             reduced_train_details["eos_prediction"].item(),
                             step,
                         )
+                    if "weighted_sedd" in reduced_train_details:
+                        writer.add_scalar(
+                            "loss_components_weighted/train_sedd",
+                            reduced_train_details["weighted_sedd"].item(),
+                            step,
+                        )
+                    if "weighted_infonce" in reduced_train_details:
+                        writer.add_scalar(
+                            "loss_components_weighted/train_infonce",
+                            reduced_train_details["weighted_infonce"].item(),
+                            step,
+                        )
+                    if "weighted_eos_prediction" in reduced_train_details:
+                        writer.add_scalar(
+                            "loss_components_weighted/train_eos_prediction",
+                            reduced_train_details["weighted_eos_prediction"].item(),
+                            step,
+                        )
                     # Log learning rate
                     current_lr = optimizer.param_groups[0]["lr"]
                     writer.add_scalar("training/learning_rate", current_lr, step)
@@ -434,6 +452,24 @@ def _run_style_control(rank, world_size, cfg):
                         writer.add_scalar(
                             "loss_components/eval_eos_prediction",
                             reduced_eval_details["eos_prediction"].item(),
+                            step,
+                        )
+                    if "weighted_sedd" in reduced_eval_details:
+                        writer.add_scalar(
+                            "loss_components_weighted/eval_sedd",
+                            reduced_eval_details["weighted_sedd"].item(),
+                            step,
+                        )
+                    if "weighted_infonce" in reduced_eval_details:
+                        writer.add_scalar(
+                            "loss_components_weighted/eval_infonce",
+                            reduced_eval_details["weighted_infonce"].item(),
+                            step,
+                        )
+                    if "weighted_eos_prediction" in reduced_eval_details:
+                        writer.add_scalar(
+                            "loss_components_weighted/eval_eos_prediction",
+                            reduced_eval_details["weighted_eos_prediction"].item(),
                             step,
                         )
 
@@ -638,9 +674,14 @@ def _run_style_control(rank, world_size, cfg):
                         else:
                             similarity_scores = metric.score_batch(captions, body_texts)
 
-                        if similarity_scores:
-                            avg_similarity = sum(similarity_scores) / len(
-                                similarity_scores
+                        num_similarity_scores = (
+                            len(similarity_scores)
+                            if similarity_scores is not None
+                            else 0
+                        )
+                        if num_similarity_scores > 0:
+                            avg_similarity = (
+                                sum(similarity_scores) / num_similarity_scores
                             )
                             mprint(
                                 f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
@@ -1025,15 +1066,19 @@ def _run_raw(rank, world_size, cfg):
                     similarity_scores = metric.score_batch(
                         captions, extract_body(sentences)
                     )
-                    avg_similarity = sum(similarity_scores) / len(similarity_scores)
-                    mprint(
-                        f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
+                    num_similarity_scores = (
+                        len(similarity_scores) if similarity_scores is not None else 0
                     )
-                    # Log average similarity score to TensorBoard
-                    if rank == 0:
-                        writer.add_scalar(
-                            "eval/avg_similarity_score", avg_similarity, step
+                    if num_similarity_scores > 0:
+                        avg_similarity = sum(similarity_scores) / num_similarity_scores
+                        mprint(
+                            f"Step {step}: Average Similarity Score of generated samples: {avg_similarity:.4f}"
                         )
+                        # Log average similarity score to TensorBoard
+                        if rank == 0:
+                            writer.add_scalar(
+                                "eval/avg_similarity_score", avg_similarity, step
+                            )
 
                     if cfg.eval.mauve:
                         generated_texts = extract_body(sentences)
