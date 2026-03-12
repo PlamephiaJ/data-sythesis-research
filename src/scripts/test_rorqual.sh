@@ -6,7 +6,7 @@
 #SBATCH --gpus=h100:2
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=32G
-#SBATCH --time=00:20:00
+#SBATCH --time=1:00:00
 #SBATCH --output=slurm_logs/%x-%j.out
 
 set -euo pipefail
@@ -21,7 +21,10 @@ echo "Host: $(hostname)"
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 nvidia-smi
 
+echo "Starting training at $(date)"
+
 python -u src/train/train.py \
-    worker=rorqual \
-    model.scale_by_sigma=False \
-    worker.ngpus=2
+    worker=rorqual-test \
+    model.scale_by_sigma=False
+
+echo "Finished training at $(date)"
