@@ -19,6 +19,5 @@ source .venv/bin/activate
 # 跑训练：1 块 GPU，对应 1 个进程
 # 如果你有调试用的 config 覆盖项，比如只跑几步，可以在这里一起加
 python src/train/train.py \
-    worker=fir \
-    model.scale_by_sigma=False \
-    worker.ngpus=1
+    worker=fir-test \
+    model.scale_by_sigma=False
