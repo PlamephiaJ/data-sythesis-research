@@ -14,7 +14,7 @@ cd "$SLURM_SUBMIT_DIR"
 module load StdEnv/2023
 
 # 你的 uv 虚拟环境
-source .venv/bin/activate
+source ~/workspace/data-sythesis-research/.venv/bin/activate
 
 # 跑训练：1 块 GPU，对应 1 个进程
 # 如果你有调试用的 config 覆盖项，比如只跑几步，可以在这里一起加
