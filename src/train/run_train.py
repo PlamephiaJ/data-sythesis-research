@@ -39,6 +39,14 @@ def setup(rank, world_size, port):
         "nccl", rank=rank, world_size=world_size, timeout=datetime.timedelta(minutes=30)
     )
 
+    logger = utils.get_logger()
+    logger.info(
+        f"[rank {rank}] "
+        f"hostname={os.uname().nodename} "
+        f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES')} "
+        f"device_count={torch.cuda.device_count()}"
+    )
+
 
 def cleanup():
     dist.destroy_process_group()
@@ -58,6 +66,13 @@ def run_multiprocess(rank, world_size, cfg, port):
 
 def _run_style_control(rank, world_size, cfg):
     torch.cuda.set_device(rank)
+
+    logger = utils.get_logger()
+    logger.info(
+        f"[rank {rank}] current_device={torch.cuda.current_device()} "
+        f"name={torch.cuda.get_device_name(torch.cuda.current_device())}"
+    )
+
     work_dir = cfg.work_dir
     if "worker" not in cfg:
         raise ValueError("Missing required config key: worker")
@@ -849,7 +864,7 @@ def _run_raw(rank, world_size, cfg):
     # build score model
     score_model = SEDD_Raw(cfg).to(device)
     score_model = DDP(
-        score_model, device_ids=[rank], static_graph=True, find_unused_parameters=True
+        score_model, device_ids=[rank], static_graph=False, find_unused_parameters=True
     )
 
     num_parameters = sum(p.numel() for p in score_model.parameters())
@@ -865,7 +880,9 @@ def _run_raw(rank, world_size, cfg):
 
     # build noise
     noise = noise_lib.get_noise(cfg).to(device)
-    noise = DDP(noise, device_ids=[rank], static_graph=True)
+    noise = DDP(
+        noise, device_ids=[rank], static_graph=True, find_unused_parameters=True
+    )
     sampling_eps = 1e-5
 
     # build optimization state

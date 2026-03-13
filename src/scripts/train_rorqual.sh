@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=yuhao-sedd-debug
+#SBATCH --job-name=yuhao-sedd
 #SBATCH --account=def-lincai_gpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --gpus=h100:2
+#SBATCH --gpus=h100:4
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --time=1:00:00
+#SBATCH --mem=128G
+#SBATCH --time=24:00:00
 #SBATCH --output=slurm_logs/%x-%j.out
 
 set -euo pipefail
@@ -27,7 +27,7 @@ export HF_DATASETS_OFFLINE=1
 export HF_HUB_OFFLINE=1
 
 python -u src/train/train.py \
-    worker=rorqual-test \
+    worker=rorqual \
     model.scale_by_sigma=False
 
 echo "Finished training at $(date)"
