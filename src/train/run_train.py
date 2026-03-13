@@ -17,7 +17,7 @@ import model.noise_lib as noise_lib
 from data_process import data
 from model import SEDD, SEDD_Raw, graph_lib, graph_lib_raw
 from sample import sampling, sampling_raw
-from utils import utils
+from utils import hf_local, utils
 from utils.eval_factory import (
     get_alignment_metric,
     get_eval_lm,
@@ -46,6 +46,7 @@ def cleanup():
 
 def run_multiprocess(rank, world_size, cfg, port):
     try:
+        hf_local.configure_from_config(cfg)
         setup(rank, world_size, port)
         if cfg.model.name in ["small", "medium"]:
             _run_style_control(rank, world_size, cfg)
@@ -271,9 +272,21 @@ def _run_style_control(rank, world_size, cfg):
             cfg_scale_exp_k=cfg_scale_exp_k,
         )
 
+    pretrained_cfg = cfg.get("pretrained")
+    alignment_model_name = (
+        pretrained_cfg.get("alignment_model", "intfloat/e5-base-v2")
+        if pretrained_cfg
+        else "intfloat/e5-base-v2"
+    )
+    perplexity_model_name = (
+        pretrained_cfg.get("perplexity_model", "gpt2-large")
+        if pretrained_cfg
+        else "gpt2-large"
+    )
+
     metric = (
         get_alignment_metric(
-            model_name="intfloat/e5-base-v2",
+            model_name=alignment_model_name,
             use_sentence_transformers=True,
             device=str(device),
         )
@@ -710,7 +723,7 @@ def _run_style_control(rank, world_size, cfg):
 
                     if cfg.eval.perplexity:
                         with torch.inference_mode():
-                            eval_model = get_eval_lm("gpt2-large", device)
+                            eval_model = get_eval_lm(perplexity_model_name, device)
 
                             batch_size = worker_cfg.eval.perplexity_batch_size
                             num_samples = sample.size(0)
@@ -879,8 +892,12 @@ def _run_raw(rank, world_size, cfg):
     initial_step = int(state["step"])
 
     # load in tokenizer
-    tokenizer_text = get_text_tokenizer("gpt2")
-    tokenizer_caption = get_caption_tokenizer("bert-base-uncased")
+    if "tokenizer" not in cfg or "text" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.text")
+    if "tokenizer" not in cfg or "caption" not in cfg.tokenizer:
+        raise ValueError("Missing required config key: tokenizer.caption")
+    tokenizer_text = get_text_tokenizer(cfg.tokenizer.text)
+    tokenizer_caption = get_caption_tokenizer(cfg.tokenizer.caption)
     # Build data iterators
     train_ds, eval_ds = data.get_dataloaders(cfg)
 
@@ -909,8 +926,20 @@ def _run_raw(rank, world_size, cfg):
             cfg, graph, noise, sampling_shape, sampling_eps, device
         )
 
+    pretrained_cfg = cfg.get("pretrained")
+    alignment_model_name = (
+        pretrained_cfg.get("alignment_model", "intfloat/e5-base-v2")
+        if pretrained_cfg
+        else "intfloat/e5-base-v2"
+    )
+    perplexity_model_name = (
+        pretrained_cfg.get("perplexity_model", "gpt2-large")
+        if pretrained_cfg
+        else "gpt2-large"
+    )
+
     metric = get_alignment_metric(
-        model_name="intfloat/e5-base-v2",
+        model_name=alignment_model_name,
         use_sentence_transformers=True,
         device=str(device),
     )
@@ -1098,7 +1127,7 @@ def _run_raw(rank, world_size, cfg):
 
                     if cfg.eval.perplexity:
                         with torch.inference_mode():
-                            eval_model = get_eval_lm("gpt2-large", device)
+                            eval_model = get_eval_lm(perplexity_model_name, device)
 
                             batch_size = worker_cfg.eval.perplexity_batch_size
                             num_samples = sample.size(0)

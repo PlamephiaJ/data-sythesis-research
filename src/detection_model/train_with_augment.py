@@ -22,6 +22,7 @@ from transformers import (
 )
 
 from data_process import dataset_factory
+from utils import hf_local
 
 
 try:
@@ -245,6 +246,7 @@ def _build_aug_train_eval_dataset(
 
 
 def _run_training(cfg: DictConfig):
+    hf_local.configure_from_config(cfg)
     set_seed(cfg.training.seed)
 
     run_dir = base_train._resolve_run_dir(base_train._build_output_dir(cfg))
@@ -263,7 +265,8 @@ def _run_training(cfg: DictConfig):
         final_model_dir.mkdir(parents=True, exist_ok=True)
 
         cleaner = base_train.build_cleaner(cfg.cleaner)
-        tokenizer = AutoTokenizer.from_pretrained(cfg.model.name)
+        model_path = hf_local.resolve_pretrained_path(str(cfg.model.name))
+        tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
 
         used_max_length = base_train._effective_max_length(
             cfg.data.max_length, tokenizer, cfg.model.name
@@ -312,7 +315,9 @@ def _run_training(cfg: DictConfig):
             class_weights = torch.tensor([weight_neg, weight_pos], dtype=torch.float)
 
         model = AutoModelForSequenceClassification.from_pretrained(
-            cfg.model.name, num_labels=cfg.model.num_labels
+            model_path,
+            num_labels=cfg.model.num_labels,
+            local_files_only=True,
         )
 
         if "max_steps" not in cfg.training:

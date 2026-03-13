@@ -6,11 +6,13 @@ import torch
 from transformers import GPT2LMHeadModel
 
 from metric import aliment
+from utils import hf_local
 
 
 @lru_cache(maxsize=None)
 def get_eval_lm(model_name: str = "gpt2-large", device: str = "cuda"):
-    model = GPT2LMHeadModel.from_pretrained(model_name)
+    model_path = hf_local.resolve_pretrained_path(model_name)
+    model = GPT2LMHeadModel.from_pretrained(model_path, local_files_only=True)
     model = model.to(torch.device(device)).eval()
     return model
 
@@ -22,7 +24,7 @@ def get_alignment_metric(
     device: Optional[str] = None,
 ):
     return aliment.make_default_alignment_metric(
-        model_name=model_name,
+        model_name=hf_local.resolve_pretrained_path(model_name),
         use_sentence_transformers=use_sentence_transformers,
         device=device,
         policy=aliment.MaxSimPolicy(),

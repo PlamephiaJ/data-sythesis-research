@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel
 
+from utils import hf_local
+
 
 def l2_normalize(x, eps=1e-8) -> torch.Tensor:
     return x / (x.norm(dim=-1, keepdim=True).clamp_min(eps))
@@ -40,7 +42,10 @@ class CaptionEncoder(nn.Module):
     ):
         super().__init__()
 
-        self.encoder = AutoModel.from_pretrained(name).to(device=device)
+        model_path = hf_local.resolve_pretrained_path(name)
+        self.encoder = AutoModel.from_pretrained(model_path, local_files_only=True).to(
+            device=device
+        )
         self.pool = pool
         self.dropout = nn.Dropout(dropout)
 

@@ -8,10 +8,12 @@ import model.noise_lib as noise_lib
 import utils.utils as utils
 from model import SEDD
 from train.ema import ExponentialMovingAverage
+from utils import hf_local
 
 
 def load_model_hf(dir, device):
-    score_model = SEDD.from_pretrained(dir).to(device)
+    model_path = hf_local.resolve_pretrained_path(dir)
+    score_model = SEDD.from_pretrained(model_path).to(device)
     graph = graph_lib.get_graph(score_model.config, device)
     noise = noise_lib.get_noise(score_model.config).to(device)
     return score_model, graph, noise

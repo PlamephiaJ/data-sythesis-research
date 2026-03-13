@@ -1,6 +1,10 @@
 defaults:
   - _self_
 
+pretrained:
+  local_dir: hf-local
+  download_if_missing: true
+
 model:
   name: bert-base-uncased
   num_labels: 2

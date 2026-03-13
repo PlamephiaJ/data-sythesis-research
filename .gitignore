@@ -81,3 +81,5 @@ slurm_logs/
 # Custom files
 draft.py
 temp/
+hf-local/*
+!hf-local/.gitkeep

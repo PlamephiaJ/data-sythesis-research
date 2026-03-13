@@ -7,6 +7,8 @@ from typing import List, Optional, Protocol, Sequence
 
 import numpy as np
 
+from utils import hf_local
+
 
 # =========================
 # Utility: basic text split
@@ -87,8 +89,9 @@ class SentenceTransformersBackend:
     def __post_init__(self):
         from sentence_transformers import SentenceTransformer
 
+        model_path = hf_local.resolve_pretrained_path(self.model_name)
         object.__setattr__(
-            self, "_model", SentenceTransformer(self.model_name, device=self.device)
+            self, "_model", SentenceTransformer(model_path, device=self.device)
         )
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
@@ -119,12 +122,17 @@ class TransformersMeanPoolingBackend:
         import torch
         from transformers import AutoModel, AutoTokenizer
 
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name, use_fast=True)
-        model = AutoModel.from_pretrained(self.model_name)
+        model_path = hf_local.resolve_pretrained_path(self.model_name)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_path, use_fast=True, local_files_only=True
+        )
+        model = AutoModel.from_pretrained(model_path, local_files_only=True)
         model.eval()
 
         if self.device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            object.__setattr__(
+                self, "device", "cuda" if torch.cuda.is_available() else "cpu"
+            )
         model.to(self.device)
 
         object.__setattr__(self, "_torch", torch)

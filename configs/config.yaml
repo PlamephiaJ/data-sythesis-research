@@ -9,6 +9,12 @@ tokenizer:
   text: gpt2
   caption: bert-base-uncased
 
+pretrained:
+  local_dir: hf-local
+  download_if_missing: true
+  alignment_model: intfloat/e5-base-v2
+  perplexity_model: gpt2-large
+
 tokens: 50257
 
 training:

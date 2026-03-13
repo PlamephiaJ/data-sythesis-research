@@ -10,11 +10,12 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.types import RunMode
 from omegaconf import OmegaConf, open_dict
 
-from utils import utils
+from utils import hf_local, utils
 
 
 @hydra.main(version_base=None, config_path="../../configs", config_name="config")
 def main(cfg):
+    hf_local.configure_from_config(cfg)
     if "worker" not in cfg:
         raise ValueError("Missing required config key: worker")
     worker_cfg = cfg.worker
@@ -24,6 +25,7 @@ def main(cfg):
         hydra_cfg = OmegaConf.load(hydra_cfg_path).hydra
 
         cfg = utils.load_hydra_config_from_run(cfg.load_dir)
+        hf_local.configure_from_config(cfg)
 
         work_dir = cfg.work_dir
         utils.makedirs(work_dir)

@@ -8,6 +8,7 @@ import torch
 import sample.sampling as sampling
 import utils.utils as utils
 from sample.load_model import load_model
+from utils import hf_local
 from utils.tokenizer_factory import get_caption_tokenizer, get_text_tokenizer
 
 
@@ -77,6 +78,7 @@ def main():
         raise ValueError(
             "Missing run config at <model_path>/.hydra/config.yaml. Config is required."
         )
+    hf_local.configure_from_config(cfg)
 
     if "tokenizer" not in cfg or "text" not in cfg.tokenizer:
         raise ValueError("Missing required config key: tokenizer.text")

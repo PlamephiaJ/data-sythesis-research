@@ -13,7 +13,7 @@ from tqdm import tqdm
 import sample.sampling as sampling
 from data_process import data as data_process
 from sample.load_model import load_model
-from utils import utils
+from utils import hf_local, utils
 from utils.eval_factory import get_alignment_metric, get_eval_lm, get_mauve_score
 from utils.tokenizer_factory import get_caption_tokenizer, get_text_tokenizer
 
@@ -73,6 +73,7 @@ def main():
         raise ValueError(
             "Missing run config at <model_path>/.hydra/config.yaml. Config is required."
         )
+    hf_local.configure_from_config(cfg)
     if "worker" not in cfg:
         raise ValueError("Missing required config key: worker")
     worker_cfg = cfg.worker
@@ -151,6 +152,18 @@ def main():
         pin_memory=True,
     )
 
+    pretrained_cfg = cfg.get("pretrained")
+    alignment_model_name = (
+        pretrained_cfg.get("alignment_model", "intfloat/e5-base-v2")
+        if pretrained_cfg
+        else "intfloat/e5-base-v2"
+    )
+    perplexity_model_name = (
+        pretrained_cfg.get("perplexity_model", "gpt2-large")
+        if pretrained_cfg
+        else "gpt2-large"
+    )
+
     def truncate_at_eos(batch_ids, eos_id):
         output = []
         for row in batch_ids.tolist():
@@ -162,7 +175,7 @@ def main():
         return output
 
     metric = get_alignment_metric(
-        model_name="intfloat/e5-base-v2",
+        model_name=alignment_model_name,
         use_sentence_transformers=True,
         device=str(device),
     )
@@ -188,7 +201,7 @@ def main():
         open(rank_samples_file, "w", encoding="utf-8", buffering=1) as sample_log_fp,
         torch.inference_mode(),
     ):
-        eval_model = get_eval_lm("gpt2-large", device)
+        eval_model = get_eval_lm(perplexity_model_name, device)
 
         if "eval" not in worker_cfg or "perplexity_batch_size" not in worker_cfg.eval:
             raise ValueError(
